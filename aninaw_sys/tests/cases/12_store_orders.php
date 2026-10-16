@@ -239,6 +239,27 @@ test('payment with the order: full or down payment, confirmed in one step, all o
     assert_same(0, find_order($full['order_id'])['balance_cents']);
 });
 
+test('an ended account mapping can be reopened without opening the days it was closed', function () {
+    $fx = $GLOBALS['fx'];
+    act_as('treasurer', 'TST');
+    $box = (int) db_value("SELECT id FROM financial_accounts WHERE account_name = 'Store Counter Box'");
+    $mapping = (int) db_value('SELECT id FROM fund_account_mappings WHERE fund_id = ? AND financial_account_id = ?', [$fx['general'], $box]);
+    end_fund_mapping($mapping);
+    assert_same(date('Y-m-d'), db_value('SELECT valid_until FROM fund_account_mappings WHERE id = ?', [$mapping]), 'mapped today, so it ends today');
+    assert_same('extended', reopen_fund_mapping($mapping));
+    assert_same(null, db_value('SELECT valid_until FROM fund_account_mappings WHERE id = ?', [$mapping]), 'end date removed');
+    assert_rejected(fn() => reopen_fund_mapping($mapping), 'no end date');
+
+    // Ended long ago: a new period starts today and the closed days stay closed.
+    db_query('UPDATE fund_account_mappings SET valid_from = ?, valid_until = ? WHERE id = ?', [date('Y-m-d', strtotime('-20 days')), date('Y-m-d', strtotime('-10 days')), $mapping]);
+    assert_same('remapped', reopen_fund_mapping($mapping));
+    require_fund_account_mapping($fx['general'], $box, date('Y-m-d'));
+    require_fund_account_mapping($fx['general'], $box, date('Y-m-d', strtotime('-15 days')));
+    assert_rejected(fn() => require_fund_account_mapping($fx['general'], $box, date('Y-m-d', strtotime('-5 days'))));
+    assert_rejected(fn() => reopen_fund_mapping($mapping), 'later mapping');
+    assert_true((bool) db_value("SELECT 1 FROM audit_logs WHERE action = 'fund.mapping_reopened'"), 'reopening is audited');
+});
+
 test('store reports agree with stock, orders and posted payments', function () {
     require_once APP_ROOT . '/includes/reports.php';
     act_as('treasurer', 'TST');

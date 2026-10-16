@@ -278,6 +278,46 @@ function end_fund_mapping(int $mappingId): void
     audit_log('fund.mapping_ended', 'fund_account', (int) $row['fund_id'], $institutionId, (int) auth_user()['id'], ['financial_account_id' => (int) $row['financial_account_id'], 'valid_until' => $endDate]);
 }
 
+/**
+ * Lets an account hold the fund's money again, with no end date. A mapping that is still
+ * running or ended no earlier than yesterday is extended; one that ended earlier gets a new
+ * period from today, so the days it was ended stay closed to back-dated postings.
+ * Returns 'extended' or 'remapped'.
+ */
+function reopen_fund_mapping(int $mappingId): string
+{
+    $institutionId = (int) current_institution_id();
+    $row = db_one('SELECT * FROM fund_account_mappings WHERE institution_id = ? AND id = ?', [$institutionId, $mappingId]) ?? fail_user('Mapping not found.');
+    find_fund((int) $row['fund_id'], ['draft', 'pending', 'active']);
+    $account = find_financial_account((int) $row['financial_account_id']);
+    if ($account['status'] !== 'active') {
+        fail_user('"' . $account['account_name'] . '" is not active. Reactivate the account first.');
+    }
+    if ($row['valid_until'] === null) {
+        fail_user('This mapping has no end date; the account can already be used.');
+    }
+    $today = date('Y-m-d');
+    $later = db_value(
+        'SELECT 1 FROM fund_account_mappings WHERE institution_id = ? AND fund_id = ? AND financial_account_id = ? AND id <> ? AND (valid_until IS NULL OR valid_until >= ?)',
+        [$institutionId, $row['fund_id'], $row['financial_account_id'], $mappingId, $row['valid_from']]
+    );
+    if ($later) {
+        fail_user('This account already has a later mapping to the fund. Use that one instead.');
+    }
+    if ($row['valid_until'] >= date('Y-m-d', strtotime('-1 day'))) {
+        db_query('UPDATE fund_account_mappings SET valid_until = NULL WHERE id = ?', [$mappingId]);
+        $result = 'extended';
+    } else {
+        db_query('INSERT INTO fund_account_mappings (institution_id, fund_id, financial_account_id, valid_from, valid_until) VALUES (?, ?, ?, ?, NULL)',
+            [$institutionId, $row['fund_id'], $row['financial_account_id'], $today]);
+        $result = 'remapped';
+    }
+    audit_log('fund.mapping_reopened', 'fund_account', (int) $row['fund_id'], $institutionId, (int) auth_user()['id'],
+        ['financial_account_id' => (int) $row['financial_account_id'], 'how' => $result, 'from' => $result === 'extended' ? $row['valid_from'] : $today, 'valid_until' => null],
+        ['valid_from' => $row['valid_from'], 'valid_until' => $row['valid_until']]);
+    return $result;
+}
+
 // ---------------------------------------------------------------------------
 // Opening balances (controlled)
 // ---------------------------------------------------------------------------

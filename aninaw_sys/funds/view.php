@@ -33,6 +33,10 @@ if (is_post()) {
                 end_fund_mapping(post_int('mapping_id') ?? 0);
                 flash('success', 'Mapping ended');
                 break;
+            case 'reopen_mapping':
+                $how = reopen_fund_mapping(post_int('mapping_id') ?? 0);
+                flash('success', 'Account can be used again', $how === 'extended' ? 'The end date was removed.' : 'A new period starts today; the days it was ended stay closed.');
+                break;
             case 'opening_balance':
                 post_opening_balance($fundId, $_POST);
                 flash('success', 'Opening balance posted');
@@ -114,6 +118,14 @@ $access = db_all(
     [$institutionId, $fundId]
 );
 $unmappedAccounts = options_from_rows(db_all("SELECT * FROM financial_accounts WHERE institution_id = ? AND status = 'active' ORDER BY account_name", [$institutionId]), 'id', 'account_name');
+$reopenBlocked = [];
+foreach ($mappings as $row) {
+    foreach ($mappings as $other) {
+        if ($other['id'] !== $row['id'] && $other['financial_account_id'] === $row['financial_account_id'] && ($other['valid_until'] === null || $other['valid_until'] >= $row['valid_from']) && $other['valid_from'] >= $row['valid_from']) {
+            $reopenBlocked[(int) $row['id']][] = (int) $row['financial_account_id'];
+        }
+    }
+}
 $openableMappings = array_filter($mappings, static fn($m) => !$m['opening_entry'] && ($m['valid_until'] === null || $m['valid_until'] >= date('Y-m-d')));
 $currency = current_currency();
 $transitions = ['draft' => ['active' => 'Activate'], 'pending' => ['active' => 'Activate'], 'active' => ['suspended' => 'Suspend', 'closed' => 'Close'], 'suspended' => ['active' => 'Reactivate', 'closed' => 'Close']];
@@ -241,6 +253,12 @@ require APP_ROOT . '/includes/header.php';
                                         <form method="post" data-confirm="End this mapping?" data-confirm-text="New transactions for this fund will no longer be allowed in this account.">
                                             <?= csrf_field() ?><input type="hidden" name="action" value="end_mapping"><input type="hidden" name="mapping_id" value="<?= e($row['id']) ?>">
                                             <button class="btn btn-outline-secondary btn-xs" type="submit">End</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if ($row['valid_until'] !== null && !in_array((int) $row['financial_account_id'], $reopenBlocked[(int) $row['id']] ?? [], true) && $fund['status'] !== 'closed'): ?>
+                                        <form method="post" data-confirm="<?= $current ? 'Remove the end date?' : 'Use this account again?' ?>" data-confirm-text="<?= e($row['account_name']) ?> can hold this fund's money again, with no end date.">
+                                            <?= csrf_field() ?><input type="hidden" name="action" value="reopen_mapping"><input type="hidden" name="mapping_id" value="<?= e($row['id']) ?>">
+                                            <button class="btn btn-outline-primary btn-xs" type="submit"><?= $current ? 'Remove end date' : 'Reopen' ?></button>
                                         </form>
                                     <?php endif; ?>
                                     <?php if ($row['opening_entry']): ?>
