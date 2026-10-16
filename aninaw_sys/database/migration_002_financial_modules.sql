@@ -21,20 +21,22 @@
 -- 4. New permission codes and role mappings (data only; matched by code).
 --
 -- All changes are additive. No existing column or row is modified.
+-- Safe to run more than once: anything that already exists is skipped
+-- (requires MariaDB, as shipped with XAMPP).
 
 START TRANSACTION;
 
 ALTER TABLE `financial_accounts`
-  ADD COLUMN `custodian_membership_id` bigint(20) UNSIGNED DEFAULT NULL AFTER `account_reference`,
-  ADD KEY `idx_financial_account_custodian` (`institution_id`, `custodian_membership_id`),
-  ADD CONSTRAINT `financial_accounts_ibfk_2` FOREIGN KEY (`institution_id`, `custodian_membership_id`)
+  ADD COLUMN IF NOT EXISTS `custodian_membership_id` bigint(20) UNSIGNED DEFAULT NULL AFTER `account_reference`,
+  ADD KEY IF NOT EXISTS `idx_financial_account_custodian` (`institution_id`, `custodian_membership_id`),
+  ADD CONSTRAINT `financial_accounts_ibfk_2` FOREIGN KEY IF NOT EXISTS (`institution_id`, `custodian_membership_id`)
       REFERENCES `institution_memberships` (`institution_id`, `id`);
 
 ALTER TABLE `file_attachments`
-  ADD COLUMN `entity_type` varchar(60) DEFAULT NULL AFTER `uploaded_by_membership_id`,
-  ADD COLUMN `entity_id` bigint(20) UNSIGNED DEFAULT NULL AFTER `entity_type`,
-  ADD KEY `idx_attachment_entity` (`institution_id`, `entity_type`, `entity_id`),
-  ADD KEY `idx_attachment_checksum` (`institution_id`, `checksum`);
+  ADD COLUMN IF NOT EXISTS `entity_type` varchar(60) DEFAULT NULL AFTER `uploaded_by_membership_id`,
+  ADD COLUMN IF NOT EXISTS `entity_id` bigint(20) UNSIGNED DEFAULT NULL AFTER `entity_type`,
+  ADD KEY IF NOT EXISTS `idx_attachment_entity` (`institution_id`, `entity_type`, `entity_id`),
+  ADD KEY IF NOT EXISTS `idx_attachment_checksum` (`institution_id`, `checksum`);
 
 CREATE TABLE IF NOT EXISTS `event_organizers` (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,

@@ -39,11 +39,16 @@ Design decisions, the accounting model, schema gaps and module status are listed
 Part 1 (platform roles, participant login link), Part 2 (roles and permissions seed) and
 Part 3 (migration 002 for the financial modules).
 
-**Upgrading a milestone 1 installation** (database already imported before the financial modules)
+That is all for a new installation. **Do not import the migration file below**: `schema.sql`
+already contains it (Part 3).
+
+**Only if you are upgrading** a database that was imported from the *milestone 1* `schema.sql`
+(before the financial modules existed) and you want to keep its data:
 
 Import `database/migration_002_financial_modules.sql` once into `aninaw_db`
 (phpMyAdmin → Import, or `mysql -u root aninaw_db < database/migration_002_financial_modules.sql`).
-It only adds columns, a table and permission rows; no existing data is changed.
+It only adds columns, a table and permission rows; no existing data is changed. Anything that
+already exists is skipped, so running it on an up-to-date database does no harm.
 
 ## 3. Configure
 
