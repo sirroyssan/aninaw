@@ -189,7 +189,16 @@
     //   data-danger                  red confirm button (destructive / reversal)
     //   data-reason="Label"          require a written reason, sent as "reason"
     // ---------------------------------------------------------------------
-    function lockForm(form) {
+    function lockForm(form, submitter) {
+        // Disabled buttons are not submitted, so keep the clicked button's name/value.
+        if (submitter && submitter.name && !form.querySelector('input[type="hidden"][data-submitter]')) {
+            var keep = document.createElement('input');
+            keep.type = 'hidden';
+            keep.name = submitter.name;
+            keep.value = submitter.value;
+            keep.setAttribute('data-submitter', '');
+            form.appendChild(keep);
+        }
         form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (button) {
             button.disabled = true;
             if (button.tagName === 'BUTTON' && !button.dataset.originalHtml) {
@@ -208,11 +217,12 @@
         if (form.dataset.confirmed === '1' || !needsConfirm || !Alert) {
             if (window.AninawValidation && !window.AninawValidation.validateRequired(form)) { event.preventDefault(); return; }
             form.dataset.submitting = '1';
-            lockForm(form);
+            lockForm(form, event.submitter);
             return;
         }
 
         event.preventDefault();
+        var submitter = event.submitter;
         if (window.AninawValidation && !window.AninawValidation.validateRequired(form)) { return; }
         var danger = form.hasAttribute('data-danger');
         var reasonLabel = form.getAttribute('data-reason');
@@ -248,7 +258,7 @@
             }
             form.dataset.confirmed = '1';
             form.dataset.submitting = '1';
-            lockForm(form);
+            lockForm(form, submitter);
             HTMLFormElement.prototype.submit.call(form);
         });
     });

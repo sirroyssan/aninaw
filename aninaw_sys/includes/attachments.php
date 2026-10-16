@@ -72,15 +72,8 @@ function store_attachment(string $field, string $entityType, int $entityId, bool
     $institutionId = (int) current_institution_id();
     $checksum = hash_file('sha256', (string) $file['tmp_name']);
 
-    if ($rejectDuplicate) {
-        // The same document cannot support two different records (e.g. double liquidation).
-        $used = db_one(
-            'SELECT entity_type, entity_id FROM file_attachments WHERE institution_id = ? AND checksum = ? AND entity_type IN (?, ?) LIMIT 1',
-            [$institutionId, $checksum, 'expense', 'advance_expense']
-        );
-        if ($used) {
-            fail_user('This exact document has already been used to support another expense (' . humanize($used['entity_type']) . ' #' . $used['entity_id'] . ').');
-        }
+    if ($rejectDuplicate && ($used = find_duplicate_document($checksum))) {
+        fail_user('This exact document has already been used to support another expense (' . humanize($used['entity_type']) . ' #' . $used['entity_id'] . ').');
     }
 
     $directory = 'uploads/' . (str_starts_with($entityType, 'payment') || $entityType === 'expense' || $entityType === 'advance_expense' ? 'receipts' : 'attachments')
@@ -110,6 +103,18 @@ function store_attachment(string $field, string $entityType, int $entityId, bool
     $attachmentId = (int) db()->lastInsertId();
     audit_log('attachment.uploaded', $entityType, $entityId, $institutionId, (int) auth_user()['id'], ['attachment_id' => $attachmentId, 'file' => $originalName, 'size' => (int) $file['size']]);
     return $attachmentId;
+}
+
+/**
+ * The record already supported by a document with this checksum, if any.
+ * Used to stop the same receipt from being liquidated or expensed twice.
+ */
+function find_duplicate_document(string $checksum): ?array
+{
+    return db_one(
+        "SELECT entity_type, entity_id FROM file_attachments WHERE institution_id = ? AND checksum = ? AND entity_type IN ('expense', 'advance_expense') LIMIT 1",
+        [current_institution_id(), $checksum]
+    );
 }
 
 /** Attachments recorded for an entity in the current institution. */

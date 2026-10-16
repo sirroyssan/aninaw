@@ -59,3 +59,17 @@ function build_fixtures(): array
     $members['other_treasurer'] = fixture_member($otherId, fixture_user('other_treasurer', 'Otto', 'Other'), ['treasurer']);
     return $members;
 }
+
+/**
+ * Registers a document for a record as if it had been uploaded (CLI tests cannot
+ * perform real HTTP uploads). Returns the attachment ID.
+ */
+function fixture_document(string $entityType, int $entityId, string $content): int
+{
+    db_query(
+        'INSERT INTO file_attachments (institution_id, uploaded_by_membership_id, entity_type, entity_id, storage_key, original_filename, mime_type, file_size, checksum)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [current_institution_id(), current_membership_id(), $entityType, $entityId, 'test/' . bin2hex(random_bytes(8)), 'receipt.pdf', 'application/pdf', strlen($content), hash('sha256', $content)]
+    );
+    return (int) db()->lastInsertId();
+}
