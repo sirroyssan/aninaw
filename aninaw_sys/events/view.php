@@ -383,7 +383,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                 <?php if ($canManage): ?>
                     <form method="post" class="card-body border-top d-flex gap-2">
                         <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="add_organizer"><input type="hidden" name="tab" value="setup">
-                        <select class="form-select" name="membership_id" required aria-label="Organizer"><?= options_html(member_options('events.manage'), null, 'Members with the organizer role…') ?></select>
+                        <select class="form-select" name="membership_id" required aria-label="Organizer" data-searchable><?= options_html(member_options('events.manage'), null, 'Members with the organizer role…') ?></select>
                         <button class="btn btn-outline-primary" type="submit">Add</button>
                     </form>
                 <?php endif; ?>

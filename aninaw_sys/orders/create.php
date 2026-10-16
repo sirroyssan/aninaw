@@ -20,10 +20,11 @@ if (is_post()) {
 
 $institutionId = (int) current_institution_id();
 $items = db_all(
-    "SELECT v.id, v.variant_name, p.id AS product_id, p.product_name, p.fulfillment, p.unit_of_measure, p.fund_id, f.fund_name,
+    "SELECT v.id, v.variant_name, p.id AS product_id, p.product_name, p.sku, c.category_name, p.fulfillment, p.unit_of_measure, p.fund_id, f.fund_name,
             COALESCE(v.retail_price, p.retail_price) AS price, " . SQL_ON_HAND . ' AS on_hand, ' . SQL_RESERVED . " AS reserved
      FROM product_variants v JOIN products p ON p.id = v.product_id AND p.institution_id = v.institution_id
      JOIN fund_accounts f ON f.id = p.fund_id AND f.institution_id = p.institution_id
+     LEFT JOIN product_categories c ON c.id = p.category_id AND c.institution_id = p.institution_id
      WHERE v.institution_id = ? AND v.status = 'active' AND p.status = 'active' ORDER BY p.fulfillment = 'service', p.product_name, v.sort_order, v.id",
     [$institutionId]
 );
@@ -46,7 +47,7 @@ $renderLine = static function (int|string $index, array $line) use ($items, $sta
             $group = $label;
         }
         $stock = $item['fulfillment'] === 'stock' ? ' — ' . max(0, (int) $item['on_hand'] - (int) $item['reserved']) . ' available' : ($item['fulfillment'] === 'made_to_order' ? ' — made to order' : '');
-        $options .= '<option value="' . (int) $item['id'] . '" data-price="' . e(cents_to_decimal(to_cents($item['price']))) . '" data-unit="' . e($item['unit_of_measure']) . '" data-service="' . ($item['fulfillment'] === 'service' ? '1' : '0') . '" data-fund="' . e($item['fund_name']) . '"'
+        $options .= '<option value="' . (int) $item['id'] . '" data-price="' . e(cents_to_decimal(to_cents($item['price']))) . '" data-unit="' . e($item['unit_of_measure']) . '" data-service="' . ($item['fulfillment'] === 'service' ? '1' : '0') . '" data-fund="' . e($item['fund_name']) . '" data-search="' . e($item['sku'] . ' ' . ($item['category_name'] ?? '')) . '"'
             . ((string) ($line['variant_id'] ?? '') === (string) $item['id'] ? ' selected' : '') . '>'
             . e($item['product_name'] . ($item['variant_name'] !== 'Standard' ? ' · ' . $item['variant_name'] : '') . ' — ' . m($item['price']) . '/' . $item['unit_of_measure'] . $stock) . '</option>';
     }
@@ -54,7 +55,7 @@ $renderLine = static function (int|string $index, array $line) use ($items, $sta
     $field = static fn(string $key) => e((string) ($line[$key] ?? ''));
     return '<div class="order-line card panel mb-2" data-order-line><div class="card-body">'
         . '<div class="row g-2 align-items-end">'
-        . '<div class="col-lg-5"><label class="form-label">Item</label><select class="form-select" name="' . $name('variant_id') . '" data-order-variant>' . $options . '</select></div>'
+        . '<div class="col-lg-5"><label class="form-label">Item</label><select class="form-select" name="' . $name('variant_id') . '" data-order-variant data-searchable>' . $options . '</select></div>'
         . '<div class="col-4 col-lg-2" data-goods-only><label class="form-label">Quantity</label><input class="form-control" type="number" min="1" name="' . $name('quantity') . '" value="' . $field('quantity') . '" data-order-qty></div>'
         . '<div class="col-4 col-lg-1 d-none" data-service-only><label class="form-label">Pages</label><input class="form-control" type="number" min="1" name="' . $name('job_pages') . '" value="' . $field('job_pages') . '" data-order-pages></div>'
         . '<div class="col-4 col-lg-1 d-none" data-service-only><label class="form-label">Copies</label><input class="form-control" type="number" min="1" name="' . $name('job_copies') . '" value="' . $field('job_copies') . '" data-order-copies></div>'
@@ -65,7 +66,7 @@ $renderLine = static function (int|string $index, array $line) use ($items, $sta
         . '<div class="col-lg-8 d-none" data-service-only><div class="row g-2">'
         . '<div class="col-md-5"><input class="form-control form-control-sm" name="' . $name('job_instructions') . '" maxlength="2000" placeholder="Job instructions (paper, colour, binding…)" value="' . $field('job_instructions') . '" aria-label="Job instructions"></div>'
         . '<div class="col-md-3"><input class="form-control form-control-sm" type="date" name="' . $name('service_date') . '" value="' . e((string) ($line['service_date'] ?? date('Y-m-d'))) . '" aria-label="Service date"></div>'
-        . '<div class="col-md-4"><select class="form-select form-select-sm" name="' . $name('assigned_membership_id') . '" aria-label="Assigned staff">' . options_html($staff, $line['assigned_membership_id'] ?? null, 'Assign staff…') . '</select></div>'
+        . '<div class="col-md-4"><select class="form-select form-select-sm" name="' . $name('assigned_membership_id') . '" aria-label="Assigned staff" data-searchable>' . options_html($staff, $line['assigned_membership_id'] ?? null, 'Assign staff…') . '</select></div>'
         . '<div class="col-12"><input class="form-control form-control-sm" type="file" name="job_file_' . $index . '" accept="application/pdf,image/jpeg,image/png,image/webp" aria-label="Job file"><div class="form-text">Optional file to print (PDF or image, 5 MB).</div></div>'
         . '</div></div>'
         . '</div></div></div>';
@@ -89,7 +90,7 @@ require APP_ROOT . '/includes/header.php';
                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="customer_mode" id="mode-existing" value="existing" <?= old('customer_mode', 'existing') === 'existing' ? 'checked' : '' ?> data-customer-mode><label class="form-check-label" for="mode-existing">Student / employee</label></div>
                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="customer_mode" id="mode-walkin" value="walkin" <?= old('customer_mode') === 'walkin' ? 'checked' : '' ?> data-customer-mode><label class="form-check-label" for="mode-walkin">Walk-in customer</label></div>
             </div>
-            <div class="col-md-8" data-customer-existing><label class="form-label" for="customer_participant_id">Customer</label><select class="form-select" id="customer_participant_id" name="customer_participant_id"><?= options_html(customer_options(), old('customer_participant_id'), 'Search or choose…') ?></select></div>
+            <div class="col-md-8" data-customer-existing><label class="form-label" for="customer_participant_id">Customer</label><select class="form-select" id="customer_participant_id" name="customer_participant_id" data-searchable><?= options_html(customer_options(), old('customer_participant_id'), 'Search or choose…') ?></select></div>
             <div class="col-md-4 d-none" data-customer-walkin><label class="form-label" for="walkin_first_name">First name</label><input class="form-control" id="walkin_first_name" name="walkin_first_name" maxlength="100" value="<?= e(old('walkin_first_name')) ?>"></div>
             <div class="col-md-4 d-none" data-customer-walkin><label class="form-label" for="walkin_last_name">Last name</label><input class="form-control" id="walkin_last_name" name="walkin_last_name" maxlength="100" value="<?= e(old('walkin_last_name')) ?>"></div>
             <div class="col-md-4 d-none" data-customer-walkin><label class="form-label" for="walkin_phone">Phone</label><input class="form-control" id="walkin_phone" name="walkin_phone" maxlength="50" value="<?= e(old('walkin_phone')) ?>"></div>

@@ -52,7 +52,7 @@ require APP_ROOT . '/includes/header.php';
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label" for="link_membership_id">Linked login <span class="text-muted-sm">(optional)</span></label>
-                    <select class="form-select" id="link_membership_id" name="link_membership_id"><?= options_html(member_options(), $participant['linked_membership_id'] ?? old('link_membership_id'), 'Not linked') ?></select>
+                    <select class="form-select" id="link_membership_id" name="link_membership_id" data-searchable><?= options_html(member_options(), $participant['linked_membership_id'] ?? old('link_membership_id'), 'Not linked') ?></select>
                     <div class="form-text">Linking lets the person see their own obligations and receipts on the dashboard. They need the Student / Member role.</div>
                 </div>
                 <?php if (!$participant): ?>

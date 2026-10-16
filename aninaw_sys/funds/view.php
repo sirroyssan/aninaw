@@ -310,7 +310,7 @@ require APP_ROOT . '/includes/header.php';
                     <?= csrf_field() ?><?= idempotency_field() ?>
                     <input type="hidden" name="action" value="grant_access">
                     <label class="form-label" for="access-member">Grant access</label>
-                    <select class="form-select mb-2" id="access-member" name="membership_id" required><?= options_html(member_options(), null, 'Member…') ?></select>
+                    <select class="form-select mb-2" id="access-member" name="membership_id" required data-searchable><?= options_html(member_options(), null, 'Member…') ?></select>
                     <select class="form-select mb-2" name="permission_level" required aria-label="Access level"><?= options_html(FUND_ACCESS_LEVELS, 'view') ?></select>
                     <input class="form-control mb-2" type="date" name="valid_until" aria-label="Valid until (optional)">
                     <button class="btn btn-outline-primary w-100" type="submit">Grant</button>

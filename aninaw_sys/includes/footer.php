@@ -23,6 +23,7 @@ $pageScripts = $pageScripts ?? [];
 <script src="<?= e(asset('vendor/bootstrap/bootstrap.bundle.min.js')) ?>"></script>
 <script src="<?= e(asset('vendor/sweetalert2/sweetalert2.all.min.js')) ?>"></script>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
+<script src="<?= e(asset('js/combobox.js')) ?>"></script>
 <?php foreach ($pageScripts as $script): ?>
 <script src="<?= e(asset($script)) ?>"></script>
 <?php endforeach; ?>

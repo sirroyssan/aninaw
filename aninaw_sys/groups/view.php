@@ -202,7 +202,7 @@ require APP_ROOT . '/includes/header.php';
                 <div class="card-header"><h3>Assign Officer</h3></div>
                 <div class="card-body">
                     <div class="mb-2"><label class="form-label required" for="officer_type">Position</label><select class="form-select" id="officer_type" name="officer_type" required><?= options_html(OFFICER_TYPES, null, 'Select…') ?></select></div>
-                    <div class="mb-2"><label class="form-label required" for="membership_id">Person (institution member)</label><select class="form-select" id="membership_id" name="membership_id" required><?= options_html(member_options(), null, 'Select…') ?></select></div>
+                    <div class="mb-2"><label class="form-label required" for="membership_id">Person (institution member)</label><select class="form-select" id="membership_id" name="membership_id" data-searchable required><?= options_html(member_options(), null, 'Select…') ?></select></div>
                     <div class="row g-2 mb-2">
                         <div class="col-6"><label class="form-label" for="valid_from">From</label><input class="form-control" type="date" id="valid_from" name="valid_from" value="<?= e(date('Y-m-d')) ?>"></div>
                         <div class="col-6"><label class="form-label" for="valid_until">Until</label><input class="form-control" type="date" id="valid_until" name="valid_until"></div>

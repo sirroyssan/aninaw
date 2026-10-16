@@ -87,7 +87,7 @@ require APP_ROOT . '/includes/header.php';
         <div class="filter-field"><label for="q">Search</label><input class="form-control" type="search" id="q" name="q" value="<?= e($filters['q']) ?>" placeholder="Order no., name, student ID, item"></div>
         <div class="filter-field"><label for="status">Order status</label><select class="form-select" id="status" name="status"><?= options_html(['open' => 'Open orders', 'unclaimed' => 'Unclaimed (ready > 7 days)'] + ORDER_STATUSES, $filters['status'], 'All') ?></select></div>
         <div class="filter-field"><label for="payment">Payment</label><select class="form-select" id="payment" name="payment"><?= options_html(['balance' => 'With balance'] + ORDER_PAYMENT_STATUSES, $filters['payment'], 'All') ?></select></div>
-        <div class="filter-field"><label for="product">Product</label><select class="form-select" id="product" name="product"><?= options_html($products, $filters['product'], 'All') ?></select></div>
+        <div class="filter-field"><label for="product">Product</label><select class="form-select" id="product" name="product" data-searchable><?= options_html($products, $filters['product'], 'All') ?></select></div>
         <div class="filter-field"><label for="from">From</label><input class="form-control" type="date" id="from" name="from" value="<?= e($filters['from']) ?>"></div>
         <div class="filter-field"><label for="to">To</label><input class="form-control" type="date" id="to" name="to" value="<?= e($filters['to']) ?>"></div>
         <button class="btn btn-primary" type="submit">Apply</button>

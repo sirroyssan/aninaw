@@ -47,7 +47,7 @@ require APP_ROOT . '/includes/header.php';
     . '<button class="btn btn-outline-primary" type="button" data-print><i class="bi bi-printer me-1" aria-hidden="true"></i>Print</button>') ?>
 <div class="card panel mb-3">
     <form class="filter-bar" method="get">
-        <div class="filter-field"><label for="product">Product</label><select class="form-select" id="product" name="product" data-autosubmit><?= options_html($products, $productId, 'All made-to-order products') ?></select></div>
+        <div class="filter-field"><label for="product">Product</label><select class="form-select" id="product" name="product" data-autosubmit data-searchable><?= options_html($products, $productId, 'All made-to-order products') ?></select></div>
     </form>
 </div>
 <?php if (!$byProduct): ?>
