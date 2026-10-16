@@ -218,7 +218,7 @@ a:hover { color: var(--an-primary-hover); }
 /* ---------- SweetAlert2 theme ---------- */
 .swal2-popup { border-radius: var(--an-radius-lg) !important; font-family: var(--an-font) !important; color: var(--an-text) !important; }
 .swal2-title { color: var(--an-text) !important; font-size: 1.25rem !important; }
-.swal2-html-container { color: var(--an-text-muted) !important; font-size: 0.9375rem !important; }
+.swal2-html-container { color: var(--an-text-muted) !important; font-size: 0.9375rem !important; white-space: pre-line; }
 .swal2-actions .btn { min-width: 110px; margin: 0 0.25rem; }
 .swal2-toast { box-shadow: var(--an-shadow) !important; border: 1px solid var(--an-border); }
 .swal2-toast .swal2-title { font-size: 0.9375rem !important; }

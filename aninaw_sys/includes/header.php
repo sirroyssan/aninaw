@@ -66,7 +66,7 @@ $bodyData = [
         <link rel="stylesheet" href="<?= e(asset('css/admin.css')) ?>">
     <?php endif; ?>
 </head>
-<body class="<?= $isAppLayout ? 'app-body' : 'auth-body' ?>"<?php foreach ($bodyData as $name => $value): ?> data-<?= e($name) ?>="<?= e($value) ?>"<?php endforeach; ?>>
+<body class="<?= $isAppLayout ? 'app-body' : 'auth-body' ?>"<?php foreach ($bodyData as $bodyDataName => $bodyDataValue): ?> data-<?= e($bodyDataName) ?>="<?= e($bodyDataValue) ?>"<?php endforeach; ?>>
 <?php if ($isAppLayout): ?>
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="app-shell">
@@ -152,6 +152,7 @@ $bodyData = [
                         <?php if ($context && ($context['available_count'] ?? 1) > 1): ?>
                             <a class="dropdown-item" href="<?= e(url('select_institution.php')) ?>"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Switch institution</a>
                         <?php endif; ?>
+                        <a class="dropdown-item" href="<?= e(url('account.php')) ?>"><i class="bi bi-person-gear me-2" aria-hidden="true"></i>My account</a>
                         <button type="button" class="dropdown-item text-danger" data-logout><i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Sign out</button>
                     </div>
                 </div>

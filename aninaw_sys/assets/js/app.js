@@ -182,6 +182,103 @@
         schedule();
     }
 
+    // ---------------------------------------------------------------------
+    // Forms: confirmation, required reasons and double-submit protection.
+    //   data-confirm="Title"         ask before submitting
+    //   data-confirm-text="..."      extra explanation
+    //   data-danger                  red confirm button (destructive / reversal)
+    //   data-reason="Label"          require a written reason, sent as "reason"
+    // ---------------------------------------------------------------------
+    function lockForm(form) {
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (button) {
+            button.disabled = true;
+            if (button.tagName === 'BUTTON' && !button.dataset.originalHtml) {
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Saving…';
+            }
+        });
+    }
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.id === 'login-form' || form.id === 'logout-form') { return; }
+        if (form.dataset.submitting === '1') { event.preventDefault(); return; }
+
+        var needsConfirm = form.hasAttribute('data-confirm') || form.hasAttribute('data-reason');
+        if (form.dataset.confirmed === '1' || !needsConfirm || !Alert) {
+            if (window.AninawValidation && !window.AninawValidation.validateRequired(form)) { event.preventDefault(); return; }
+            form.dataset.submitting = '1';
+            lockForm(form);
+            return;
+        }
+
+        event.preventDefault();
+        if (window.AninawValidation && !window.AninawValidation.validateRequired(form)) { return; }
+        var danger = form.hasAttribute('data-danger');
+        var reasonLabel = form.getAttribute('data-reason');
+        var options = {
+            icon: danger ? 'warning' : 'question',
+            iconColor: danger ? iconColors.error : iconColors.warning,
+            title: form.getAttribute('data-confirm') || 'Are you sure?',
+            text: form.getAttribute('data-confirm-text') || undefined,
+            showCancelButton: true,
+            confirmButtonText: form.getAttribute('data-confirm-button') || 'Confirm',
+            customClass: { confirmButton: danger ? 'btn btn-danger' : 'btn btn-primary', cancelButton: 'btn btn-outline-secondary' },
+            focusCancel: danger
+        };
+        if (reasonLabel) {
+            options.input = 'textarea';
+            options.inputLabel = reasonLabel;
+            options.inputAttributes = { maxlength: '1000', 'aria-label': reasonLabel };
+            options.inputValidator = function (value) {
+                return (!value || value.trim().length < 5) ? 'Please enter a reason (at least 5 characters).' : undefined;
+            };
+        }
+        Alert.fire(options).then(function (result) {
+            if (!result.isConfirmed) { return; }
+            if (reasonLabel) {
+                var field = form.querySelector('input[name="reason"]');
+                if (!field) {
+                    field = document.createElement('input');
+                    field.type = 'hidden';
+                    field.name = 'reason';
+                    form.appendChild(field);
+                }
+                field.value = result.value.trim();
+            }
+            form.dataset.confirmed = '1';
+            form.dataset.submitting = '1';
+            lockForm(form);
+            HTMLFormElement.prototype.submit.call(form);
+        });
+    });
+
+    // Auto-submit filter selects marked with data-autosubmit.
+    document.addEventListener('change', function (event) {
+        if (event.target.matches('[data-autosubmit]') && event.target.form) { event.target.form.requestSubmit(); }
+    });
+
+    // Copy-to-clipboard buttons: data-copy="input-id".
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-copy]');
+        if (!button) { return; }
+        var input = document.getElementById(button.getAttribute('data-copy'));
+        if (!input) { return; }
+        input.select();
+        var done = function () { Aninaw.toast('success', 'Copied to clipboard'); };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(input.value).then(done, function () { document.execCommand('copy'); done(); });
+        } else {
+            document.execCommand('copy');
+            done();
+        }
+    });
+
+    // Print buttons.
+    document.addEventListener('click', function (event) {
+        if (event.target.closest('[data-print]')) { event.preventDefault(); window.print(); }
+    });
+
     showFlashes();
     startIdleWatch();
 })();

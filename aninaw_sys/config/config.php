@@ -80,5 +80,9 @@ require_once APP_ROOT . '/config/session.php';
 require_once APP_ROOT . '/includes/audit.php';
 require_once APP_ROOT . '/includes/permissions.php';
 require_once APP_ROOT . '/includes/auth.php';
+require_once APP_ROOT . '/includes/ui.php';
+require_once APP_ROOT . '/includes/finance.php';
+require_once APP_ROOT . '/includes/attachments.php';
+require_once APP_ROOT . '/includes/notifications.php';
 
 set_exception_handler('handle_uncaught_exception');

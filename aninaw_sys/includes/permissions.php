@@ -68,8 +68,8 @@ function navigation_sections(): array
         $sections = [
             'Platform' => [
                 ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-grid-1x2', 'path' => 'dashboard/index.php', 'any' => ['platform.institutions.view'], 'ready' => true],
-                ['key' => 'institutions', 'label' => 'Institutions', 'icon' => 'bi-building', 'path' => 'institutions/index.php', 'any' => ['platform.institutions.view'], 'ready' => false],
-                ['key' => 'users', 'label' => 'Users', 'icon' => 'bi-people', 'path' => 'users/index.php', 'any' => ['platform.users.view'], 'ready' => false],
+                ['key' => 'institutions', 'label' => 'Institutions', 'icon' => 'bi-building', 'path' => 'institutions/index.php', 'any' => ['platform.institutions.view'], 'ready' => true],
+                ['key' => 'users', 'label' => 'Users', 'icon' => 'bi-people', 'path' => 'users/index.php', 'any' => ['platform.users.view'], 'ready' => true],
                 ['key' => 'audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['platform.audit.view'], 'ready' => false],
             ],
         ];
@@ -79,9 +79,13 @@ function navigation_sections(): array
                 ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-grid-1x2', 'path' => 'dashboard/index.php', 'any' => ['dashboard.view'], 'ready' => true],
             ],
             'Administration' => [
-                ['key' => 'settings', 'label' => 'Institution Settings', 'icon' => 'bi-gear', 'path' => 'institutions/settings.php', 'any' => ['institution.settings.manage'], 'ready' => false],
-                ['key' => 'users', 'label' => 'Users', 'icon' => 'bi-people', 'path' => 'users/index.php', 'any' => ['users.view'], 'ready' => false],
-                ['key' => 'roles', 'label' => 'Roles & Permissions', 'icon' => 'bi-shield-lock', 'path' => 'users/roles.php', 'any' => ['roles.assign'], 'ready' => false],
+                ['key' => 'settings', 'label' => 'Institution Settings', 'icon' => 'bi-gear', 'path' => 'institutions/settings.php', 'any' => ['institution.settings.manage'], 'ready' => true],
+                ['key' => 'users', 'label' => 'Users', 'icon' => 'bi-people', 'path' => 'users/index.php', 'any' => ['users.view'], 'ready' => true],
+                ['key' => 'roles', 'label' => 'Roles & Permissions', 'icon' => 'bi-shield-lock', 'path' => 'users/roles.php', 'any' => ['roles.assign'], 'ready' => true],
+            ],
+            'Organization' => [
+                ['key' => 'groups', 'label' => 'Departments & Groups', 'icon' => 'bi-diagram-3', 'path' => 'groups/index.php', 'any' => ['participants.view', 'organization.manage'], 'ready' => true],
+                ['key' => 'participants', 'label' => 'Participants', 'icon' => 'bi-person-vcard', 'path' => 'participants/index.php', 'any' => ['participants.view', 'organization.manage'], 'ready' => true],
             ],
             'Collections' => [
                 ['key' => 'events', 'label' => 'Events', 'icon' => 'bi-calendar-event', 'path' => 'events/index.php', 'any' => ['events.view', 'events.manage'], 'ready' => false],
