@@ -101,6 +101,7 @@ function navigation_sections(): array
                 ['key' => 'cash-flow', 'label' => 'Cash Flow', 'icon' => 'bi-activity', 'path' => 'cash_flow/index.php', 'any' => ['cashflow.view'], 'ready' => true],
                 ['key' => 'deposits', 'label' => 'Deposits', 'icon' => 'bi-bank', 'path' => 'deposits/index.php', 'any' => ['deposits.manage', 'cashflow.view'], 'ready' => true],
                 ['key' => 'transfers', 'label' => 'Fund Transfers', 'icon' => 'bi-shuffle', 'path' => 'transfers/index.php', 'any' => ['transfers.manage', 'transfers.approve', 'cashflow.view'], 'ready' => true],
+                ['key' => 'ledger', 'label' => 'General Ledger', 'icon' => 'bi-journal-text', 'path' => 'ledger/index.php', 'any' => ['ledger.view', 'ledger.post'], 'ready' => true],
                 ['key' => 'reconciliation', 'label' => 'Reconciliation', 'icon' => 'bi-check2-square', 'path' => 'reconciliation/index.php', 'any' => ['reconciliation.manage', 'ledger.view'], 'ready' => true],
             ],
             'Oversight' => [

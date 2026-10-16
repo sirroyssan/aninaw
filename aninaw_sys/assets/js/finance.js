@@ -2,6 +2,7 @@
  * ANINAW — helpers for financial forms.
  *   data-money-sum="#target"  sums the amount inputs inside the element into #target
  *   data-fill-max             button that fills the sibling input with its data-max value
+ *   data-journal-lines        adjusting-entry line editor (rows, cash-account select, totals)
  * Totals here are a convenience; the server recalculates and validates every amount.
  */
 (function () {
@@ -63,6 +64,65 @@
             refreshChecked(container);
         });
         refreshChecked(container);
+    });
+
+    // data-journal-lines: adjusting-entry editor. Add/remove rows, enable the cash-account
+    // select only for cash ledger accounts (filtered to matching account types), live totals.
+    var CASH_KEYS = ['cash_custody', 'bank', 'e_wallet', 'other'];
+    document.querySelectorAll('[data-journal-lines]').forEach(function (form) {
+        var body = form.querySelector('[data-line-body]');
+        var template = form.querySelector('[data-line-template]');
+        var next = body.querySelectorAll('[data-line]').length;
+        var prefix = form.getAttribute('data-currency') || '';
+
+        function syncCash(row) {
+            var key = row.querySelector('[data-line-account]').value;
+            var cash = row.querySelector('[data-line-cash]');
+            var isCash = CASH_KEYS.indexOf(key) !== -1;
+            cash.disabled = !isCash;
+            cash.required = isCash;
+            Array.prototype.forEach.call(cash.options, function (option) {
+                option.hidden = option.value !== '' && isCash && option.getAttribute('data-key') !== key;
+            });
+            if (!isCash || (cash.selectedOptions[0] && cash.selectedOptions[0].hidden)) { cash.value = ''; }
+        }
+
+        function totals() {
+            var debit = 0, credit = 0;
+            body.querySelectorAll('[data-line]').forEach(function (row) {
+                var d = row.querySelector('[data-line-debit]'), c = row.querySelector('[data-line-credit]');
+                debit += toCents(d.value);
+                credit += toCents(c.value);
+                var both = toCents(d.value) > 0 && toCents(c.value) > 0;
+                d.classList.toggle('is-invalid', both);
+                c.classList.toggle('is-invalid', both);
+            });
+            form.querySelector('[data-total-debit]').textContent = prefix + formatCents(debit);
+            form.querySelector('[data-total-credit]').textContent = prefix + formatCents(credit);
+            var status = form.querySelector('[data-total-status]');
+            var diff = debit - credit;
+            status.textContent = diff === 0 ? (debit ? 'Balanced' : '') : 'Out of balance by ' + prefix + formatCents(Math.abs(diff));
+            status.classList.toggle('text-danger', diff !== 0);
+            status.classList.toggle('text-success', diff === 0 && debit > 0);
+        }
+
+        body.querySelectorAll('[data-line]').forEach(syncCash);
+        form.addEventListener('change', function (event) {
+            if (event.target.matches('[data-line-account]')) { syncCash(event.target.closest('[data-line]')); }
+        });
+        form.addEventListener('input', totals);
+        form.addEventListener('click', function (event) {
+            if (event.target.closest('[data-line-add]')) {
+                body.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__INDEX__/g, String(next++)));
+                syncCash(body.lastElementChild);
+            }
+            var remove = event.target.closest('[data-line-remove]');
+            if (remove && body.querySelectorAll('[data-line]').length > 2) {
+                remove.closest('[data-line]').remove();
+                totals();
+            }
+        });
+        totals();
     });
 
     window.AninawMoney = { toCents: toCents, formatCents: formatCents };

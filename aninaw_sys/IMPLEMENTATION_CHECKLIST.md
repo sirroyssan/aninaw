@@ -46,7 +46,7 @@ produces exactly one register row in the same database transaction, so the two a
 | Advance released | Cash Advances Receivable | Cash | `advance_release` outflow |
 | Advance expense verified | Expenses | Cash Advances Receivable | none (no cash moves) |
 | Advance return confirmed | Cash | Cash Advances Receivable | `advance_return` inflow |
-| Manual adjusting entry | as entered (must balance) | as entered | rows for cash lines |
+| Manual adjusting entry | as entered (must balance per fund) | as entered | `adjustment` rows for cash lines |
 | Any reversal | mirror of original | mirror of original | mirrored rows; original kept |
 
 Account codes and names are configurable per institution (Institution Settings → Ledger accounts).
@@ -55,6 +55,14 @@ Each journal line carries `fund_id`, so every balance can be reported per fund a
 Controls: amounts as integers; balanced-entry check; one posting per source record; row locks
 (`SELECT … FOR UPDATE`) on the source record and financial account before posting; sufficient-cash
 check before outflows; one-time form tokens against double submission; reversals instead of edits.
+
+Adjusting entries (Batch 8) follow maker-checker: a `ledger.post` holder prepares the entry
+(`journal_entries.status = 'draft'`, no effect on balances); a *different* `ledger.post` holder posts it,
+after the server re-checks per-fund balance, chart accounts and available cash. Adjustments cannot use
+Cash Advances Receivable (settled only through liquidation). Entries created by a module are corrected
+through that module; posted adjustments are corrected by reversal. `ledger/integrity.php` verifies
+balanced entries and funds, ledger vs cash register, one live posting per completed source record, and
+advances receivable vs the advance records.
 
 ## 4. Schema gaps and decisions
 
@@ -71,6 +79,8 @@ check before outflows; one-time form tokens against double submission; reversals
 | Deposits/transfers have no fund column for pending state | Pending `cash_flow_transactions` rows hold the fund until confirmation |
 | No admin-forced password change | One-time reset links via `password_reset_tokens` + `password_reset.php` |
 | Commitments (purchase orders) | Not in schema; budgets show approved / posted / pending / remaining |
+| Manual entries have no source record | `source_type = 'adjustment'`, `source_id` = the entry's own id; reversals point back to it |
+| Discarded prepared entries | Unposted drafts are deleted; the audit log keeps their lines and reason (journal numbers may show gaps) |
 
 ## 5. Modules
 
@@ -87,7 +97,7 @@ check before outflows; one-time form tokens against double submission; reversals
 | 5 | Cash flow, deposits, transfers, reconciliation | cash_flow_transactions, deposits, fund_transfers | cashflow.view, deposits.manage, transfers.manage/approve, reconciliation.manage | ledger | ✅ |
 | 6 | Expenses and approvals | expenses | expenses.record/approve | accounts | ✅ |
 | 7 | Cash advances and liquidation | cash_advances, cash_advance_expenses, cash_advance_returns | advances.*, liquidation.* | accounts | ✅ |
-| 8 | Ledger, journals, adjusting entries | journal_entries, journal_lines | ledger.view, ledger.post | foundation | ⬜ |
+| 8 | Ledger, journals, adjusting entries | journal_entries, journal_lines | ledger.view, ledger.post | foundation | ✅ |
 | 9 | Budgets | budgets, budget_lines | budgets.view/manage/approve | expenses | ⬜ |
 | 9 | Reports (20) + CSV + print | all | reports.view (+ module permissions) | all | ⬜ |
 | 10 | Notifications, audit trail, dashboard integration | notifications, audit_logs | — | all | ⬜ |

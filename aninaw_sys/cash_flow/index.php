@@ -8,6 +8,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/auth_check.php';
 require_once APP_ROOT . '/includes/services/funds.php';
 require_once APP_ROOT . '/includes/services/events.php';
+require_once APP_ROOT . '/includes/services/ledger.php';
 require_institution_context();
 require_permission('cashflow.view');
 
@@ -112,8 +113,6 @@ $custodians = options_from_rows(db_all(
     "SELECT DISTINCT m.id, u.first_name, u.last_name FROM financial_accounts fa JOIN institution_memberships m ON m.id = fa.custodian_membership_id JOIN users u ON u.id = m.user_id WHERE fa.institution_id = ? ORDER BY u.last_name",
     [$institutionId]
 ), 'id', static fn($r) => person_name($r));
-$sourceLinks = ['payment' => 'collections/payment.php?id=', 'turnover' => 'turnovers/view.php?id=', 'deposit' => 'deposits/view.php?id=', 'fund_transfer' => 'transfers/view.php?id=',
-                'expense' => 'expenses/view.php?id=', 'advance_release' => 'advances/view.php?id='];
 
 $pageTitle = 'Cash Flow';
 $activeNav = 'cash-flow';
@@ -153,12 +152,12 @@ require APP_ROOT . '/includes/header.php';
                 <tbody>
                 <?php if ($showRunning): ?><tr class="table-light"><td colspan="6" class="text-muted-sm">Balance brought forward<?= $filters['fund'] || $filters['account'] ? '' : ' (all funds and accounts)' ?></td><td class="text-end fw-semibold"><?= e(money($opening, $currency)) ?></td><td></td></tr><?php endif; ?>
                 <?php $running = $opening; foreach ($rows as $row): $cents = to_cents($row['amount']); $running += $row['direction'] === 'inflow' ? $cents : -$cents;
-                    $base = str_replace('_reversal', '', $row['source_type']); $link = isset($sourceLinks[$base]) ? url($sourceLinks[$base] . $row['source_id']) : null; ?>
+                    $link = journal_source_path($row['source_type'], (int) $row['source_id']); ?>
                     <tr>
                         <td><div><?= e(format_date($row['transaction_date'])) ?></div><div class="text-muted-sm"><?= e($row['transaction_number']) ?></div></td>
                         <td><?= e($row['fund_name']) ?></td>
                         <td><?= e($row['account_name']) ?><div class="text-muted-sm"><?= e($row['custodian_name'] ?: '—') ?></div></td>
-                        <td><?= e(CASH_FLOW_TYPES[$row['transaction_type']] ?? $row['transaction_type']) ?><div class="text-muted-sm"><?= $link ? '<a href="' . e($link) . '">' . e(humanize($row['source_type'])) . ' #' . e((string) $row['source_id']) . '</a>' : e(humanize($row['source_type']) . ' #' . $row['source_id']) ?></div></td>
+                        <td><?= e(CASH_FLOW_TYPES[$row['transaction_type']] ?? $row['transaction_type']) ?><div class="text-muted-sm"><?= $link ? '<a href="' . e(url($link)) . '">' . e(humanize($row['source_type'])) . ' #' . e((string) $row['source_id']) . '</a>' : e(humanize($row['source_type']) . ' #' . $row['source_id']) ?></div></td>
                         <td class="text-end text-success"><?= $row['direction'] === 'inflow' ? e(money($cents, $currency)) : '' ?></td>
                         <td class="text-end text-danger"><?= $row['direction'] === 'outflow' ? e(money($cents, $currency)) : '' ?></td>
                         <?php if ($showRunning): ?><td class="text-end fw-semibold"><?= e(money($running, $currency)) ?></td><?php endif; ?>
