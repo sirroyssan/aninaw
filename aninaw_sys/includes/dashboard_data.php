@@ -234,22 +234,22 @@ function dashboard_finance(): array
         [$institutionId, $institutionId, $institutionId]
     );
 
-    // Fund positions from the posted cash-flow register. Deposits between accounts of the
-    // same fund net to zero here; inter-fund transfers move value between funds.
-    $funds = db_all(
-        "SELECT f.id, f.fund_code, f.fund_name, f.status, f.opening_balance,
-                COALESCE(c.net, 0) AS posted_position, COALESCE(c.entries, 0) AS posted_entries
-         FROM fund_accounts f
-         LEFT JOIN (SELECT fund_id,
-                           SUM(CASE WHEN direction = 'inflow' THEN amount ELSE -amount END) AS net,
-                           COUNT(*) AS entries
-                    FROM cash_flow_transactions
-                    WHERE institution_id = ? AND status = 'posted'
-                    GROUP BY fund_id) c ON c.fund_id = f.id
-         WHERE f.institution_id = ? AND f.status IN ('active', 'suspended')
-         ORDER BY f.fund_name",
-        [$institutionId, $institutionId]
-    );
+    // Fund positions from posted journal entries (same definitions as the Fund Balance Report).
+    require_once APP_ROOT . '/includes/services/funds.php';
+    $funds = [];
+    foreach (db_all("SELECT id, fund_code, fund_name, status FROM fund_accounts WHERE institution_id = ? AND status IN ('active', 'suspended') ORDER BY fund_name", [$institutionId]) as $fund) {
+        $funds[] = $fund + fund_summary((int) $fund['id']);
+    }
+
+    // Budget utilisation of budgets in force (actual = paid + verified; pending shown apart).
+    require_once APP_ROOT . '/includes/services/budgets.php';
+    $budgets = [];
+    foreach (db_all("SELECT id FROM budgets WHERE institution_id = ? AND status IN ('approved', 'active') ORDER BY end_date LIMIT 5", [$institutionId]) as $row) {
+        $budget = find_budget((int) $row['id']);
+        if ($budget) {
+            $budgets[] = ['id' => $budget['id'], 'name' => $budget['budget_name'], 'fund' => $budget['fund_name']] + budget_vs_actual($budget)['totals'];
+        }
+    }
 
     $pending = [
         'turnovers_to_verify' => (int) db_value(
@@ -269,6 +269,15 @@ function dashboard_finance(): array
             [$institutionId]
         ),
     ];
+    $approvals = [
+        'expenses_to_approve' => (int) db_value("SELECT COUNT(*) FROM expenses WHERE institution_id = ? AND status = 'submitted'", [$institutionId]),
+        'expenses_to_pay'     => (int) db_value("SELECT COUNT(*) FROM expenses WHERE institution_id = ? AND status = 'approved'", [$institutionId]),
+        'advances_to_approve' => (int) db_value("SELECT COUNT(*) FROM cash_advances WHERE institution_id = ? AND status = 'pending_approval'", [$institutionId]),
+        'advances_to_release' => (int) db_value("SELECT COUNT(*) FROM cash_advances WHERE institution_id = ? AND status = 'approved'", [$institutionId]),
+        'transfers_to_decide' => (int) db_value("SELECT COUNT(*) FROM fund_transfers WHERE institution_id = ? AND status IN ('submitted', 'approved')", [$institutionId]),
+        'budgets_to_approve'  => (int) db_value("SELECT COUNT(*) FROM budgets WHERE institution_id = ? AND status = 'pending'", [$institutionId]),
+        'entries_to_post'     => (int) db_value("SELECT COUNT(*) FROM journal_entries WHERE institution_id = ? AND status = 'draft'", [$institutionId]),
+    ];
 
     return [
         'collections_total'  => (float) $collections['total'],
@@ -280,7 +289,9 @@ function dashboard_finance(): array
         'advances_open'      => (int) $advances['open_advances'],
         'advances_overdue'   => (int) $advances['overdue'],
         'funds'              => $funds,
+        'budgets'            => $budgets,
         'pending'            => $pending,
+        'approvals'          => $approvals,
         'recent_turnovers'   => db_all(
             "SELECT t.turnover_number, t.declared_amount, t.received_amount, t.status, t.submitted_at,
                     g.group_name, e.event_name

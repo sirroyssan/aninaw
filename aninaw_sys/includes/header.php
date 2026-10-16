@@ -123,6 +123,12 @@ $bodyData = [
                                     <div class="notification-time"><?= e(format_datetime($notification['created_at'])) ?></div>
                                 </div>
                             <?php endforeach; ?>
+                            <div class="notification-footer">
+                                <a href="<?= e(url('notifications/index.php')) ?>">View all</a>
+                                <?php if ($unreadCount > 0): ?>
+                                    <form method="post" action="<?= e(url('notifications/index.php')) ?>"><?= csrf_field() ?><button class="btn btn-link btn-sm p-0" type="submit">Mark all as read</button></form>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>

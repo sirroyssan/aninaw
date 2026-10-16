@@ -13,6 +13,7 @@ if ($context['type'] === 'platform') {
     require_permission('platform.institutions.view');
 } else {
     require_permission('dashboard.view');
+    generate_due_reminders((int) current_institution_id());
 }
 
 $currency = $context['currency_code'] ?? 'PHP';

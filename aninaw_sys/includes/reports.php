@@ -446,7 +446,7 @@ function report_definitions(): array
                 report_where($where, $params, (bool) $f['from'], 'a.created_at >= ?', $f['from']);
                 report_where($where, $params, (bool) $f['to'], 'a.created_at <= ?', $f['to'] . ' 23:59:59');
                 report_where($where, $params, $f['q'] !== '', '(a.action LIKE ? OR a.entity_type LIKE ? OR u.username LIKE ? OR u.last_name LIKE ? OR a.reason LIKE ?)', ...array_fill(0, 5, report_like($f['q'])));
-                return ["SELECT a.id, a.created_at, COALESCE(" . report_person('u') . ", 'System') AS actor, i.institution_code, a.action, a.entity_type, a.entity_id, a.reason,
+                return ["SELECT a.id, a.created_at, COALESCE(" . report_person('u') . ", 'System') AS actor, i.institution_code, a.action, a.entity_type, a.entity_id, a.reason, a.request_id,
                                a.before_data, a.after_data
                         FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_user_id LEFT JOIN institutions i ON i.id = a.institution_id
                         WHERE " . implode(' AND ', $where), $params];
@@ -454,7 +454,7 @@ function report_definitions(): array
             'order' => 'created_at DESC, id DESC', 'date_label' => 'Logged',
             'columns' => ['created_at' => ['When', 'datetime'], 'actor' => ['User'], 'institution_code' => ['Institution', 'text', false, null, 'platform'], 'action' => ['Action'],
                 'record' => ['Record', 'text', false, static fn($r) => $r['entity_type'] . ($r['entity_id'] ? ' #' . $r['entity_id'] : '')], 'reason' => ['Reason'],
-                'changes' => ['Changes', 'changes', false, static fn($r) => audit_changes_text($r['before_data'], $r['after_data'])]],
+                'changes' => ['Changes', 'changes', false, static fn($r) => audit_changes_text($r['before_data'], $r['after_data'])], 'request_id' => ['Request ID']],
             'per_page' => 50,
             'note' => 'Audit records are read-only in the application. Network details (IP, browser) are kept in the log but not exported.',
         ],

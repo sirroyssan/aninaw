@@ -26,27 +26,21 @@ declare(strict_types=1);
                     <?php else: ?>
                         <div class="table-responsive">
                             <table class="table table-clean align-middle mb-0">
-                                <thead><tr><th>Fund</th><th class="text-end">Opening (recorded)</th><th class="text-end">Posted position</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Fund</th><th class="text-end">Cash held</th><th class="text-end">Advances out</th><th class="text-end">Total</th></tr></thead>
                                 <tbody>
                                 <?php foreach ($d['funds'] as $fund): ?>
                                     <tr>
-                                        <td><div class="fw-semibold"><?= e($fund['fund_name']) ?></div><div class="text-muted-sm"><?= e($fund['fund_code']) ?></div></td>
-                                        <td class="text-end"><?= e(format_money($fund['opening_balance'], $currency)) ?></td>
-                                        <td class="text-end fw-semibold">
-                                            <?php if ((int) $fund['posted_entries'] === 0): ?>
-                                                <span class="text-muted-sm">No posted entries</span>
-                                            <?php else: ?>
-                                                <?= e(format_money($fund['posted_position'], $currency)) ?>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?= status_badge($fund['status']) ?></td>
+                                        <td><div class="fw-semibold"><?= e($fund['fund_name']) ?></div><div class="text-muted-sm"><?= e($fund['fund_code']) ?><?= $fund['status'] !== 'active' ? ' · ' . e(humanize($fund['status'])) : '' ?></div></td>
+                                        <td class="text-end"><?= e(money($fund['cash'], $currency)) ?></td>
+                                        <td class="text-end"><?= e(money($fund['advances'], $currency)) ?></td>
+                                        <td class="text-end fw-semibold"><?= e(money($fund['total'], $currency)) ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
                     <?php endif; ?>
-                    <div class="card-footer-note">Posted position = posted inflows − outflows in the cash-flow register, including posted opening balances.</div>
+                    <div class="card-footer-note">From posted journal entries, as in the <a href="<?= e(url('reports/fund_statement.php')) ?>">Fund Balance Report</a>. Total = cash held + advances not yet liquidated.</div>
                 </div>
             </div>
             <div class="col-xl-5">
@@ -59,9 +53,43 @@ declare(strict_types=1);
                             <li><span><i class="bi bi-bank me-2 text-success" aria-hidden="true"></i>Unconfirmed deposits</span><span class="fw-semibold"><?= e((string) $d['pending']['deposits_unconfirmed']) ?></span></li>
                             <li><span><i class="bi bi-journal-check me-2 text-success" aria-hidden="true"></i>Liquidations to review</span><span class="fw-semibold"><?= e((string) $d['pending']['liquidations_to_review']) ?></span></li>
                         </ul>
+                        <h4 class="section-title mt-3">Pending approvals</h4>
+                        <ul class="metric-list">
+                            <?php foreach (['expenses_to_approve' => ['Expenses to approve', 'expenses/index.php?status=submitted'], 'expenses_to_pay' => ['Approved expenses to pay', 'expenses/index.php?status=approved'],
+                                'advances_to_approve' => ['Advance requests', 'advances/index.php?status=pending_approval'], 'advances_to_release' => ['Advances to release', 'advances/release.php'],
+                                'transfers_to_decide' => ['Fund transfers', 'transfers/index.php'], 'budgets_to_approve' => ['Budgets to approve', 'budgets/index.php?status=pending'],
+                                'entries_to_post' => ['Adjusting entries to post', 'ledger/index.php?status=draft']] as $key => [$label, $path]): ?>
+                                <li><span><?= $d['approvals'][$key] ? '<a href="' . e(url($path)) . '">' . e($label) . '</a>' : e($label) ?></span><span class="fw-semibold"><?= e((string) $d['approvals'][$key]) ?></span></li>
+                            <?php endforeach; ?>
+                        </ul>
                     </div>
                 </div>
             </div>
+
+            <?php if ($d['budgets']): ?>
+            <div class="col-12">
+                <div class="card panel">
+                    <div class="card-header"><h3>Budget Utilization</h3><a class="text-muted-sm" href="<?= e(url('budgets/index.php')) ?>">All budgets</a></div>
+                    <div class="table-responsive">
+                        <table class="table table-clean align-middle mb-0">
+                            <thead><tr><th>Budget</th><th class="text-end">Approved</th><th class="text-end">Actual</th><th class="text-end">Pending</th><th class="text-end">Available</th><th style="width:160px">Used</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($d['budgets'] as $b): $used = $b['approved'] ? (int) floor($b['actual'] * 100 / $b['approved']) : 0; ?>
+                                <tr>
+                                    <td><a class="fw-semibold" href="<?= e(url('budgets/view.php?id=' . $b['id'])) ?>"><?= e($b['name']) ?></a><div class="text-muted-sm"><?= e($b['fund']) ?></div></td>
+                                    <td class="text-end"><?= e(money($b['approved'], $currency)) ?></td>
+                                    <td class="text-end"><?= e(money($b['actual'], $currency)) ?></td>
+                                    <td class="text-end text-muted-sm"><?= e(money($b['pending'], $currency)) ?></td>
+                                    <td class="text-end fw-semibold<?= $b['available'] < 0 ? ' text-danger' : '' ?>"><?= e(money($b['available'], $currency)) ?></td>
+                                    <td><?= progress_bar(min(100, $used), $b['actual'] > $b['approved'] ? 'danger' : ($b['available'] < 0 ? 'warning' : '')) ?><div class="text-muted-sm"><?= e($used . '%') ?></div></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <div class="col-xl-6">
                 <div class="card panel h-100">

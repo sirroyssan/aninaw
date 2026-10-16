@@ -3,8 +3,15 @@
 **Accountability, Networked Institutional Numbers, Accounts, and Workflows**
 *Every Fund Accounted For. Every Transaction Transparent.*
 
-Milestone 1: secure sign-in, institution/role resolution, and the role-based dashboard.
-Native PHP 8.2+, MySQL/MariaDB (PDO), Bootstrap 5, Bootstrap Icons, SweetAlert2. No build tools.
+A fund accountability system for schools and organisations: collections and official receipts,
+cash custody and turnovers, deposits and fund transfers, expenses, cash advances and liquidation,
+a double-entry ledger, budgets, twenty financial reports, notifications and a full audit trail.
+
+Native PHP 8.2+ (no framework), MySQL/MariaDB with PDO, Bootstrap 5, Bootstrap Icons, SweetAlert2,
+Chart.js and vanilla JavaScript. No build tools; every library is in `assets/vendor/`, so it runs offline.
+
+Design decisions, the accounting model, schema gaps and module status are listed in
+[`IMPLEMENTATION_CHECKLIST.md`](IMPLEMENTATION_CHECKLIST.md).
 
 ---
 
@@ -12,23 +19,31 @@ Native PHP 8.2+, MySQL/MariaDB (PDO), Bootstrap 5, Bootstrap Icons, SweetAlert2.
 
 1. Copy the whole `aninaw_sys` folder to `/Applications/XAMPP/xamppfiles/htdocs/aninaw_sys`.
 2. Start **Apache** and **MySQL** in the XAMPP manager.
-3. Let Apache write the log folder. In Terminal:
+3. Let Apache write the log and upload folders. In Terminal:
    ```bash
-   chmod 777 /Applications/XAMPP/xamppfiles/htdocs/aninaw_sys/logs
+   cd /Applications/XAMPP/xamppfiles/htdocs/aninaw_sys
+   chmod 777 logs uploads/receipts uploads/attachments
    ```
-   If you skip this, errors go to the XAMPP PHP error log instead.
+   Uploads (receipts, deposit slips, liquidation documents) are stored under `uploads/`, which is
+   blocked from direct web access; files are only served through `attachments/download.php` after a
+   permission check.
 
-All libraries (Bootstrap, Bootstrap Icons, SweetAlert2) are in `assets/vendor/`, so the app works offline.
+## 2. Create or upgrade the database
 
-## 2. Create the database
+**New installation**
 
-1. Open **http://localhost/phpmyadmin**.
-2. Create a database named `aninaw_db` with collation `utf8mb4_general_ci`.
-3. Select it, open **Import**, choose `database/schema.sql`, and click **Import**.
+1. Open **http://localhost/phpmyadmin** and create a database named `aninaw_db` (collation `utf8mb4_general_ci`).
+2. Select it, open **Import**, choose `database/schema.sql`, and click **Import**.
 
-`schema.sql` is your original dump, followed by two clearly marked ANINAW additions (see section 7):
-the `platform_user_roles` table, the `participants.user_id` column, and the seed rows for
-`roles`, `permissions` and `role_permissions`.
+`schema.sql` is the original dump followed by clearly marked ANINAW additions (section 8):
+Part 1 (platform roles, participant login link), Part 2 (roles and permissions seed) and
+Part 3 (migration 002 for the financial modules).
+
+**Upgrading a milestone 1 installation** (database already imported before the financial modules)
+
+Import `database/migration_002_financial_modules.sql` once into `aninaw_db`
+(phpMyAdmin → Import, or `mysql -u root aninaw_db < database/migration_002_financial_modules.sql`).
+It only adds columns, a table and permission rows; no existing data is changed.
 
 ## 3. Configure
 
@@ -41,213 +56,192 @@ DB_USER=root
 DB_PASS=
 ```
 
-Without a `.env` file these same defaults are used. Set `APP_URL=http://localhost/aninaw_sys`
-only if page styles or links ever look broken. `.env` is blocked from web access by `.htaccess`.
+Without a `.env` file these defaults are used. Set `APP_URL=http://localhost/aninaw_sys` only if
+page styles or links look broken. `.env` is blocked from web access by `.htaccess`.
 
-## 4. Create the first administrators (Terminal)
+## 4. First administrators (Terminal)
 
-There is no default account and no default password. Run these from the project folder:
+There is no default account and no default password.
 
 ```bash
 cd /Applications/XAMPP/xamppfiles/htdocs/aninaw_sys
 
-# Platform Super Administrator (manages the platform, not any institution's finances)
+# Platform Super Administrator (creates institutions; no access to institution finances)
 /Applications/XAMPP/xamppfiles/bin/php database/create_admin.php
 
 # An institution (e.g. code PCB) and its first Institution Administrator
 /Applications/XAMPP/xamppfiles/bin/php database/create_admin.php --institution
 ```
 
-- The script runs only from the command line; a browser gets a 404, and `database/` is blocked by `.htaccess`.
-- Passwords are typed by you (hidden), must be 10+ characters with letters and numbers, and only the hash is stored.
-- Once a Platform Super Administrator exists, the first command refuses to run again unless you add `--allow-additional`.
-- `--institution` can also promote an existing user: enter their username when asked.
-
 Then open **http://localhost/aninaw_sys** and sign in with the username or e-mail.
+Institutions can also be created from the platform workspace (**Institutions → New Institution**).
 
-## 5. Giving other people access (until the Users module is built)
+## 5. Setting up an institution
 
-The Users and Roles screens come in the next milestone. Until then, add accounts in phpMyAdmin → SQL.
-Generate a password hash first in Terminal:
+Signed in as the Institution Administrator:
+
+1. **Institution Settings**: receipt title and footer, expense categories, default liquidation days and ledger account codes/names.
+2. **Users**: add members, give them roles (Treasurer, Event Organizer, Cashier, Collector, Adviser, Auditor, Member, Cash Advance Recipient). New users receive a one-time link (valid 48 hours) to set their own password; the administrator never sees or types it.
+3. **Departments & Groups** and **Participants** (one by one or CSV import), with group officers and advisers.
+
+Signed in as the Treasurer:
+
+4. **Funds** and **Financial Accounts**: create funds, cash boxes (each with a custodian), bank and e-wallet accounts, map accounts to funds and post opening balances from a count or statement.
+5. **Events**: the organizer creates the event, links funds and groups (collector and a different cashier per group) and collection rules; obligations are generated for eligible participants.
+
+Day-to-day work then follows the workflows in section 6.
+
+## 6. Modules and workflows
+
+| Module | Where | Who (permission) | Rules enforced on the server |
+|---|---|---|---|
+| Collections | `collections/` | collectors, cashiers, treasurer (`collections.record`, `receipts.issue`) | partial payments only when the rule allows; no overpayment; one official receipt per payment; reprints logged; reversal needs `payments.reverse` and a reason, voids the receipt and restores the obligation |
+| Cash turnovers | `turnovers/` | collector submits (`turnovers.submit`), assigned cashier counts (`turnovers.receive`) | a payment is turned over once; declared and counted amounts stay separate; differences become discrepancies resolved by a third person |
+| Deposits | `deposits/` | `deposits.manage` | pending until a different person confirms; moves cash between accounts, not income |
+| Fund transfers | `transfers/` | request `transfers.manage`, approve `transfers.approve` | approver ≠ requester; destination must be mapped; no revenue or expense |
+| Expenses | `expenses/` | record `expenses.record`, approve `expenses.approve` | receipt required to submit; approver ≠ recorder; posted only when paid from an account with enough cash; reversals keep the original |
+| Cash advances | `advances/`, `liquidation/` | request `advances.request`, approve `advances.approve`, release `advances.release`, review `liquidation.review` | nobody approves, releases or reviews their own advance; only verified receipts and confirmed returns reduce the balance; cannot be liquidated while a balance remains; overdue after the deadline |
+| Cash flow and reconciliation | `cash_flow/`, `reconciliation/` | `cashflow.view`, `reconciliation.manage` | ledger vs register per account; physical counts documented, never edit balances |
+| General ledger | `ledger/` | view `ledger.view`, adjusting entries `ledger.post` | every entry balances; adjusting entries balance per fund and are posted by a different officer; corrections by reversal only |
+| Budgets | `budgets/` | prepare `budgets.manage`, approve/revise `budgets.approve` | approver ≠ preparer; revisions need a reason and keep the previous figures; actual = paid + verified, pending shown apart |
+| Reports | `reports/` | `reports.view` (+ `audit.view` for the audit trail) | 20 reports, institution-scoped, with filters, totals, CSV and print layouts |
+| Notifications | bell menu, `notifications/` | everyone | sent only to people whose role allows them to act; daily deadline reminders |
+
+### How figures are calculated
+
+- **Source of truth**: posted `journal_entries` / `journal_lines`. Every cash line also writes a `cash_flow_transactions` row, and the integrity checks (`ledger/integrity.php`) confirm both agree.
+- **Fund total** = cash held in its accounts + cash advances not yet liquidated. Collected = Collections account credits; spent = Expenses + Cash Shortages debits.
+- **Collected per event/obligation**: allocations of posted payments only; reversed payments are excluded.
+- **Outstanding advance** = released − verified liquidation expenses − confirmed returns.
+- **Budget actual** = paid expenses + verified liquidation receipts in the budget's fund, event, period and category; pending items are reported separately.
+- Money is handled as integer centavos in PHP and `DECIMAL(12,2)` in the database (no floating point).
+- Pending, approved-but-unpaid, reversed and voided items are always labelled and never added to posted totals.
+
+## 7. Roles and dashboards
+
+| Role | Dashboard shows |
+|---|---|
+| Platform Super Administrator | Institutions by status, users, recent institutions, platform activity |
+| Institution Administrator | Institution profile, members by role, financial summary, pending approvals, budgets, recent activity |
+| Treasurer / Finance Officer | Collections, expenses, advances, fund positions (ledger), needs-attention items, pending approvals, budget utilisation, recent turnovers and transactions, ledger |
+| Event Organizer | Own events, expected vs collected, expenses, pending tasks |
+| Faculty Cashier | Collections received, turnovers to receive/verify, receipts issued, discrepancies |
+| Class President / Collector | Groups, collection progress per event, own turnovers |
+| Adviser | Advised groups, collection progress, turnovers, open discrepancies |
+| Auditor | Financial summary, journal balance check, reconciliation status, discrepancies, audit log (read-only) |
+| Student / Member | Own obligations, payments and receipts |
+| Cash Advance Recipient | Own advances, receipts, returns and outstanding balance |
+
+Permissions are reloaded from the database on every request, so role changes take effect on the next page.
+
+## 8. Database changes and why
+
+All changes are additive; no original column or row is modified.
+
+| Change | Why |
+|---|---|
+| `platform_user_roles` (table) | Platform administrators without an institution membership |
+| `participants.user_id` | Explicit link between a login and a student record (no matching by e-mail) |
+| Seed: roles, permissions, role_permissions | The original dump had these tables empty |
+| `financial_accounts.custodian_membership_id` (migration 002) | Who physically holds each cash box/account |
+| `file_attachments.entity_type`, `entity_id` (migration 002) | Link deposit slips, receipts and liquidation documents to their record for authorised downloads |
+| `event_organizers` (migration 002) | One or more organizers per event |
+| New permission codes (migration 002) | e.g. `payments.reverse`, `transfers.approve`, `ledger.post`, `budgets.*` |
+
+Gaps handled without schema changes (reprint history, rejection reasons and budget revisions in
+`audit_logs`; ledger account codes in `institution_settings`, etc.) are listed in the checklist.
+
+## 9. Security
+
+- PDO prepared statements (no emulation); every query filtered by the active institution.
+- Permissions and resource rules checked on the server for every action (e.g. collectors see only their groups, custodians use only their own accounts); role names, IDs, amounts and statuses from the browser are never trusted.
+- Segregation of duties: approver ≠ requester for expenses, transfers, advances, budgets and adjusting entries; deposit confirmer ≠ recorder; discrepancies resolved by a third person; no self-role changes; the last administrator cannot be removed.
+- CSRF token on every POST; one-time form tokens stop double submission; row locks (`SELECT … FOR UPDATE`) and "post once per source" checks prevent duplicate postings under concurrency.
+- Posted records are never deleted or edited: reversals with reasons keep the original visible.
+- Attachments: PDF/JPG/PNG/WEBP only, checked by content (finfo), 5 MB limit, random server-side names, duplicate-receipt detection, stored under a blocked folder and served only after an access check.
+- Passwords: `password_hash()`, 10+ characters with letters and numbers, one-time reset links stored as hashes. Audit logs never contain passwords or tokens.
+- Sessions: HttpOnly, SameSite, strict mode, regenerated IDs, server-side revocation, idle and absolute timeouts; sign-in throttling.
+- CSV exports neutralise spreadsheet formulas, name the institution, filters and generator, and are audited.
+- Headers: Content-Security-Policy, X-Frame-Options, nosniff, Referrer-Policy. Users see plain-language error pages with a reference number; details go to `logs/`.
+
+## 10. Testing
+
+### Automated tests
+
+The suite builds a fresh test database with fictitious data (it refuses any database whose name does
+not end in `_test`) and runs 94 tests: money handling, isolation between institutions, every workflow
+above, ledger integrity, budgets and reports.
 
 ```bash
-/Applications/XAMPP/xamppfiles/bin/php -r 'echo password_hash("TheirPassword123", PASSWORD_DEFAULT), PHP_EOL;'
+cd /Applications/XAMPP/xamppfiles/htdocs/aninaw_sys
+DB_NAME=aninaw_test /Applications/XAMPP/xamppfiles/bin/php tests/run_tests.php
 ```
 
-```sql
--- 1. The login account
-INSERT INTO users (username, email, password_hash, first_name, last_name, status)
-VALUES ('jdelacruz', 'jdelacruz@school.edu.ph', '<paste hash>', 'Juan', 'Dela Cruz', 'active');
+With XAMPP's `root` user no other setup is needed. With another database user, grant it access first:
+`GRANT ALL ON aninaw_test.* TO 'user'@'localhost';` and add `DB_USER=user DB_PASS=…` before the command.
 
--- 2. Membership in an institution (status must be 'active')
-INSERT INTO institution_memberships (institution_id, user_id, membership_status, joined_at)
-SELECT i.id, u.id, 'active', NOW() FROM institutions i, users u
-WHERE i.institution_code = 'PCB' AND u.username = 'jdelacruz';
+### Manual checks by role
 
--- 3. One or more roles. Codes: institution_admin, treasurer, event_organizer, cashier,
---    collector, adviser, auditor, member, advance_recipient
-INSERT INTO membership_roles (membership_id, role_id)
-SELECT m.id, r.id FROM institution_memberships m
-JOIN users u ON u.id = m.user_id JOIN institutions i ON i.id = m.institution_id
-JOIN roles r ON r.role_code = 'treasurer'
-WHERE u.username = 'jdelacruz' AND i.institution_code = 'PCB';
+Use two browsers (or a private window) to act as two people at once.
 
--- 4. Students/members only: link the login to their participant record
-UPDATE participants p JOIN users u ON u.username = 'jdelacruz'
-SET p.user_id = u.id WHERE p.participant_number = '2026-0001' AND p.institution_id = 1;
-```
-
-## 6. How access works
-
-| Step | Rule |
-|---|---|
-| Sign-in | Username **or** e-mail + password, checked with `password_verify()`. Wrong username and wrong password give the same message: "Invalid login credentials." |
-| Account status | Only `users.status = 'active'` can sign in. The status message is shown only after a correct password. |
-| Workspaces | A user can work in an institution only with an **active** membership in an **active** institution and at least one institution role. Platform roles (`platform_user_roles`) give a separate *Platform Administration* workspace. |
-| Several workspaces | The user picks one on *Choose Workspace*; they can switch later from the user menu. Only workspaces read from the database for that user can be selected. |
-| Permissions | Read from `membership_roles → role_permissions → permissions` on **every request**. Removing a role or suspending a membership takes effect on the next page load. |
-| Multiple roles | Permissions combine; the dashboard shows the panels of every role. |
-| Platform admin | Sees platform counts only. Gets no institution access unless explicitly given a membership. |
-
-### Dashboard panels by role
-
-| Role (role_code) | Dashboard shows |
-|---|---|
-| Platform Super Administrator (`platform_super_admin`) | Institutions by status, users, recent institutions, platform activity |
-| Institution Administrator (`institution_admin`) | Institution profile, members by role, active events/funds/groups, financial summary (read-only), recent activity |
-| Treasurer / Finance Officer (`treasurer`) | Collections, paid expenses, outstanding advances, fund positions, items to reconcile, recent turnovers and transactions, ledger |
-| Event Organizer (`event_organizer`) | Own events (`events.created_by`), expected vs collected, paid expenses, pending tasks |
-| Faculty Cashier (`cashier`) | Collections received, turnovers to receive/verify (declared vs received), receipts issued, discrepancies |
-| Class President / Collector (`collector`) | Officer groups, collection requirements per event/group, remaining amount, own turnovers and their status |
-| Adviser (`adviser`) | Advised groups, collection progress, turnover status, open discrepancies |
-| Auditor (`auditor`) | Financial summary, journal entries with debit/credit balance check, reconciliation status, discrepancies, audit log; no edit permissions |
-| Student / Member (`member`) | Own obligations, balance, payments and receipt numbers (needs `participants.user_id` link) |
-| Cash Advance Recipient (`advance_recipient`) | Own advances: released, verified/submitted expenses, returns, outstanding, missing receipts |
-
-### How figures are calculated (no invented numbers)
-
-- **Collections**: payments with status `posted` only (pending, reversed and refunded are excluded).
-- **Collected per obligation/event/group**: `payment_allocations` of posted payments; group totals use `EXISTS` on active `group_memberships`, so a student is never counted twice.
-- **Fund position**: posted `cash_flow_transactions` (inflows − outflows). Deposits between two accounts of the same fund cancel out; pending entries are excluded. Opening balances count only when posted as an `opening_balance` transaction; the recorded `fund_accounts.opening_balance` is shown separately.
-- **Outstanding advance**: released − verified liquidation expenses − confirmed returns.
-- **Paid expenses**: expenses with status `paid`.
-- Empty tables show an empty state, never a zero dressed up as data.
-
-## 7. Database changes and why
-
-Everything is additive; no original column or row is changed.
-
-1. **`platform_user_roles` (new table).** `roles.scope_type` allows `platform`, but `membership_roles` can only attach roles to an institution membership. Without this table a Platform Super Administrator would have to belong to some institution, mixing platform and institution privileges.
-2. **`participants.user_id` (new nullable column, unique per institution).** The original schema has no link between a login and a student/member record. Matching by e-mail would let anyone with a matching address see another person's balance, so the link is explicit.
-3. **Seed data** for `roles` (10), `permissions` (39) and `role_permissions`. The original dump had these tables empty. The seed matches rows by code, so re-running it is safe.
-
-## 8. Security summary
-
-- PDO prepared statements everywhere, with emulation off.
-- `password_hash()` / `password_verify()`, automatic rehash, and timing-equalised checks for unknown users.
-- Session: HttpOnly, SameSite=Lax, Secure on HTTPS, strict mode, ID regenerated at sign-in and on workspace switch.
-- Server-side session record (`user_sessions`) checked on every request and revoked at sign-out, so a copied cookie stops working.
-- Inactivity timeout (30 min) and absolute timeout (8 h), with an on-screen warning before sign-out.
-- CSRF token on every POST (sign-in, sign-out, workspace switch, keep-alive). Sign-out works only by POST.
-- Throttling via `login_attempts`: 5 failures per account or 30 per IP within 15 minutes block further attempts, plus a growing delay after each failure.
-- Post-login redirects accept only local paths inside the app (no open redirects).
-- `audit_logs` records sign-in success/failure/throttling, status and access denials, sign-out, expiry, workspace selection and switching, permission denials, and admin setup.
-- Content-Security-Policy, X-Frame-Options, nosniff and Referrer-Policy headers; all output escaped.
-- `.htaccess` blocks `config/`, `includes/`, `database/`, `logs/`, `uploads/`, dotfiles, `.sql`/`.md`/`.log` files and directory listing.
-- Users see plain-language 403/404/419/500/503 pages; technical details go only to `logs/app-YYYY-MM.log`.
-
-## 9. Testing checklist
-
-| # | Test | Expected |
+| # | Steps | Expected |
 |---|---|---|
-| 1 | Open `/aninaw_sys/dashboard/` or `/aninaw_sys/funds/` signed out | Redirect to sign-in |
-| 1b | Signed in as a role without the permission, open e.g. `/aninaw_sys/users/roles.php` | 403 Access Denied |
-| 2 | Wrong password, then unknown username | Same "Invalid login credentials." |
-| 3 | 5 wrong passwords for one account | 6th attempt: "Too many failed sign-in attempts…" even with the right password |
-| 4 | Set a user to `disabled` and sign in | "Your account is disabled…" |
-| 5 | User with no active membership | "…does not have active access to any institution" |
-| 6 | User in two institutions | *Choose Workspace* page; switching works from the user menu |
-| 7 | Suspend that membership while signed in | Next page load leaves that institution |
-| 8 | Sign out, then press Back / reuse the old cookie | Sign-in page; the old session is revoked |
-| 9 | Remove the `_csrf` field (browser dev tools) and submit | "Page Expired" (419) |
-| 10 | Wait 30 minutes idle | Warning, then sign-out with "Session expired" |
-| 11 | Each role | Only its own panels and sidebar sections |
-| 12 | Student without `participants.user_id` | "not linked to a member record yet" |
-| 13 | Open `/aninaw_sys/config/config.php` or `/aninaw_sys/database/schema.sql` | 403 |
-| 14 | Narrow the browser to phone width | Sidebar collapses behind the ☰ button |
+| 1 | Collector records ₱50 of a ₱150 obligation three times | Each payment gets a receipt; obligation becomes Paid; no fourth payment accepted |
+| 2 | Collector submits a turnover; cashier counts ₱10 less; collector acknowledges | Discrepancy opened; declared and counted amounts both shown; resolved only by a third person |
+| 3 | Submit the same form twice (double-click, or Back and resubmit) | "Already submitted"; only one record |
+| 4 | Treasurer records an expense, then tries to approve it | Refused: another approver must decide |
+| 5 | Admin approves; treasurer pays from an account with too little cash | "Insufficient funds" |
+| 6 | Organizer requests an advance; it is approved and released; organizer adds a receipt and returns the rest | Balance falls only after the reviewer verifies the receipt and the custodian confirms the return; status becomes Liquidated at zero |
+| 7 | Treasurer prepares an adjusting entry and tries to post it | Refused; a second ledger officer posts it; it can then only be reversed with a reason |
+| 8 | Open **General Ledger → Integrity Checks** | All checks pass on data entered through the app |
+| 9 | Open any report, filter, export CSV and print | Header shows institution, period, filters and status; totals match the screen |
+| 10 | Sign in to another institution and open a record URL from the first | 404 Record Not Found |
+| 11 | Paste an attachment's storage path in the address bar | 403; downloading through the app works only for authorised users |
 
-## 10. Folder structure (this milestone)
+## 11. Folder structure
 
 ```
 aninaw_sys/
-├── .htaccess                    # Blocks internal folders/files, error pages, headers
-├── .env.example                 # Copy to .env (database & session settings)
-├── README.md
-├── index.php                    # Redirects to dashboard or sign-in
-├── login.php                    # Sign-in page (AJAX + no-JS fallback)
-├── logout.php                   # POST + CSRF sign-out, revokes session
-├── select_institution.php       # Choose / switch workspace (added)
-├── session_ping.php             # "Stay signed in" keep-alive (added)
-├── 403.php, 404.php             # Error pages (added)
-├── dashboard/
-│   └── index.php                # Role-based dashboard (moved into its own folder)
-├── config/
-│   ├── config.php               # .env loading, constants, bootstrap
-│   ├── db.php                   # PDO connection + query helpers
-│   ├── session.php              # Hardened session start/destroy
-│   └── .htaccess
-├── includes/
-│   ├── header.php               # <head>, top bar, notifications, user menu
-│   ├── sidebar.php              # Role-based navigation
-│   ├── footer.php               # Scripts, logout form
-│   ├── functions.php            # Escaping, URLs, CSRF, flash, formatting, logging, UI helpers
-│   ├── auth_check.php           # Include at top of protected pages
-│   ├── auth.php                 # Login, throttling, sessions, workspaces (added)
-│   ├── permissions.php          # can(), require_permission(), navigation (added)
-│   ├── audit.php                # audit_logs writer (added)
-│   ├── dashboard_data.php       # All dashboard queries (added)
-│   ├── error_page.php           # Error page template (added)
-│   ├── module_page.php          # Protected "planned module" page (added)
-│   ├── dashboard/               # One view per dashboard panel (added)
-│   │   ├── platform.php  overview.php  finance.php  events.php  cashier.php
-│   │   └── collector.php adviser.php   ledger.php   activity.php member.php advances.php
-│   └── .htaccess
-├── assets/
-│   ├── css/style.css            # Theme variables, forms, sign-in, error pages
-│   ├── css/admin.css            # Dashboard layout
-│   ├── js/app.js                # SweetAlert2 helpers, sidebar, logout, idle warning
-│   ├── js/validation.js         # Sign-in validation and submission
-│   ├── images/logo.png, favicon.svg
-│   └── vendor/                  # Bootstrap 5.3.3, Bootstrap Icons 1.11.3, SweetAlert2 11.14.5 (added)
-├── database/
-│   ├── schema.sql               # Original dump + ANINAW additions + seed
-│   ├── create_admin.php         # CLI administrator setup (added)
-│   └── .htaccess
-├── logs/                        # Private application log (added)
-├── uploads/receipts/, uploads/attachments/   # Protected
-├── institutions/  index.php  create.php  settings.php
-├── users/         index.php  create.php  edit.php  roles.php
-├── funds/         index.php  create.php  view.php
-├── events/        index.php  create.php  view.php
-├── collections/   index.php  record_payment.php  print_receipt.php
-├── turnovers/     index.php  submit.php  verify.php
-├── expenses/      index.php  record_expense.php
-├── advances/      index.php  request.php  release.php
-├── liquidation/   index.php  submit.php  review.php
-├── cash_flow/     index.php
-├── deposits/      index.php
-├── transfers/     index.php
-├── reconciliation/index.php
-└── reports/       index.php  collection_summary.php  fund_statement.php  audit_trail.php
+├── index.php, login.php, logout.php, select_institution.php, session_ping.php
+├── account.php, password_reset.php, 403.php, 404.php
+├── dashboard/        index.php                     Role-based dashboard
+├── institutions/     index.php create.php view.php settings.php
+├── users/            index.php create.php edit.php roles.php
+├── groups/           index.php departments.php view.php
+├── participants/     index.php form.php view.php import.php
+├── funds/            index.php create.php view.php accounts.php account.php
+├── events/           index.php create.php view.php
+├── collections/      index.php record_payment.php payment.php payments.php print_receipt.php verify_receipt.php
+├── turnovers/        index.php submit.php verify.php view.php
+├── deposits/         index.php view.php
+├── transfers/        index.php view.php
+├── cash_flow/        index.php
+├── reconciliation/   index.php
+├── expenses/         index.php record_expense.php view.php
+├── advances/         index.php request.php release.php view.php
+├── liquidation/      index.php submit.php review.php
+├── ledger/           index.php entry.php trial_balance.php account.php adjust.php integrity.php
+├── budgets/          index.php form.php view.php
+├── reports/          index.php view.php fund_statement.php collection_summary.php event_financial.php
+│                     financial_summary.php audit_trail.php
+├── notifications/    index.php
+├── attachments/      download.php                  Authorised file downloads
+├── includes/         header, sidebar, footer, auth, permissions, audit, ui, finance, attachments,
+│   │                 notifications, reports, dashboard_data, dashboard/ panels
+│   └── services/     users institutions organization funds events payments turnovers movements
+│                     expenses advances ledger budgets
+├── config/           config.php db.php session.php
+├── assets/           css/ js/ (app, validation, finance, charts) images/ vendor/ (Bootstrap, Icons, SweetAlert2, Chart.js)
+├── database/         schema.sql migration_002_financial_modules.sql create_admin.php
+├── tests/            run_tests.php bootstrap.php fixtures.php cases/
+├── uploads/          receipts/ attachments/        Blocked from direct access
+└── logs/                                           Private application log
 ```
 
-### Module folders
+## 12. Known limitations
 
-Every module page from the folder structure exists and already enforces sign-in, the right
-workspace (platform or institution) and its permission, e.g. `turnovers/verify.php` needs
-`turnovers.receive` and `funds/create.php` needs `funds.manage`. Their content is a
-"Planned for an upcoming milestone" card listing what the page will do; the sidebar links to
-them with a **Soon** badge. Each later milestone replaces the card with the real feature.
-
-**Not in this milestone:** `password_reset.php`, which needs an e-mail sender to be configured.
-Until then users ask their institution administrator for a new password.
+- **PDF export** is not built in (no approved PDF library). Every report has a print layout; use the browser's *Save as PDF*.
+- **E-mail/SMS** are not configured. Notifications are in-app; password links are shown to the administrator to pass on.
+- **Commitments/purchase orders** are not in the schema, so budgets show approved, actual, pending and available amounts.
+- Journal numbers of prepared adjusting entries that are discarded are not reused, so the sequence can show gaps (the audit trail records each discard).
+- Records inserted directly into the database (outside the app) are not posted to the ledger; the integrity checks list them so they can be corrected with adjusting entries.

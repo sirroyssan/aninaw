@@ -100,7 +100,7 @@ advances receivable vs the advance records.
 | 8 | Ledger, journals, adjusting entries | journal_entries, journal_lines | ledger.view, ledger.post | foundation | ✅ |
 | 9 | Budgets | budgets, budget_lines | budgets.view/manage/approve | expenses | ✅ |
 | 9 | Reports (20) + CSV + print + charts | all | reports.view (+ module permissions) | all | ✅ |
-| 10 | Notifications, audit trail, dashboard integration | notifications, audit_logs | — | all | ⬜ |
+| 10 | Notifications, audit trail, dashboard integration, security review, docs | notifications, audit_logs | — | all | ✅ |
 
 ## 6. Reports
 

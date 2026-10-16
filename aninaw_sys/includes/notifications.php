@@ -98,11 +98,17 @@ function generate_due_reminders(int $institutionId): void
         }
 
         // Advances past their deadline become overdue (a status change, not a financial posting).
-        db_query(
-            "UPDATE cash_advances SET status = 'overdue'
-             WHERE institution_id = ? AND status IN ('released', 'partially_liquidated') AND liquidation_deadline < ?",
+        $overdue = db_all(
+            "SELECT a.id, a.advance_number, a.status, a.recipient_membership_id FROM cash_advances a
+             WHERE a.institution_id = ? AND a.status IN ('released', 'partially_liquidated') AND a.liquidation_deadline < ?",
             [$institutionId, $today]
         );
+        foreach ($overdue as $advance) {
+            db_query("UPDATE cash_advances SET status = 'overdue' WHERE id = ? AND status = ?", [$advance['id'], $advance['status']]);
+            audit_log('advance.overdue', 'cash_advance', (int) $advance['id'], $institutionId, null, ['status' => 'overdue'], ['status' => $advance['status']], 'Liquidation deadline passed');
+            notify_membership($institutionId, (int) $advance['recipient_membership_id'], 'liquidation_deadline', 'Cash advance overdue',
+                $advance['advance_number'] . ' is past its liquidation deadline. Submit your receipts and return unused cash.');
+        }
 
         $userId = auth_user() ? (int) auth_user()['id'] : null;
         db_query(
