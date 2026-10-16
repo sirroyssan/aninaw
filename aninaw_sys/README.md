@@ -160,7 +160,8 @@ Everything is additive; no original column or row is changed.
 
 | # | Test | Expected |
 |---|---|---|
-| 1 | Open `/aninaw_sys/dashboard.php` signed out | Redirect to sign-in |
+| 1 | Open `/aninaw_sys/dashboard/` or `/aninaw_sys/funds/` signed out | Redirect to sign-in |
+| 1b | Signed in as a role without the permission, open e.g. `/aninaw_sys/users/roles.php` | 403 Access Denied |
 | 2 | Wrong password, then unknown username | Same "Invalid login credentials." |
 | 3 | 5 wrong passwords for one account | 6th attempt: "Too many failed sign-in attempts…" even with the right password |
 | 4 | Set a user to `disabled` and sign in | "Your account is disabled…" |
@@ -187,8 +188,9 @@ aninaw_sys/
 ├── logout.php                   # POST + CSRF sign-out, revokes session
 ├── select_institution.php       # Choose / switch workspace (added)
 ├── session_ping.php             # "Stay signed in" keep-alive (added)
-├── dashboard.php                # Role-based dashboard
 ├── 403.php, 404.php             # Error pages (added)
+├── dashboard/
+│   └── index.php                # Role-based dashboard (moved into its own folder)
 ├── config/
 │   ├── config.php               # .env loading, constants, bootstrap
 │   ├── db.php                   # PDO connection + query helpers
@@ -205,6 +207,7 @@ aninaw_sys/
 │   ├── audit.php                # audit_logs writer (added)
 │   ├── dashboard_data.php       # All dashboard queries (added)
 │   ├── error_page.php           # Error page template (added)
+│   ├── module_page.php          # Protected "planned module" page (added)
 │   ├── dashboard/               # One view per dashboard panel (added)
 │   │   ├── platform.php  overview.php  finance.php  events.php  cashier.php
 │   │   └── collector.php adviser.php   ledger.php   activity.php member.php advances.php
@@ -221,10 +224,30 @@ aninaw_sys/
 │   ├── create_admin.php         # CLI administrator setup (added)
 │   └── .htaccess
 ├── logs/                        # Private application log (added)
-└── uploads/receipts/, uploads/attachments/   # Protected
+├── uploads/receipts/, uploads/attachments/   # Protected
+├── institutions/  index.php  create.php  settings.php
+├── users/         index.php  create.php  edit.php  roles.php
+├── funds/         index.php  create.php  view.php
+├── events/        index.php  create.php  view.php
+├── collections/   index.php  record_payment.php  print_receipt.php
+├── turnovers/     index.php  submit.php  verify.php
+├── expenses/      index.php  record_expense.php
+├── advances/      index.php  request.php  release.php
+├── liquidation/   index.php  submit.php  review.php
+├── cash_flow/     index.php
+├── deposits/      index.php
+├── transfers/     index.php
+├── reconciliation/index.php
+└── reports/       index.php  collection_summary.php  fund_statement.php  audit_trail.php
 ```
 
-**Not in this milestone:** `password_reset.php` (needs an e-mail sender to be configured) and the module
-folders (`institutions/`, `users/`, `funds/`, `events/`, `collections/`, `turnovers/`, `expenses/`,
-`advances/`, `liquidation/`, `cash_flow/`, `deposits/`, `transfers/`, `reconciliation/`, `reports/`).
-They show in the sidebar as **Soon** for the roles that will use them, and get built in later milestones.
+### Module folders
+
+Every module page from the folder structure exists and already enforces sign-in, the right
+workspace (platform or institution) and its permission, e.g. `turnovers/verify.php` needs
+`turnovers.receive` and `funds/create.php` needs `funds.manage`. Their content is a
+"Planned for an upcoming milestone" card listing what the page will do; the sidebar links to
+them with a **Soon** badge. Each later milestone replaces the card with the real feature.
+
+**Not in this milestone:** `password_reset.php`, which needs an e-mail sender to be configured.
+Until then users ask their institution administrator for a new password.

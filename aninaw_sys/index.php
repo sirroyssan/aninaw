@@ -10,6 +10,6 @@ send_no_cache_headers();
 
 $status = auth_bootstrap_request();
 if ($status === 'authenticated') {
-    redirect(auth_context() ? 'dashboard.php' : 'select_institution.php');
+    redirect(auth_context() ? 'dashboard/index.php' : 'select_institution.php');
 }
 redirect($status === 'expired' ? 'login.php?expired=1' : 'login.php');

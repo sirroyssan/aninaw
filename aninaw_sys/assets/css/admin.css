@@ -51,7 +51,6 @@ a.nav-link-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
 .nav-link-item.active::before {
     content: ""; position: absolute; left: -0.75rem; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: #6FCF97;
 }
-.nav-link-item.is-disabled { color: rgba(255, 255, 255, 0.42); cursor: default; }
 .nav-soon {
     margin-left: auto; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.06em;
     padding: 0.1rem 0.4rem; border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.55);
@@ -228,3 +227,9 @@ a.nav-link-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Modules planned for later milestones ---------- */
+.module-placeholder { max-width: 760px; }
+.module-placeholder-head { display: flex; gap: 1rem; align-items: flex-start; }
+.module-placeholder-title { font-size: 1.25rem; margin: 0.25rem 0; }
+.module-feature-list .bi { color: var(--an-primary); }

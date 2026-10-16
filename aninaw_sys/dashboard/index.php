@@ -5,7 +5,7 @@
  */
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/auth_check.php';
+require_once dirname(__DIR__) . '/includes/auth_check.php';
 require_once APP_ROOT . '/includes/dashboard_data.php';
 
 $context = auth_context();

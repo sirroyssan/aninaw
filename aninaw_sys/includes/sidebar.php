@@ -38,18 +38,13 @@ $sections = navigation_sections();
                     <?php foreach ($items as $item): ?>
                         <?php $isActive = $item['key'] === $activeNav; ?>
                         <li>
-                            <?php if ($item['ready']): ?>
-                                <a class="nav-link-item<?= $isActive ? ' active' : '' ?>" href="<?= e(url($item['path'])) ?>"<?= $isActive ? ' aria-current="page"' : '' ?>>
-                                    <i class="bi <?= e($item['icon']) ?>" aria-hidden="true"></i>
-                                    <span><?= e($item['label']) ?></span>
-                                </a>
-                            <?php else: ?>
-                                <span class="nav-link-item is-disabled" aria-disabled="true" title="Available in an upcoming release">
-                                    <i class="bi <?= e($item['icon']) ?>" aria-hidden="true"></i>
-                                    <span><?= e($item['label']) ?></span>
-                                    <span class="nav-soon">Soon</span>
-                                </span>
-                            <?php endif; ?>
+                            <a class="nav-link-item<?= $isActive ? ' active' : '' ?>" href="<?= e(url($item['path'])) ?>"<?= $isActive ? ' aria-current="page"' : '' ?>>
+                                <i class="bi <?= e($item['icon']) ?>" aria-hidden="true"></i>
+                                <span><?= e($item['label']) ?></span>
+                                <?php if (!$item['ready']): ?>
+                                    <span class="nav-soon" title="Planned for an upcoming milestone">Soon</span>
+                                <?php endif; ?>
+                            </a>
                         </li>
                     <?php endforeach; ?>
                 </ul>

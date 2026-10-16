@@ -11,7 +11,7 @@ send_security_headers();
 send_no_cache_headers();
 
 if (auth_bootstrap_request() === 'authenticated') {
-    redirect(auth_context() ? 'dashboard.php' : 'select_institution.php');
+    redirect(auth_context() ? 'dashboard/index.php' : 'select_institution.php');
 }
 start_secure_session();
 

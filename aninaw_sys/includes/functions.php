@@ -111,7 +111,7 @@ function json_response(array $payload, int $status = 200): never
  * Accepts only a local path inside this application for post-login redirects.
  * Anything else (absolute URLs, protocol-relative URLs, backslashes) falls back to the dashboard.
  */
-function safe_redirect_path(?string $candidate, string $fallback = 'dashboard.php'): string
+function safe_redirect_path(?string $candidate, string $fallback = 'dashboard/index.php'): string
 {
     $candidate = trim((string) $candidate);
     if ($candidate === '' || preg_match('#[\\\\\x00-\x1F]#', $candidate) || !str_starts_with($candidate, '/') || str_starts_with($candidate, '//')) {

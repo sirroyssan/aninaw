@@ -54,8 +54,8 @@ function require_institution_context(): void
 
 /**
  * Sidebar navigation for the active context. Items appear only when the user holds
- * one of the listed permissions. `ready` marks modules built in this milestone;
- * the rest render as disabled entries so users can see what their role will cover.
+ * one of the listed permissions. `ready` marks modules that are fully built; the rest
+ * open a protected page announcing the module and carry a "Soon" badge.
  */
 function navigation_sections(): array
 {
@@ -67,16 +67,16 @@ function navigation_sections(): array
     if ($context['type'] === 'platform') {
         $sections = [
             'Platform' => [
-                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-grid-1x2', 'path' => 'dashboard.php', 'any' => ['platform.institutions.view'], 'ready' => true],
+                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-grid-1x2', 'path' => 'dashboard/index.php', 'any' => ['platform.institutions.view'], 'ready' => true],
                 ['key' => 'institutions', 'label' => 'Institutions', 'icon' => 'bi-building', 'path' => 'institutions/index.php', 'any' => ['platform.institutions.view'], 'ready' => false],
-                ['key' => 'platform-users', 'label' => 'Users', 'icon' => 'bi-people', 'path' => 'users/index.php', 'any' => ['platform.users.view'], 'ready' => false],
-                ['key' => 'platform-audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['platform.audit.view'], 'ready' => false],
+                ['key' => 'users', 'label' => 'Users', 'icon' => 'bi-people', 'path' => 'users/index.php', 'any' => ['platform.users.view'], 'ready' => false],
+                ['key' => 'audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['platform.audit.view'], 'ready' => false],
             ],
         ];
     } else {
         $sections = [
             'Overview' => [
-                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-grid-1x2', 'path' => 'dashboard.php', 'any' => ['dashboard.view'], 'ready' => true],
+                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-grid-1x2', 'path' => 'dashboard/index.php', 'any' => ['dashboard.view'], 'ready' => true],
             ],
             'Administration' => [
                 ['key' => 'settings', 'label' => 'Institution Settings', 'icon' => 'bi-gear', 'path' => 'institutions/settings.php', 'any' => ['institution.settings.manage'], 'ready' => false],

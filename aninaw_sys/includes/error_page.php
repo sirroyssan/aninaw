@@ -23,7 +23,7 @@ declare(strict_types=1);
     <p class="error-message"><?= e($message) ?></p>
     <div class="d-flex gap-2 justify-content-center flex-wrap">
         <?php if ($loggedIn): ?>
-            <a class="btn btn-primary" href="<?= e(url('dashboard.php')) ?>"><i class="bi bi-grid-1x2 me-1" aria-hidden="true"></i>Back to Dashboard</a>
+            <a class="btn btn-primary" href="<?= e(url('dashboard/index.php')) ?>"><i class="bi bi-grid-1x2 me-1" aria-hidden="true"></i>Back to Dashboard</a>
         <?php else: ?>
             <a class="btn btn-primary" href="<?= e(url('login.php')) ?>"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Go to Sign In</a>
         <?php endif; ?>
