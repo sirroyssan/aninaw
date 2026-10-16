@@ -219,6 +219,15 @@ function find_payment(int $paymentId): ?array
              WHERE pa.institution_id = ? AND pa.payment_id = ? ORDER BY pa.id",
             [current_institution_id(), $paymentId]
         );
+        $payment['order'] = db_one(
+            'SELECT o.id, o.order_number, o.total_amount FROM sales_order_payments sop JOIN sales_orders o ON o.id = sop.order_id AND o.institution_id = sop.institution_id
+             WHERE sop.institution_id = ? AND sop.payment_id = ?',
+            [current_institution_id(), $paymentId]
+        );
+        $payment['order_items'] = $payment['order'] ? db_all(
+            'SELECT description, quantity, unit_price, additional_charge, line_total FROM sales_order_items WHERE institution_id = ? AND order_id = ? ORDER BY id',
+            [current_institution_id(), $payment['order']['id']]
+        ) : [];
         $payment['fund'] = db_one(
             "SELECT f.id, f.fund_name FROM journal_entries j JOIN journal_lines l ON l.journal_entry_id = j.id AND l.institution_id = j.institution_id
              JOIN fund_accounts f ON f.id = l.fund_id AND f.institution_id = l.institution_id
@@ -276,6 +285,7 @@ function reverse_payment(int $paymentId, string $reason): void
         foreach (db_query('SELECT obligation_id FROM payment_allocations WHERE institution_id = ? AND payment_id = ?', [$institutionId, $paymentId])->fetchAll(PDO::FETCH_COLUMN) as $obligationId) {
             refresh_obligation_status((int) $obligationId);
         }
+        refresh_orders_for_payment($paymentId);
         audit_log('payment.reversed', 'payment', $paymentId, $institutionId, (int) auth_user()['id'], ['status' => 'reversed', 'receipt_status' => 'voided'], ['status' => 'posted'], $reason);
         notify_membership($institutionId, (int) $payment['received_by_membership_id'], 'payment', 'Payment reversed',
             'Payment ' . $payment['payment_number'] . ' was reversed: ' . $reason);
@@ -343,3 +353,6 @@ function amount_in_words(int $cents, string $currency = 'PHP'): string
     $unit = ['PHP' => 'Pesos', 'USD' => 'Dollars', 'EUR' => 'Euros'][$currency] ?? $currency;
     return ($parts ? implode(' ', $parts) : 'Zero') . ' ' . $unit . ' and ' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT) . '/100';
 }
+
+// Product/service orders settle through these payments (loaded last: orders.php builds on this file).
+require_once __DIR__ . '/orders.php';

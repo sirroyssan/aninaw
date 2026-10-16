@@ -4,6 +4,7 @@
  *   data-fill-max             button that fills the sibling input with its data-max value
  *   data-row-editor           add/remove repeatable rows from a <template>
  *   data-journal-lines        adjusting-entry lines (cash-account select, debit/credit totals)
+ *   data-order-form           order lines, subtotal, discount and total due
  * Totals here are a convenience; the server recalculates and validates every amount.
  */
 (function () {
@@ -133,6 +134,66 @@
         });
         form.addEventListener('input', totals);
         form.addEventListener('row:added', function (event) { syncCash(event.target); });
+        totals();
+    });
+
+    // data-order-form: order lines (item price × quantity, or pages × copies for per-page
+    // services, + extra charge), subtotal, discount and total due. The server recomputes all of it.
+    document.querySelectorAll('[data-order-form]').forEach(function (form) {
+        var prefix = form.getAttribute('data-currency') || '';
+        function toggle(selector, show, line) {
+            line.querySelectorAll(selector).forEach(function (el) { el.classList.toggle('d-none', !show); });
+        }
+        function syncLine(line) {
+            var option = line.querySelector('[data-order-variant]').selectedOptions[0];
+            var service = option && option.getAttribute('data-service') === '1';
+            var unit = option ? option.getAttribute('data-unit') : '';
+            var perPage = service && unit === 'page', perCopy = service && unit === 'copy';
+            toggle('[data-service-only]', service, line);
+            toggle('[data-goods-only]', !(perPage || perCopy), line);
+            var pages = line.querySelector('[data-order-pages]').closest('[data-service-only]');
+            pages.classList.toggle('d-none', !perPage);
+            var copies = line.querySelector('[data-order-copies]').closest('[data-service-only]');
+            copies.classList.toggle('d-none', !(perPage || perCopy));
+        }
+        function lineTotal(line) {
+            var option = line.querySelector('[data-order-variant]').selectedOptions[0];
+            if (!option || !option.value) { return 0; }
+            var unit = option.getAttribute('data-unit'), service = option.getAttribute('data-service') === '1';
+            var qty = parseInt(line.querySelector('[data-order-qty]').value, 10) || 0;
+            var pages = parseInt(line.querySelector('[data-order-pages]').value, 10) || 0;
+            var copies = parseInt(line.querySelector('[data-order-copies]').value, 10) || 0;
+            if (service && unit === 'page' && pages) { qty = pages * (copies || 1); }
+            else if (service && unit === 'copy' && copies) { qty = copies; }
+            return qty * toCents(option.getAttribute('data-price')) + toCents(line.querySelector('[data-order-charge]').value);
+        }
+        function totals() {
+            var subtotal = 0;
+            form.querySelectorAll('[data-order-line]').forEach(function (line) {
+                var cents = lineTotal(line);
+                line.querySelector('[data-order-line-total]').textContent = prefix + formatCents(cents);
+                subtotal += cents;
+            });
+            var discountInput = form.querySelector('[data-order-discount]');
+            var discount = Math.min(discountInput ? toCents(discountInput.value) : 0, subtotal);
+            form.querySelector('[data-order-subtotal]').textContent = prefix + formatCents(subtotal);
+            form.querySelector('[data-order-discount-shown]').textContent = prefix + formatCents(discount);
+            form.querySelector('[data-order-total]').textContent = prefix + formatCents(subtotal - discount);
+        }
+        function syncCustomer() {
+            var walkin = form.querySelector('[data-customer-mode][value="walkin"]').checked;
+            form.querySelectorAll('[data-customer-walkin]').forEach(function (el) { el.classList.toggle('d-none', !walkin); });
+            form.querySelectorAll('[data-customer-existing]').forEach(function (el) { el.classList.toggle('d-none', walkin); });
+        }
+        form.querySelectorAll('[data-order-line]').forEach(syncLine);
+        form.addEventListener('change', function (event) {
+            if (event.target.matches('[data-order-variant]')) { syncLine(event.target.closest('[data-order-line]')); }
+            if (event.target.matches('[data-customer-mode]')) { syncCustomer(); }
+            totals();
+        });
+        form.addEventListener('input', totals);
+        form.addEventListener('row:added', function (event) { syncLine(event.target); totals(); });
+        syncCustomer();
         totals();
     });
 

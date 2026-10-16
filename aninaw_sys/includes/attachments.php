@@ -30,6 +30,8 @@ const ATTACHMENT_ENTITY_PERMISSIONS = [
     'advance_expense' => ['advances.view', 'liquidation.review'],
     'advance_return'  => ['advances.view', 'liquidation.review'],
     'budget'          => ['budgets.view'],
+    'product'         => ['products.view'],
+    'order_item'      => ['orders.view', 'orders.manage'],
 ];
 
 /** True when a file was submitted in the given field. */

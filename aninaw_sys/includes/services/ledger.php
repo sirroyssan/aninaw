@@ -27,11 +27,12 @@ const JOURNAL_SOURCE_LABELS = [
     'advance_expense'      => 'Liquidated expense',
     'advance_return'       => 'Advance return',
     'opening_balance'      => 'Opening balance',
+    'sales_order'          => 'Product / service order',
     'adjustment'           => 'Adjusting entry',
 ];
 
 /** Ledger keys an adjusting entry may use. */
-const ADJUSTABLE_LEDGER_KEYS = ['cash_custody', 'bank', 'e_wallet', 'other', 'fund_balance', 'collections', 'other_income', 'expenses', 'cash_shortage'];
+const ADJUSTABLE_LEDGER_KEYS = ['cash_custody', 'bank', 'e_wallet', 'other', 'fund_balance', 'collections', 'sales', 'service_revenue', 'other_income', 'expenses', 'cash_shortage'];
 
 /** Chart of accounts for the institution: key => [code, name, class]. */
 function ledger_chart(int $institutionId): array

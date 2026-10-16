@@ -136,7 +136,7 @@ require APP_ROOT . '/includes/header.php';
 <div class="stat-grid">
     <?= stat_card('bi-wallet', 'Belongs to Fund', money($summary['total'], $currency), 'Cash held + advances outstanding') ?>
     <?= stat_card('bi-cash-stack', 'Available Cash', money($summary['cash'], $currency), count($summary['holdings']) . ' account(s) hold it') ?>
-    <?= stat_card('bi-cash-coin', 'Collected', money($summary['collected'], $currency), 'Posted collections, net of reversals') ?>
+    <?= stat_card('bi-cash-coin', 'Collected', money($summary['collected'], $currency), 'Posted collections and sales, net of reversals') ?>
     <?= stat_card('bi-receipt', 'Spent', money($summary['spent'], $currency), 'Posted expenses incl. liquidated advances', 'info') ?>
     <?= stat_card('bi-arrow-left-right', 'Turned Over', money($summary['turned_over'], $currency), 'Custody moved to cashiers (not income)', 'info') ?>
     <?= stat_card('bi-bank', 'Deposited', money($summary['deposited'], $currency), 'Moved into banks/e-wallets (not income)', 'info') ?>

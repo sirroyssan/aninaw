@@ -34,6 +34,8 @@ $movement = static function (array $codes, bool $creditPositive, ?string $start,
 
 $income = [
     'Collections and contributions' => $movement([$code('collections')], true, $from, $to),
+    'Product sales'                 => $movement([$code('sales')], true, $from, $to),
+    'Service revenue'               => $movement([$code('service_revenue')], true, $from, $to),
     'Other income (cash overages)'  => $movement([$code('other_income')], true, $from, $to),
 ];
 $expenses = [
@@ -60,11 +62,11 @@ $typeLabels = FINANCIAL_ACCOUNT_TYPES;
 // Monthly income vs expenses (posted).
 $monthly = db_all(
     "SELECT DATE_FORMAT(j.journal_date, '%Y-%m') AS month,
-            SUM(CASE WHEN l.account_code IN (?, ?) THEN l.credit_amount - l.debit_amount ELSE 0 END) AS income,
+            SUM(CASE WHEN l.account_code IN (?, ?, ?, ?) THEN l.credit_amount - l.debit_amount ELSE 0 END) AS income,
             SUM(CASE WHEN l.account_code IN (?, ?) THEN l.debit_amount - l.credit_amount ELSE 0 END) AS expense
      FROM journal_lines l JOIN journal_entries j ON j.id = l.journal_entry_id AND j.institution_id = l.institution_id AND j.status = 'posted'
      WHERE l.institution_id = ? AND j.journal_date BETWEEN ? AND ? GROUP BY month ORDER BY month LIMIT 36",
-    [$code('collections'), $code('other_income'), $code('expenses'), $code('cash_shortage'), $institutionId, $from, $to]
+    [$code('collections'), $code('sales'), $code('service_revenue'), $code('other_income'), $code('expenses'), $code('cash_shortage'), $institutionId, $from, $to]
 );
 
 $collections = db_one(

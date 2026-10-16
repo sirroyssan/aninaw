@@ -62,6 +62,9 @@ $voided = $payment['receipt_status'] === 'voided';
         <?php foreach ($payment['allocations'] as $row): ?>
             <tr><td><?= e($row['event_name']) ?> — <?= e($row['rule_name']) ?></td><td class="text-end"><?= e(m($row['allocated_amount'])) ?></td></tr>
         <?php endforeach; ?>
+        <?php if ($payment['order']): ?>
+            <tr><td>Order <?= e($payment['order']['order_number']) ?> — <?= e(implode(', ', array_map(static fn($i) => $i['description'] . ' × ' . $i['quantity'], $payment['order_items']))) ?><?= to_cents($payment['amount']) < to_cents($payment['order']['total_amount']) ? ' (payment toward ' . e(m($payment['order']['total_amount'])) . ')' : '' ?></td><td class="text-end"><?= e(m($payment['amount'])) ?></td></tr>
+        <?php endif; ?>
         </tbody>
         <tfoot><tr><th>Total</th><th class="text-end"><?= e(money($amountCents, $currency)) ?></th></tr></tfoot>
     </table>

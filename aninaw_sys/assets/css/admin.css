@@ -308,6 +308,12 @@ a.nav-link-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
 .report-card-text { display: block; font-size: 0.8125rem; color: var(--an-text-muted); margin-top: 0.15rem; }
 .table-report td { font-size: 0.8125rem; }
 .chart-box { position: relative; height: 280px; }
+.order-totals { display: grid; gap: 0.35rem; max-width: 320px; margin-left: auto; }
+.order-totals > div { display: flex; justify-content: space-between; gap: 1rem; }
+.order-totals dt { font-weight: 500; color: var(--an-text-muted); }
+.order-totals dd { margin: 0; font-variant-numeric: tabular-nums; }
+.order-totals .order-total { border-top: 1px solid var(--an-border); padding-top: 0.35rem; font-size: 1.1rem; font-weight: 700; }
+.order-totals .order-total dt { color: var(--an-text); }
 
 @media print {
     .app-sidebar, .app-header, .app-footer, .page-toolbar-actions, .filter-bar, .no-print, .pagination, .sidebar-backdrop, .btn { display: none !important; }

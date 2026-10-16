@@ -105,6 +105,13 @@ function navigation_sections(): array
                 ['key' => 'ledger', 'label' => 'General Ledger', 'icon' => 'bi-journal-text', 'path' => 'ledger/index.php', 'any' => ['ledger.view', 'ledger.post'], 'ready' => true],
                 ['key' => 'reconciliation', 'label' => 'Reconciliation', 'icon' => 'bi-check2-square', 'path' => 'reconciliation/index.php', 'any' => ['reconciliation.manage', 'ledger.view'], 'ready' => true],
             ],
+            'Store' => [
+                ['key' => 'products', 'label' => 'Products & Services', 'icon' => 'bi-box-seam', 'path' => 'products/index.php', 'any' => ['products.view', 'products.manage'], 'ready' => true],
+                ['key' => 'inventory', 'label' => 'Inventory', 'icon' => 'bi-boxes', 'path' => 'inventory/index.php', 'any' => ['inventory.view', 'inventory.manage'], 'ready' => true],
+                ['key' => 'orders', 'label' => 'Orders', 'icon' => 'bi-cart', 'path' => 'orders/index.php', 'any' => ['orders.view', 'orders.manage', 'collections.record'], 'ready' => true],
+                ['key' => 'production', 'label' => 'Shirt Production', 'icon' => 'bi-truck', 'path' => 'orders/production.php', 'any' => ['orders.view', 'orders.manage', 'inventory.view'], 'ready' => true],
+                ['key' => 'printing', 'label' => 'Printing Jobs', 'icon' => 'bi-printer', 'path' => 'orders/printing.php', 'any' => ['orders.view', 'orders.manage'], 'ready' => true],
+            ],
             'Oversight' => [
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'bi-bar-chart', 'path' => 'reports/index.php', 'any' => ['reports.view'], 'ready' => true],
                 ['key' => 'audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['audit.view'], 'ready' => true],

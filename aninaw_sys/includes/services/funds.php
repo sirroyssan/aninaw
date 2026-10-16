@@ -366,7 +366,7 @@ function refresh_fund_opening_balance(int $fundId): void
 function fund_summary(int $fundId): array
 {
     $institutionId = (int) current_institution_id();
-    $collections = ledger_account($institutionId, 'collections')['code'];
+    $incomeCodes = array_map(static fn(string $key) => ledger_account($institutionId, $key)['code'], ['collections', 'sales', 'service_revenue']);
     $expenseCodes = [ledger_account($institutionId, 'expenses')['code'], ledger_account($institutionId, 'cash_shortage')['code']];
 
     $sumLines = static function (string $condition, array $params) use ($institutionId, $fundId): int {
@@ -403,7 +403,7 @@ function fund_summary(int $fundId): array
     );
 
     return [
-        'collected'    => $sumLines('l.account_code = ?', [$collections]),
+        'collected'    => $sumLines('l.account_code IN (?, ?, ?)', $incomeCodes),
         'spent'        => -$sumLines('l.account_code IN (?, ?)', $expenseCodes),
         'turned_over'  => $registerSum('transfer', 'turnover'),
         'deposited'    => $registerSum('deposit', 'deposit'),

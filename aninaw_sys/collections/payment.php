@@ -67,6 +67,14 @@ require APP_ROOT . '/includes/header.php';
                             <td><?= status_badge($row['obligation_status']) ?></td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php if ($payment['order']): ?>
+                        <tr>
+                            <td><?= can_any(['orders.view', 'orders.manage']) ? '<a href="' . e(url('orders/view.php?id=' . $payment['order']['id'])) . '">Order ' . e($payment['order']['order_number']) . '</a>' : 'Order ' . e($payment['order']['order_number']) ?>
+                                <div class="text-muted-sm"><?= e(implode(', ', array_map(static fn($i) => $i['description'] . ' × ' . $i['quantity'], $payment['order_items']))) ?></div></td>
+                            <td class="text-end fw-semibold"><?= e(m($payment['amount'])) ?></td>
+                            <td class="text-muted-sm">Order total <?= e(m($payment['order']['total_amount'])) ?></td>
+                        </tr>
+                    <?php endif; ?>
                     </tbody>
                 </table>
             </div>

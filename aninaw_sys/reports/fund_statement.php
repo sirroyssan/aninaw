@@ -29,7 +29,7 @@ foreach ($funds as $fund) {
     }
 }
 $currency = current_currency();
-$columns = ['opening' => 'Opening', 'collected' => 'Collected', 'spent' => 'Spent', 'cash' => 'Cash held', 'advances' => 'Advances outstanding', 'total' => 'Total resources'];
+$columns = ['opening' => 'Opening', 'collected' => 'Collected & sales', 'spent' => 'Spent', 'cash' => 'Cash held', 'advances' => 'Advances outstanding', 'total' => 'Total resources'];
 
 if (get_str('export', 10) === 'csv') {
     audit_log('report.exported', 'report', null, current_institution_id(), (int) auth_user()['id'], ['report' => 'fund_balances', 'status' => $status, 'rows' => count($rows)]);
