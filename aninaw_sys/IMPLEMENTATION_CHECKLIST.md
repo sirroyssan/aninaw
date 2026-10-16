@@ -86,7 +86,7 @@ check before outflows; one-time form tokens against double submission; reversals
 | 4 | Turnovers, acknowledgments, discrepancies | cash_turnovers, cash_turnover_details, turnover_acknowledgments, turnover_discrepancies | turnovers.submit/receive, reconciliation.manage | payments | ✅ |
 | 5 | Cash flow, deposits, transfers, reconciliation | cash_flow_transactions, deposits, fund_transfers | cashflow.view, deposits.manage, transfers.manage/approve, reconciliation.manage | ledger | ✅ |
 | 6 | Expenses and approvals | expenses | expenses.record/approve | accounts | ✅ |
-| 7 | Cash advances and liquidation | cash_advances, cash_advance_expenses, cash_advance_returns | advances.*, liquidation.* | accounts | ⬜ |
+| 7 | Cash advances and liquidation | cash_advances, cash_advance_expenses, cash_advance_returns | advances.*, liquidation.* | accounts | ✅ |
 | 8 | Ledger, journals, adjusting entries | journal_entries, journal_lines | ledger.view, ledger.post | foundation | ⬜ |
 | 9 | Budgets | budgets, budget_lines | budgets.view/manage/approve | expenses | ⬜ |
 | 9 | Reports (20) + CSV + print | all | reports.view (+ module permissions) | all | ⬜ |
