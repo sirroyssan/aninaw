@@ -98,6 +98,38 @@ advances receivable vs the advance records.
 | 6 | Expenses and approvals | expenses | expenses.record/approve | accounts | ✅ |
 | 7 | Cash advances and liquidation | cash_advances, cash_advance_expenses, cash_advance_returns | advances.*, liquidation.* | accounts | ✅ |
 | 8 | Ledger, journals, adjusting entries | journal_entries, journal_lines | ledger.view, ledger.post | foundation | ✅ |
-| 9 | Budgets | budgets, budget_lines | budgets.view/manage/approve | expenses | ⬜ |
-| 9 | Reports (20) + CSV + print | all | reports.view (+ module permissions) | all | ⬜ |
+| 9 | Budgets | budgets, budget_lines | budgets.view/manage/approve | expenses | ✅ |
+| 9 | Reports (20) + CSV + print + charts | all | reports.view (+ module permissions) | all | ✅ |
 | 10 | Notifications, audit trail, dashboard integration | notifications, audit_logs | — | all | ⬜ |
+
+## 6. Reports
+
+| # | Report | Where | Notes |
+|---|---|---|---|
+| 1 | Fund balance report | `reports/fund_statement.php` | per fund: opening, collected, spent, cash, advances; chart; links to each fund statement |
+| 2 | Collection summary | `reports/collection_summary.php` | per event and rule; collected = posted payments |
+| 3 | Individual collection status | `reports/view.php?r=collection_status` | per participant obligation |
+| 4 | Event financial report | `reports/event_financial.php` | collections, posted vs pending spending, advances, budgets; chart |
+| 5 | Payment history | `reports/view.php?r=payment_history` | defaults to posted |
+| 6 | Receipt register | `reports/view.php?r=receipt_register` | issued/voided, reprint counts |
+| 7 | Cash turnover report | `reports/view.php?r=turnover_report` | declared vs counted |
+| 8 | Cash custody report | `reports/view.php?r=cash_custody` | posted balance per account/fund/custodian; pending apart |
+| 9 | Turnover discrepancy report | `reports/view.php?r=discrepancy_report` | |
+| 10 | Deposit report | `reports/view.php?r=deposit_report` | defaults to confirmed |
+| 11 | Fund transfer report | `reports/view.php?r=transfer_report` | defaults to posted |
+| 12 | Expense report | `reports/view.php?r=expense_report` | defaults to paid |
+| 13 | Cash advance report | `reports/view.php?r=advance_report` | |
+| 14 | Cash advance liquidation report | `reports/view.php?r=liquidation_report` | unliquidated = released − verified − confirmed returns |
+| 15 | Cash flow report | `cash_flow/index.php` | existing register (Batch 5) |
+| 16 | Budget versus actual | `reports/view.php?r=budget_vs_actual` and each budget page | actual = paid + verified; pending apart |
+| 17 | Journal entry report | `ledger/index.php` | Batch 8 |
+| 18 | Ledger report | `ledger/trial_balance.php`, `ledger/account.php` | Batch 8 |
+| 19 | Audit trail | `reports/audit_trail.php` | institution (audit.view) or platform (platform.audit.view) |
+| 20 | Institution financial summary | `reports/financial_summary.php` | needs funds.view_all or ledger.view; chart |
+
+All reports: institution-scoped queries, filters (date, fund, event, account, group/department, status,
+search as relevant), pagination, totals over the whole filtered result, CSV (formula-injection safe,
+with a preamble naming the institution, filters and generator; exports are audited) and a print layout
+with the report header. Charts use Chart.js 4.4.4 vendored in `assets/vendor/chartjs/`.
+PDF export is not included (no approved PDF library); use the browser's "Save as PDF" from the print layout.
+

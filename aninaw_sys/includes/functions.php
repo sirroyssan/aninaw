@@ -385,9 +385,11 @@ function panel_error(): string
         . 'This section could not be loaded right now. Please refresh the page. If the problem continues, contact your administrator.</div>';
 }
 
-function progress_bar(float $percent): string
+/** $variant: '' (theme green) or a Bootstrap colour such as 'warning' / 'danger'. */
+function progress_bar(float $percent, string $variant = ''): string
 {
     $percent = max(0.0, min(100.0, $percent));
+    $class = in_array($variant, ['warning', 'danger', 'info'], true) ? ' bg-' . $variant : '';
     return '<div class="progress progress-thin" role="progressbar" aria-valuenow="' . e((string) $percent) . '" aria-valuemin="0" aria-valuemax="100">'
-        . '<div class="progress-bar" style="width: ' . e((string) $percent) . '%"></div></div>';
+        . '<div class="progress-bar' . $class . '" style="width: ' . e((string) $percent) . '%"></div></div>';
 }

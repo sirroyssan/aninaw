@@ -2,7 +2,8 @@
  * ANINAW — helpers for financial forms.
  *   data-money-sum="#target"  sums the amount inputs inside the element into #target
  *   data-fill-max             button that fills the sibling input with its data-max value
- *   data-journal-lines        adjusting-entry line editor (rows, cash-account select, totals)
+ *   data-row-editor           add/remove repeatable rows from a <template>
+ *   data-journal-lines        adjusting-entry lines (cash-account select, debit/credit totals)
  * Totals here are a convenience; the server recalculates and validates every amount.
  */
 (function () {
@@ -66,13 +67,33 @@
         refreshChecked(container);
     });
 
+    // data-row-editor: repeatable rows. Rows live in [data-row-body]; new rows come from
+    // <template data-row-template> with __INDEX__ replaced; [data-row-add] / [data-row-remove]
+    // buttons; data-min-rows (default 1) rows are always kept. Fires "row:added" on new rows.
+    document.querySelectorAll('[data-row-editor]').forEach(function (editor) {
+        var body = editor.querySelector('[data-row-body]');
+        var template = editor.querySelector('[data-row-template]');
+        var minRows = parseInt(editor.getAttribute('data-min-rows') || '1', 10);
+        var next = body.children.length;
+        editor.addEventListener('click', function (event) {
+            if (event.target.closest('[data-row-add]')) {
+                body.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__INDEX__/g, String(next++)));
+                body.lastElementChild.dispatchEvent(new CustomEvent('row:added', { bubbles: true }));
+                return;
+            }
+            var remove = event.target.closest('[data-row-remove]');
+            if (remove && body.children.length > minRows) {
+                remove.closest('[data-row-body] > *').remove();
+                editor.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+    });
+
     // data-journal-lines: adjusting-entry editor. Add/remove rows, enable the cash-account
     // select only for cash ledger accounts (filtered to matching account types), live totals.
     var CASH_KEYS = ['cash_custody', 'bank', 'e_wallet', 'other'];
     document.querySelectorAll('[data-journal-lines]').forEach(function (form) {
-        var body = form.querySelector('[data-line-body]');
-        var template = form.querySelector('[data-line-template]');
-        var next = body.querySelectorAll('[data-line]').length;
+        var body = form.querySelector('[data-row-body]');
         var prefix = form.getAttribute('data-currency') || '';
 
         function syncCash(row) {
@@ -111,17 +132,7 @@
             if (event.target.matches('[data-line-account]')) { syncCash(event.target.closest('[data-line]')); }
         });
         form.addEventListener('input', totals);
-        form.addEventListener('click', function (event) {
-            if (event.target.closest('[data-line-add]')) {
-                body.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__INDEX__/g, String(next++)));
-                syncCash(body.lastElementChild);
-            }
-            var remove = event.target.closest('[data-line-remove]');
-            if (remove && body.querySelectorAll('[data-line]').length > 2) {
-                remove.closest('[data-line]').remove();
-                totals();
-            }
-        });
+        form.addEventListener('row:added', function (event) { syncCash(event.target); });
         totals();
     });
 

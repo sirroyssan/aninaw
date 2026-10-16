@@ -296,6 +296,16 @@ a.nav-link-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
 .report-header { display: none; }
 .text-amount { font-variant-numeric: tabular-nums; }
 
+.section-title { font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--an-text-muted); margin: 0 0 0.75rem; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.875rem; }
+.report-card { display: flex; gap: 0.875rem; align-items: flex-start; padding: 1rem 1.125rem; color: var(--an-text); text-decoration: none; transition: border-color var(--an-transition), box-shadow var(--an-transition); }
+.report-card:hover { border-color: var(--an-primary); color: var(--an-text); box-shadow: var(--an-shadow); }
+.report-card-icon { flex: 0 0 auto; width: 2.5rem; height: 2.5rem; border-radius: var(--an-radius-sm); display: grid; place-items: center; background: var(--an-soft-green); color: var(--an-primary); font-size: 1.15rem; }
+.report-card-title { display: block; font-weight: 600; }
+.report-card-text { display: block; font-size: 0.8125rem; color: var(--an-text-muted); margin-top: 0.15rem; }
+.table-report td { font-size: 0.8125rem; }
+.chart-box { position: relative; height: 280px; }
+
 @media print {
     .app-sidebar, .app-header, .app-footer, .page-toolbar-actions, .filter-bar, .no-print, .pagination, .sidebar-backdrop, .btn { display: none !important; }
     .app-main { margin-left: 0 !important; }
@@ -303,6 +313,7 @@ a.nav-link-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
     body, .app-body { background: #fff !important; font-size: 11pt; }
     .card.panel, .stat-card { box-shadow: none !important; break-inside: avoid; }
     .report-header { display: block; margin-bottom: 1rem; }
+    .chart-box { height: 220px; }
     .table-clean thead th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     a { color: inherit !important; text-decoration: none !important; }
 }

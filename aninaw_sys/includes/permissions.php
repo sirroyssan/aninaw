@@ -70,7 +70,7 @@ function navigation_sections(): array
                 ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-grid-1x2', 'path' => 'dashboard/index.php', 'any' => ['platform.institutions.view'], 'ready' => true],
                 ['key' => 'institutions', 'label' => 'Institutions', 'icon' => 'bi-building', 'path' => 'institutions/index.php', 'any' => ['platform.institutions.view'], 'ready' => true],
                 ['key' => 'users', 'label' => 'Users', 'icon' => 'bi-people', 'path' => 'users/index.php', 'any' => ['platform.users.view'], 'ready' => true],
-                ['key' => 'audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['platform.audit.view'], 'ready' => false],
+                ['key' => 'audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['platform.audit.view'], 'ready' => true],
             ],
         ];
     } else {
@@ -98,6 +98,7 @@ function navigation_sections(): array
                 ['key' => 'expenses', 'label' => 'Expenses', 'icon' => 'bi-receipt', 'path' => 'expenses/index.php', 'any' => ['expenses.view', 'expenses.record', 'expenses.approve'], 'ready' => true],
                 ['key' => 'advances', 'label' => 'Cash Advances', 'icon' => 'bi-wallet2', 'path' => 'advances/index.php', 'any' => ['advances.view', 'advances.request', 'self.advances.view', 'advances.approve', 'advances.release', 'liquidation.review'], 'ready' => true],
                 ['key' => 'liquidation', 'label' => 'Liquidation', 'icon' => 'bi-journal-check', 'path' => 'liquidation/index.php', 'any' => ['liquidation.submit', 'liquidation.review', 'advances.view'], 'ready' => true],
+                ['key' => 'budgets', 'label' => 'Budgets', 'icon' => 'bi-clipboard-data', 'path' => 'budgets/index.php', 'any' => ['budgets.view', 'budgets.manage', 'budgets.approve'], 'ready' => true],
                 ['key' => 'cash-flow', 'label' => 'Cash Flow', 'icon' => 'bi-activity', 'path' => 'cash_flow/index.php', 'any' => ['cashflow.view'], 'ready' => true],
                 ['key' => 'deposits', 'label' => 'Deposits', 'icon' => 'bi-bank', 'path' => 'deposits/index.php', 'any' => ['deposits.manage', 'cashflow.view'], 'ready' => true],
                 ['key' => 'transfers', 'label' => 'Fund Transfers', 'icon' => 'bi-shuffle', 'path' => 'transfers/index.php', 'any' => ['transfers.manage', 'transfers.approve', 'cashflow.view'], 'ready' => true],
@@ -105,8 +106,8 @@ function navigation_sections(): array
                 ['key' => 'reconciliation', 'label' => 'Reconciliation', 'icon' => 'bi-check2-square', 'path' => 'reconciliation/index.php', 'any' => ['reconciliation.manage', 'ledger.view'], 'ready' => true],
             ],
             'Oversight' => [
-                ['key' => 'reports', 'label' => 'Reports', 'icon' => 'bi-bar-chart', 'path' => 'reports/index.php', 'any' => ['reports.view'], 'ready' => false],
-                ['key' => 'audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['audit.view'], 'ready' => false],
+                ['key' => 'reports', 'label' => 'Reports', 'icon' => 'bi-bar-chart', 'path' => 'reports/index.php', 'any' => ['reports.view'], 'ready' => true],
+                ['key' => 'audit', 'label' => 'Audit Trail', 'icon' => 'bi-clipboard-check', 'path' => 'reports/audit_trail.php', 'any' => ['audit.view'], 'ready' => true],
             ],
         ];
     }

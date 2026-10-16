@@ -73,7 +73,7 @@ $renderRow = static function (int|string $index, array $line) use ($funds, $acco
         . '<td><input class="form-control form-control-sm text-amount" name="' . $name('debit') . '" inputmode="decimal" aria-label="Debit" data-line-debit value="' . e((string) ($line['debit'] ?? '')) . '"></td>'
         . '<td><input class="form-control form-control-sm text-amount" name="' . $name('credit') . '" inputmode="decimal" aria-label="Credit" data-line-credit value="' . e((string) ($line['credit'] ?? '')) . '"></td>'
         . '<td><input class="form-control form-control-sm" name="' . $name('description') . '" maxlength="255" aria-label="Line note" value="' . e((string) ($line['description'] ?? '')) . '"></td>'
-        . '<td><button class="btn btn-outline-danger btn-xs" type="button" data-line-remove aria-label="Remove line"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>'
+        . '<td><button class="btn btn-outline-danger btn-xs" type="button" data-row-remove aria-label="Remove line"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>'
         . '</tr>';
 };
 
@@ -83,7 +83,7 @@ $breadcrumb = [auth_context()['label'], 'General Ledger'];
 $pageScripts = ['js/finance.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<form method="post" class="card panel form-card" data-journal-lines data-currency="<?= e(current_currency() === 'PHP' ? '₱' : '') ?>">
+<form method="post" class="card panel form-card" data-row-editor data-min-rows="2" data-journal-lines data-currency="<?= e(current_currency() === 'PHP' ? '₱' : '') ?>">
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="notice notice-info"><i class="bi bi-info-circle" aria-hidden="true"></i><div>
@@ -98,14 +98,14 @@ require APP_ROOT . '/includes/header.php';
         <div class="table-responsive">
             <table class="table table-clean align-middle mb-2">
                 <thead><tr><th style="min-width:160px">Fund</th><th style="min-width:200px">Ledger account</th><th style="min-width:160px">Cash account</th><th style="width:130px">Debit</th><th style="width:130px">Credit</th><th style="min-width:160px">Note</th><th></th></tr></thead>
-                <tbody data-line-body>
+                <tbody data-row-body>
                 <?php foreach (array_values($lines) as $index => $line): ?><?= $renderRow($index, is_array($line) ? $line : []) ?><?php endforeach; ?>
                 </tbody>
-                <tfoot><tr class="fw-semibold"><td colspan="3"><button class="btn btn-outline-primary btn-sm" type="button" data-line-add><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add line</button></td>
+                <tfoot><tr class="fw-semibold"><td colspan="3"><button class="btn btn-outline-primary btn-sm" type="button" data-row-add><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add line</button></td>
                     <td class="text-end" data-total-debit>0.00</td><td class="text-end" data-total-credit>0.00</td><td colspan="2" data-total-status class="text-muted-sm"></td></tr></tfoot>
             </table>
         </div>
-        <template data-line-template><?= $renderRow('__INDEX__', []) ?></template>
+        <template data-row-template><?= $renderRow('__INDEX__', []) ?></template>
         <div class="form-actions">
             <a class="btn btn-outline-secondary" href="<?= e(url($entry ? 'ledger/entry.php?id=' . $entryId : 'ledger/index.php')) ?>">Cancel</a>
             <button class="btn btn-primary" type="submit"><i class="bi bi-save me-1" aria-hidden="true"></i><?= $entry ? 'Save Changes' : 'Prepare Entry' ?></button>
