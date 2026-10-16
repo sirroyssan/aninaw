@@ -90,7 +90,7 @@ function navigation_sections(): array
             'Collections' => [
                 ['key' => 'events', 'label' => 'Events', 'icon' => 'bi-calendar-event', 'path' => 'events/index.php', 'any' => ['events.view', 'events.manage'], 'ready' => true],
                 ['key' => 'collections', 'label' => 'Collections', 'icon' => 'bi-cash-coin', 'path' => 'collections/index.php', 'any' => ['collections.view', 'collections.record'], 'ready' => true],
-                ['key' => 'turnovers', 'label' => 'Cash Turnovers', 'icon' => 'bi-arrow-left-right', 'path' => 'turnovers/index.php', 'any' => ['turnovers.view'], 'ready' => false],
+                ['key' => 'turnovers', 'label' => 'Cash Turnovers', 'icon' => 'bi-arrow-left-right', 'path' => 'turnovers/index.php', 'any' => ['turnovers.view', 'turnovers.submit', 'turnovers.receive'], 'ready' => true],
             ],
             'Finance' => [
                 ['key' => 'funds', 'label' => 'Funds', 'icon' => 'bi-wallet', 'path' => 'funds/index.php', 'any' => ['funds.view'], 'ready' => true],

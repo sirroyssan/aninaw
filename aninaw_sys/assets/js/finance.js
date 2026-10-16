@@ -47,5 +47,23 @@
         input.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
+    // data-checked-sum="#target": sums data-amount of checked boxes; data-check-all toggles them.
+    function refreshChecked(container) {
+        var target = document.querySelector(container.getAttribute('data-checked-sum'));
+        if (!target) { return; }
+        var total = 0;
+        container.querySelectorAll('input[type="checkbox"][data-amount]:checked').forEach(function (box) { total += toCents(box.getAttribute('data-amount')); });
+        target.textContent = (target.getAttribute('data-currency') || '') + formatCents(total);
+    }
+    document.querySelectorAll('[data-checked-sum]').forEach(function (container) {
+        container.addEventListener('change', function (event) {
+            if (event.target.matches('[data-check-all]')) {
+                container.querySelectorAll('input[type="checkbox"][data-amount]').forEach(function (box) { box.checked = event.target.checked; });
+            }
+            refreshChecked(container);
+        });
+        refreshChecked(container);
+    });
+
     window.AninawMoney = { toCents: toCents, formatCents: formatCents };
 })();
