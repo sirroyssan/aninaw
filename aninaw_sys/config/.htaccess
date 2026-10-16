@@ -1,0 +1,2 @@
+# Internal files: never served over the web.
+Require all denied

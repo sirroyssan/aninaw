@@ -1,0 +1,5 @@
+# Uploaded files are served only through authorised PHP scripts, never directly.
+Require all denied
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>

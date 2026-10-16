@@ -1,0 +1,6 @@
+.env
+logs/*.log
+uploads/receipts/*
+uploads/attachments/*
+!uploads/**/.gitkeep
+.DS_Store
