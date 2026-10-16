@@ -196,6 +196,45 @@ test('cancelling: paid orders need their payment reversed first; reservations ar
     assert_rejected(fn() => cancel_order($fx['shirt_order'], 'Too late'), 'already released');
 });
 
+test('store reports agree with stock, orders and posted payments', function () {
+    require_once APP_ROOT . '/includes/reports.php';
+    act_as('treasurer', 'TST');
+    $fx = $GLOBALS['fx'];
+    $values = ['from' => date('Y-01-01'), 'to' => date('Y-m-d'), 'fund' => $fx['general'], 'account' => $fx['cashier_box'], 'q' => 'a',
+        'product' => $fx['shirt'], 'category' => (int) db_value('SELECT category_id FROM products WHERE id = ?', [$fx['shirt']]), 'variant' => fx_variant($fx['shirt'], 'M')];
+    foreach (store_report_definitions() as $key => $definition) {
+        foreach ($definition['filters'] as $filter) {
+            fx_report($key, [$filter => $filter === 'status' ? array_key_first($definition['statuses']) : $values[$filter]]);
+        }
+    }
+
+    foreach (fx_report('store_inventory') as $row) {
+        $variant = find_variant((int) $row['id']);
+        assert_same($variant['on_hand'], (int) $row['on_hand'], $row['sku'] . ' on hand');
+        assert_same($variant['reserved'], (int) $row['reserved'], $row['sku'] . ' reserved');
+    }
+    $movements = fx_report('store_movements', ['variant' => fx_variant($fx['paper'], 'Standard')]);
+    assert_same(find_variant(fx_variant($fx['paper'], 'Standard'))['on_hand'], array_sum(array_map('intval', array_column($movements, 'quantity'))), 'movements add up to stock on hand');
+
+    $posted = (int) round((float) db_value("SELECT COALESCE(SUM(sop.amount), 0) * 100 FROM sales_order_payments sop JOIN payments p ON p.id = sop.payment_id WHERE p.status = 'posted' AND sop.institution_id = ?", [current_institution_id()]));
+    assert_same($posted, fx_sum(fx_report('store_sales_collections', ['status' => 'posted']), 'amount'), 'collections = posted order payments');
+    assert_same(-$posted, ledger_key_balance((int) current_institution_id(), 'sales') + ledger_key_balance((int) current_institution_id(), 'service_revenue'), 'store revenue in the ledger = posted order payments');
+
+    $unpaid = array_column(fx_report('store_unpaid'), 'id');
+    assert_true(!in_array($fx['shirt_order'], array_map('intval', $unpaid), true), 'fully paid orders are not listed as unpaid');
+
+    $shirt = array_values(array_filter(fx_report('store_profit'), static fn($r) => (int) $r['id'] === $fx['shirt']))[0];
+    $lines = db_one("SELECT SUM(i.line_total) AS sales, SUM(i.unit_cost * i.quantity) AS cost FROM sales_order_items i JOIN sales_orders o ON o.id = i.order_id
+                     WHERE i.product_id = ? AND o.order_status <> 'cancelled' AND o.discount_amount = 0", [$fx['shirt']]);
+    assert_same(to_cents($lines['sales']) - to_cents($lines['cost']), to_cents($shirt['expected_profit']), 'expected profit from line snapshots');
+    assert_same(24000, to_cents($shirt['actual_profit']), 'actual profit on the three released shirts: 3 × (450 − 370)');
+
+    act_as('other_treasurer', 'OTH');
+    foreach (array_keys(store_report_definitions()) as $key) {
+        assert_same([], fx_report($key), $key . ' shows nothing from another institution');
+    }
+});
+
 test('orders stay inside the institution and the ledger still agrees with every module', function () {
     act_as('other_treasurer', 'OTH');
     assert_same(null, find_order($GLOBALS['fx']['shirt_order']));

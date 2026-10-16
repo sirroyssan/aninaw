@@ -36,11 +36,12 @@ Design decisions, the accounting model, schema gaps and module status are listed
 2. Select it, open **Import**, choose `database/schema.sql`, and click **Import**.
 
 `schema.sql` is the original dump followed by clearly marked ANINAW additions (section 8):
-Part 1 (platform roles, participant login link), Part 2 (roles and permissions seed) and
-Part 3 (migration 002 for the financial modules).
+Part 1 (platform roles, participant login link), Part 2 (roles and permissions seed),
+Part 3 (migration 002 for the financial modules) and Part 4 (migration 003 for the store:
+products, inventory, orders and printing services).
 
-That is all for a new installation. **Do not import the migration file below**: `schema.sql`
-already contains it (Part 3).
+That is all for a new installation. **Do not import the migration files below**: `schema.sql`
+already contains them (Parts 3 and 4).
 
 **Only if you are upgrading** a database that was imported from the *milestone 1* `schema.sql`
 (before the financial modules existed) and you want to keep its data:
@@ -49,6 +50,12 @@ Import `database/migration_002_financial_modules.sql` once into `aninaw_db`
 (phpMyAdmin → Import, or `mysql -u root aninaw_db < database/migration_002_financial_modules.sql`).
 It only adds columns, a table and permission rows; no existing data is changed. Anything that
 already exists is skipped, so running it on an up-to-date database does no harm.
+
+**Upgrading an installation that already has the financial modules** (any database set up before
+the store module): import `database/migration_003_products_orders.sql` once
+(`mysql -u root aninaw_db < database/migration_003_products_orders.sql`). It creates the store
+tables, the *Inventory Custodian* and *Order Staff* roles and the store permissions; existing
+tables and data are not touched, and it is safe to run again.
 
 ## 3. Configure
 
@@ -110,6 +117,10 @@ Day-to-day work then follows the workflows in section 6.
 | General ledger | `ledger/` | view `ledger.view`, adjusting entries `ledger.post` | every entry balances; adjusting entries balance per fund and are posted by a different officer; corrections by reversal only |
 | Budgets | `budgets/` | prepare `budgets.manage`, approve/revise `budgets.approve` | approver ≠ preparer; revisions need a reason and keep the previous figures; actual = paid + verified, pending shown apart |
 | Reports | `reports/` | `reports.view` (+ `audit.view` for the audit trail) | 20 reports, institution-scoped, with filters, totals, CSV and print layouts |
+| Products & services | `products/` | view `products.view`, add/edit `products.manage`, prices `products.pricing` | unique SKU per institution; price and cost changes need `products.pricing` and never alter existing orders; products are deactivated, never deleted once used |
+| Inventory | `inventory/` | view `inventory.view`, receive/order `inventory.manage`, adjust `inventory.adjust`, below-zero exception `inventory.override` | stock = sum of movements (never edited); every adjustment needs a reason; stock cannot go below zero unless an administrator flags the exception; quantities ordered from suppliers are not stock until received |
+| Orders, shirts and printing | `orders/` | create/confirm/release `orders.manage`, discounts `orders.discount`, cancel `orders.cancel`, take payment `collections.record` | prices and costs are copied onto each line; an order is paid only by posted payments (official receipt, cashier's own mapped account, never above the balance; full payment unless every item allows partial); stock is reserved at confirmation and cannot be oversold; release only when fully paid; cancelling a paid order needs the payment reversed first |
+| Store dashboard and reports | `products/dashboard.php`, `products/reports.php` | any store permission; profit report `products.pricing` or `reports.view` | 10 store reports on the same report engine (filters, totals, CSV, print), institution-scoped |
 | Notifications | bell menu, `notifications/` | everyone | sent only to people whose role allows them to act; daily deadline reminders |
 
 ### How figures are calculated
@@ -119,6 +130,9 @@ Day-to-day work then follows the workflows in section 6.
 - **Collected per event/obligation**: allocations of posted payments only; reversed payments are excluded.
 - **Outstanding advance** = released − verified liquidation expenses − confirmed returns.
 - **Budget actual** = paid expenses + verified liquidation receipts in the budget's fund, event, period and category; pending items are reported separately.
+- **Store sales** (cash basis): a payment on an order debits the cash account and credits *Sales Revenue* (4100) and/or *Service Revenue* (4200) of the order's fund, split by the order's goods and service amounts. Reversing the payment reverses the entry and reopens the balance. Fund "collected" figures include these accounts.
+- **Stock**: on hand = sum of inventory movements; reserved = confirmed order quantities not yet released; available = on hand − reserved; on order = ordered − received on open supplier/production orders.
+- **Gross profit**: expected = order lines (net of discounts) − cost snapshots for all orders not cancelled; actual = the same for quantities released to customers.
 - Money is handled as integer centavos in PHP and `DECIMAL(12,2)` in the database (no floating point).
 - Pending, approved-but-unpaid, reversed and voided items are always labelled and never added to posted totals.
 
@@ -136,6 +150,8 @@ Day-to-day work then follows the workflows in section 6.
 | Auditor | Financial summary, journal balance check, reconciliation status, discrepancies, audit log (read-only) |
 | Student / Member | Own obligations, payments and receipts |
 | Cash Advance Recipient | Own advances, receipts, returns and outstanding balance |
+| Inventory Custodian | Store dashboard: catalogue, low stock, deliveries; manages stock, supplier/production orders and adjustments |
+| Order Staff | Store dashboard: order pipeline, printing queue; creates and confirms orders, runs printing jobs and releases paid items (payments are taken by a cashier) |
 
 Permissions are reloaded from the database on every request, so role changes take effect on the next page.
 
@@ -152,6 +168,11 @@ All changes are additive; no original column or row is modified.
 | `file_attachments.entity_type`, `entity_id` (migration 002) | Link deposit slips, receipts and liquidation documents to their record for authorised downloads |
 | `event_organizers` (migration 002) | One or more organizers per event |
 | New permission codes (migration 002) | e.g. `payments.reverse`, `transfers.approve`, `ledger.post`, `budgets.*` |
+| `product_categories`, `products`, `product_variants` (migration 003) | Catalogue with SKU, fulfillment (stock / made to order / service), fund, cost and price, sizes or service options |
+| `inventory_movements`, `stock_batches`, `stock_batch_items` (migration 003) | Stock as an append-only movement history; supplier and production (shirt printer) orders with ordered vs received quantities |
+| `sales_orders`, `sales_order_items`, `sales_order_payments`, `sales_order_releases` (migration 003) | Orders with snapshot prices/costs, order and payment status, links to the existing `payments`/`receipts`, and a record of every hand-over |
+| `service_consumption_rules` (migration 003) | Supplies a completed printing job deducts from stock (e.g. one sheet per page) |
+| Roles `inventory_custodian`, `order_staff` and `products.*`, `inventory.*`, `orders.*` permissions (migration 003) | Separation between catalogue, stock, orders and cash handling |
 
 Gaps handled without schema changes (reprint history, rejection reasons and budget revisions in
 `audit_logs`; ledger account codes in `institution_settings`, etc.) are listed in the checklist.
@@ -174,8 +195,9 @@ Gaps handled without schema changes (reprint history, rejection reasons and budg
 ### Automated tests
 
 The suite builds a fresh test database with fictitious data (it refuses any database whose name does
-not end in `_test`) and runs 94 tests: money handling, isolation between institutions, every workflow
-above, ledger integrity, budgets and reports.
+not end in `_test`) and runs 103 tests: money handling, isolation between institutions, every workflow
+above, ledger integrity, budgets, reports, and the store (catalogue, stock, shirt orders, printing jobs,
+reservations, discounts, cancellation and store reports).
 
 ```bash
 cd /Applications/XAMPP/xamppfiles/htdocs/aninaw_sys
@@ -202,6 +224,10 @@ Use two browsers (or a private window) to act as two people at once.
 | 9 | Open any report, filter, export CSV and print | Header shows institution, period, filters and status; totals match the screen |
 | 10 | Sign in to another institution and open a record URL from the first | 404 Record Not Found |
 | 11 | Paste an attachment's storage path in the address bar | 403; downloading through the app works only for authorised users |
+| 12 | Order staff creates a shirt order (2 × M); cashier records a partial payment; staff confirms | Order is Confirmed / Partially Paid with a receipt; it appears on **Shirt Production** under "To produce" |
+| 13 | Custodian places and receives a production order; staff clicks **Mark orders ready**; staff tries to release | Ready for Release; release is refused until the cashier records the balance; then items are released and leave stock |
+| 14 | Create a printing job (12 pages × 2 copies), pay it, start and complete it | Billed 24 pages; paper stock drops by the consumption rule; the job can then be released |
+| 15 | Adjust a stock item by more than is on hand | Refused unless an administrator ticks the below-zero exception, which is flagged in the movement report |
 
 ## 11. Folder structure
 
@@ -227,17 +253,20 @@ aninaw_sys/
 ├── liquidation/      index.php submit.php review.php
 ├── ledger/           index.php entry.php trial_balance.php account.php adjust.php integrity.php
 ├── budgets/          index.php form.php view.php
+├── products/         dashboard.php index.php form.php view.php categories.php reports.php   Store
+├── inventory/        index.php adjust.php movements.php batches.php batch.php
+├── orders/           index.php create.php view.php slip.php production.php printing.php
 ├── reports/          index.php view.php fund_statement.php collection_summary.php event_financial.php
 │                     financial_summary.php audit_trail.php
 ├── notifications/    index.php
 ├── attachments/      download.php                  Authorised file downloads
 ├── includes/         header, sidebar, footer, auth, permissions, audit, ui, finance, attachments,
-│   │                 notifications, reports, dashboard_data, dashboard/ panels
+│   │                 notifications, reports, store_reports, dashboard_data, dashboard/ panels
 │   └── services/     users institutions organization funds events payments turnovers movements
-│                     expenses advances ledger budgets
+│                     expenses advances ledger budgets products orders
 ├── config/           config.php db.php session.php
 ├── assets/           css/ js/ (app, validation, finance, charts) images/ vendor/ (Bootstrap, Icons, SweetAlert2, Chart.js)
-├── database/         schema.sql migration_002_financial_modules.sql create_admin.php
+├── database/         schema.sql migration_002_financial_modules.sql migration_003_products_orders.sql create_admin.php
 ├── tests/            run_tests.php bootstrap.php fixtures.php cases/
 ├── uploads/          receipts/ attachments/        Blocked from direct access
 └── logs/                                           Private application log
@@ -249,4 +278,6 @@ aninaw_sys/
 - **E-mail/SMS** are not configured. Notifications are in-app; password links are shown to the administrator to pass on.
 - **Commitments/purchase orders** are not in the schema, so budgets show approved, actual, pending and available amounts.
 - Journal numbers of prepared adjusting entries that are discarded are not reused, so the sequence can show gaps (the audit trail records each discard).
+- **Store revenue is cash basis**: income is recorded when payments are received, not when orders are placed; unpaid order balances are shown on the store reports, not as receivables in the ledger. Supplier payments for stock are recorded as ordinary expenses and linked to the production order.
+- Supplies consumed by printing jobs reduce stock but are not added to the job's cost; the job's cost is the per-unit cost saved on the order line.
 - Records inserted directly into the database (outside the app) are not posted to the ledger; the integrity checks list them so they can be corrected with adjusting entries.

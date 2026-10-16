@@ -11,7 +11,7 @@ function fx_report(string $key, array $filters = []): array
 {
     $definition = report_definitions()[$key];
     $f = array_merge(['institution_id' => current_institution_id(), 'from' => null, 'to' => null, 'fund' => null, 'event' => null, 'group' => null,
-        'department' => null, 'account' => null, 'status' => '', 'q' => ''], $filters);
+        'department' => null, 'account' => null, 'product' => null, 'category' => null, 'variant' => null, 'status' => '', 'q' => ''], $filters);
     [$sql, $params] = $definition['build']($f);
     $rows = db_all("SELECT * FROM ({$sql}) r ORDER BY {$definition['order']}", $params);
     foreach ($rows as &$row) {
@@ -33,7 +33,8 @@ test('every tabular report runs with and without each of its filters', function 
     act_as('treasurer', 'TST');
     $fx = $GLOBALS['fx'];
     $values = ['from' => date('Y-01-01'), 'to' => date('Y-m-d'), 'fund' => $fx['general'], 'event' => $fx['event'], 'group' => $fx['groupId'],
-        'department' => (int) db_value('SELECT id FROM departments WHERE institution_id = ? LIMIT 1', [current_institution_id()]) ?: 1, 'account' => $fx['treasurer_box'], 'q' => 'a'];
+        'department' => (int) db_value('SELECT id FROM departments WHERE institution_id = ? LIMIT 1', [current_institution_id()]) ?: 1, 'account' => $fx['treasurer_box'], 'q' => 'a',
+        'product' => 1, 'category' => 1, 'variant' => 1];
     foreach (report_definitions() as $key => $definition) {
         fx_report($key);
         foreach ($definition['filters'] as $filter) {
@@ -41,7 +42,7 @@ test('every tabular report runs with and without each of its filters', function 
             fx_report($key, [$filter => $value]);
         }
     }
-    assert_same(20, array_sum(array_map('count', report_catalog())), 'the hub lists all twenty reports');
+    assert_same(30, array_sum(array_map('count', report_catalog())), 'the hub lists the twenty financial and ten store reports');
 });
 
 test('report totals agree with the ledger and the services', function () {

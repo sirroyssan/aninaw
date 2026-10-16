@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 require_once APP_ROOT . '/includes/services/events.php';
 require_once APP_ROOT . '/includes/services/organization.php';
+require_once APP_ROOT . '/includes/store_reports.php';
 
 /** Adds a condition and its values when $active is true. */
 function report_where(array &$where, array &$params, bool $active, string $sql, mixed ...$values): void
@@ -458,7 +459,7 @@ function report_definitions(): array
             'per_page' => 50,
             'note' => 'Audit records are read-only in the application. Network details (IP, browser) are kept in the log but not exported.',
         ],
-    ];
+    ] + store_report_definitions();
 }
 
 /** Compact "field: old → new" text from audit before/after JSON (client details omitted). */
@@ -510,6 +511,18 @@ function report_catalog(): array
             'liquidation_report' => $tabular['liquidation_report'],
             'budget_vs_actual'   => $tabular['budget_vs_actual'],
         ],
+        'Store' => [
+            'store_inventory'         => $tabular['store_inventory'],
+            'store_movements'         => $tabular['store_movements'],
+            'store_shirt_sizes'       => $tabular['store_shirt_sizes'],
+            'store_deliveries'        => $tabular['store_deliveries'],
+            'store_customer_orders'   => $tabular['store_customer_orders'],
+            'store_printing'          => $tabular['store_printing'],
+            'store_sales_collections' => $tabular['store_sales_collections'],
+            'store_unpaid'            => $tabular['store_unpaid'],
+            'store_unclaimed'         => $tabular['store_unclaimed'],
+            'store_profit'            => $tabular['store_profit'],
+        ],
         'Accounting and audit' => [
             'journal'            => ['Journal Entry Report', 'All journal entries with source documents, reversals and adjustments.', 'bi-journal-text', 'ledger/index.php', ['ledger.view', 'ledger.post']],
             'ledger'             => ['Ledger Report', 'Trial balance and account ledgers with running balances.', 'bi-list-columns-reverse', 'ledger/trial_balance.php', ['ledger.view', 'ledger.post']],
@@ -536,6 +549,9 @@ function report_filter_values(array $definition): array
         'group'      => get_int('group'),
         'department' => get_int('department'),
         'account'    => get_int('account'),
+        'product'    => get_int('product'),
+        'category'   => get_int('category'),
+        'variant'    => get_int('variant'),
         'status'     => isset($statuses[$status]) ? $status : '',
         'q'          => get_str('q', 100),
     ];
@@ -556,6 +572,9 @@ function report_filter_fields(array $definition, array $f): string
             'group'      => $field('group', 'Group', '<select class="form-select" id="group" name="group">' . options_html(group_options(false), $f['group'], 'All') . '</select>'),
             'department' => $field('department', 'Department', '<select class="form-select" id="department" name="department">' . options_html(department_options(false), $f['department'], 'All') . '</select>'),
             'account'    => $field('account', 'Account', '<select class="form-select" id="account" name="account">' . options_html(options_from_rows(db_all('SELECT id, account_name FROM financial_accounts WHERE institution_id = ? ORDER BY account_name', [$institutionId]), 'id', 'account_name'), $f['account'], 'All') . '</select>'),
+            'product'    => $field('product', 'Product', '<select class="form-select" id="product" name="product">' . options_html(options_from_rows(db_all('SELECT id, product_name FROM products WHERE institution_id = ? ORDER BY product_name', [$institutionId]), 'id', 'product_name'), $f['product'], 'All') . '</select>'),
+            'category'   => $field('category', 'Category', '<select class="form-select" id="category" name="category">' . options_html(options_from_rows(db_all('SELECT id, category_name FROM product_categories WHERE institution_id = ? ORDER BY category_name', [$institutionId]), 'id', 'category_name'), $f['category'], 'All') . '</select>'),
+            'variant'    => $f['variant'] ? '<input type="hidden" name="variant" value="' . (int) $f['variant'] . '">' : '',
             'status'     => $field('status', 'Status', '<select class="form-select" id="status" name="status">' . options_html($definition['statuses'], $f['status'], 'All') . '</select>'),
             default      => '',
         };
@@ -573,6 +592,9 @@ function report_filter_summary(array $definition, array $f): array
         'group' => 'SELECT group_name FROM `groups` WHERE institution_id = ? AND id = ?',
         'department' => 'SELECT department_name FROM departments WHERE institution_id = ? AND id = ?',
         'account' => 'SELECT account_name FROM financial_accounts WHERE institution_id = ? AND id = ?',
+        'product' => 'SELECT product_name FROM products WHERE institution_id = ? AND id = ?',
+        'category' => 'SELECT category_name FROM product_categories WHERE institution_id = ? AND id = ?',
+        'variant' => "SELECT CONCAT(p.product_name, ' · ', v.variant_name) FROM product_variants v JOIN products p ON p.id = v.product_id AND p.institution_id = v.institution_id WHERE v.institution_id = ? AND v.id = ?",
     ];
     $summary = [];
     if (in_array('from', $definition['filters'], true) || in_array('to', $definition['filters'], true)) {
@@ -582,6 +604,9 @@ function report_filter_summary(array $definition, array $f): array
     }
     foreach ($lookups as $key => $sql) {
         if (in_array($key, $definition['filters'], true)) {
+            if ($key === 'variant' && !$f[$key]) {
+                continue;
+            }
             $summary[ucfirst($key)] = $f[$key] ? (string) db_value($sql, [$institutionId, $f[$key]]) : 'All';
         }
     }
@@ -693,13 +718,14 @@ function render_report(string $key): never
     [$linkColumn, $linkPath, $linkId] = $definition['link'] ?? [null, null, null];
 
     $pageTitle = $definition['title'];
-    $activeNav = $key === 'audit_trail' ? 'audit' : 'reports';
+    $activeNav = $definition['nav'] ?? ($key === 'audit_trail' ? 'audit' : 'reports');
     $breadcrumb = [$contextLabel, 'Reports'];
     require APP_ROOT . '/includes/header.php';
     ?>
     <div class="report-header"><h2><?= e($definition['title']) ?></h2><p><?= e($contextLabel) ?> · <?= e(implode(' · ', array_map(static fn($label, $value) => $label . ': ' . $value, array_keys($summary), $summary))) ?> · Generated <?= e(format_datetime(date('Y-m-d H:i:s'))) ?> by <?= e(auth_user()['username']) ?></p></div>
     <?= page_actions($definition['description'],
-        (can('reports.view') ? button_link('reports/index.php', 'All Reports', 'bi-arrow-left', 'btn-outline-secondary') : '')
+        (isset($definition['hub']) && !can('reports.view') ? button_link($definition['hub'], 'Store Reports', 'bi-arrow-left', 'btn-outline-secondary')
+            : (can('reports.view') ? button_link('reports/index.php', 'All Reports', 'bi-arrow-left', 'btn-outline-secondary') : ''))
         . '<a class="btn btn-outline-primary" href="' . e(query_url(['export' => 'csv', 'page' => null])) . '"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>CSV</a>'
         . '<button class="btn btn-outline-primary" type="button" data-print><i class="bi bi-printer me-1" aria-hidden="true"></i>Print</button>') ?>
     <?php if (!empty($definition['note'])): ?>

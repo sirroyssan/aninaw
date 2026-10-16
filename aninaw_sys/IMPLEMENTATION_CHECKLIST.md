@@ -133,3 +133,52 @@ with a preamble naming the institution, filters and generator; exports are audit
 with the report header. Charts use Chart.js 4.4.4 vendored in `assets/vendor/chartjs/`.
 PDF export is not included (no approved PDF library); use the browser's "Save as PDF" from the print layout.
 
+
+## 7. Store module: products, inventory, college shirts and printing services
+
+Built on the existing architecture: same auth/permission checks, `handle_post` (CSRF, idempotency,
+transactions), validation helpers, audit log, notifications, attachments, report engine and ledger.
+Migration 003 (`database/migration_003_products_orders.sql`, also Part 4 of `schema.sql`) is additive
+and re-runnable.
+
+| Area | Main tables | Key permissions | Status |
+|---|---|---|---|
+| Categories (unlimited), products and services: SKU, type, fulfillment, fund, unit, cost, price, reorder level, image, status | product_categories, products | products.view/manage, products.pricing | ✅ |
+| Variants: shirt sizes, service options (A4 B&W, colour, long) with their own price/cost | product_variants | products.manage | ✅ |
+| Stock: beginning inventory (once), deliveries, releases, supplies consumed, damaged/lost/returned/adjusted with reason; no negative stock without `inventory.override` (flagged) | inventory_movements | inventory.view/manage/adjust/override | ✅ |
+| Supplier / production orders: ordered vs received per size, partial receipts, linked expense | stock_batches, stock_batch_items | inventory.manage | ✅ |
+| Orders: several items, existing participants or walk-ins, snapshot price and cost per line, discounts with authority and reason, order slip | sales_orders, sales_order_items | orders.manage, orders.discount | ✅ |
+| Order statuses (Pending → Confirmed → In Production → Ready for Release → Partially Released → Completed, or Cancelled) separate from payment status (Unpaid / Partially Paid / Fully Paid) | sales_orders | orders.manage, orders.cancel | ✅ |
+| Payments: existing payments/receipts, cashier's own mapped account, never above balance, partial only when every item allows it, no automatic "paid", reversal reopens the balance | payments, receipts, sales_order_payments, journal_* | collections.record, payments.reverse | ✅ |
+| Reservation at confirmation; release only when fully paid; release log with who claimed it | sales_order_releases | orders.manage | ✅ |
+| Shirt production list: demand per size, on order, received, set aside, still to order; "mark orders ready" allocates oldest first | (views) | orders.manage, inventory.view | ✅ |
+| Printing jobs: per page/copy/sheet/job pricing, pages × copies, instructions, file, assigned staff, Pending → In Progress → Completed → Released, supplies deducted on completion | sales_order_items, service_consumption_rules | orders.manage | ✅ |
+| Ledger: Sales Revenue 4100 and Service Revenue 4200 per fund, included in fund and institution summaries | journal_lines | — | ✅ |
+| Store dashboard and 10 reports | — | store permissions | ✅ |
+| Roles: Inventory Custodian, Order Staff; view access for treasurer, auditor, cashier | roles, role_permissions | — | ✅ |
+| Tests (`tests/cases/12_store_orders.php`) and browser end-to-end runs | — | — | ✅ |
+
+### Store reports
+
+| # | Report | Where |
+|---|---|---|
+| 1 | Product inventory | `reports/view.php?r=store_inventory` |
+| 2 | Inventory movements | `inventory/movements.php` (also `?variant=`, `?product=`) |
+| 3 | Shirt orders by size | `reports/view.php?r=store_shirt_sizes` |
+| 4 | Supplier and production deliveries | `reports/view.php?r=store_deliveries` |
+| 5 | Customer order history | `reports/view.php?r=store_customer_orders` |
+| 6 | Printing services transactions | `reports/view.php?r=store_printing` |
+| 7 | Sales and collections | `reports/view.php?r=store_sales_collections` |
+| 8 | Unpaid and partially paid orders | `reports/view.php?r=store_unpaid` |
+| 9 | Released and unclaimed items | `reports/view.php?r=store_unclaimed` |
+| 10 | Product costs and gross profit (expected vs actual) | `reports/view.php?r=store_profit` |
+
+Listed under **Store** in the reports hub and at `products/reports.php` for store staff without
+`reports.view`. Same filters/totals/CSV/print behaviour as the financial reports.
+
+### Decisions
+
+- **Cash basis**: revenue is posted when a payment is received; order balances are tracked on the order, not as ledger receivables.
+- **Customers** are participants; walk-ins are added as participants of type "other" (WALK-numbered) so receipts and history work the same way.
+- All lines of one order must belong to one fund (each payment posts to one fund).
+- Made-to-order items (shirts) are not reserved until received and set aside; stock items are reserved at confirmation.

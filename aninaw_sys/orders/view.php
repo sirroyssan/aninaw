@@ -31,7 +31,7 @@ if (is_post()) {
                 return 'collections/payment.php?id=' . $paymentId;
             case 'release':
                 $count = release_order_items($orderId, $_POST);
-                flash('success', 'Released', $count . ' item(s) handed over.');
+                flash('success', 'Released', $count . ' unit(s) handed over to the customer.');
                 break;
             case 'job':
                 update_service_job(post_int('item_id') ?? 0, post_str('status', 20), post_int('assigned_membership_id'));
@@ -213,7 +213,7 @@ require APP_ROOT . '/includes/header.php';
                             <input class="form-control" type="number" min="0" max="<?= $left ?>" id="rel-<?= (int) $item['id'] ?>" name="release[<?= (int) $item['id'] ?>]" value="<?= $left ?>" <?= $item['fulfillment'] === 'service' && $item['service_status'] !== 'completed' ? 'disabled' : '' ?>></div>
                     <?php endforeach; ?>
                     <div class="mb-3"><label class="form-label required" for="received_by_name">Claimed by</label><input class="form-control" id="received_by_name" name="received_by_name" required maxlength="180" value="<?= e($order['customer_name']) ?>"></div>
-                    <button class="btn btn-primary w-100" type="submit">Release</button>
+                    <button class="btn btn-primary w-100" type="submit"<?= $order['balance_cents'] > 0 ? ' disabled' : '' ?>>Release</button>
                 </div>
             </form>
         <?php endif; ?>
