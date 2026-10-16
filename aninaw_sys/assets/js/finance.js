@@ -179,6 +179,53 @@
             form.querySelector('[data-order-subtotal]').textContent = prefix + formatCents(subtotal);
             form.querySelector('[data-order-discount-shown]').textContent = prefix + formatCents(discount);
             form.querySelector('[data-order-total]').textContent = prefix + formatCents(subtotal - discount);
+            syncPayment(subtotal - discount);
+        }
+        // Payment received with the order: full or down payment, into an account linked to the items' fund.
+        var pay = form.querySelector('[data-order-pay]');
+        function syncPayment(total) {
+            if (!pay || !pay.querySelector('[data-pay-mode]')) { return; }
+            var chosen = [];
+            form.querySelectorAll('[data-order-variant]').forEach(function (select) {
+                var option = select.selectedOptions[0];
+                if (option && option.value) { chosen.push(option); }
+            });
+            var partial = chosen.length > 0 && chosen.every(function (o) { return o.getAttribute('data-partial') === '1'; });
+            var down = pay.querySelector('[data-pay-mode][value="down"]');
+            down.disabled = !partial;
+            if (!partial && down.checked) { pay.querySelector('[data-pay-mode][value="full"]').checked = true; }
+            pay.querySelector('[data-pay-partial-note]').classList.toggle('d-none', partial || chosen.length === 0);
+            var mode = (pay.querySelector('[data-pay-mode]:checked') || {}).value || 'later';
+            pay.querySelector('[data-pay-fields]').classList.toggle('d-none', mode === 'later');
+            pay.querySelector('[data-pay-down-only]').classList.toggle('d-none', mode !== 'down');
+            pay.querySelector('[data-pay-full-only]').classList.toggle('d-none', mode !== 'full');
+            var amountInput = pay.querySelector('[data-pay-amount]');
+            amountInput.required = mode === 'down';
+            pay.querySelector('[data-pay-full]').textContent = prefix + formatCents(total);
+            pay.querySelector('[data-pay-balance]').textContent = prefix + formatCents(Math.max(0, total - toCents(amountInput.value)));
+            var fund = chosen.length ? chosen[0].getAttribute('data-fund-id') : null;
+            var account = pay.querySelector('[data-pay-account]');
+            account.required = mode !== 'later';
+            var visible = [];
+            Array.prototype.forEach.call(account.options, function (option) {
+                if (!option.value) { return; }
+                var linked = !fund || (option.getAttribute('data-funds') || '').split(',').indexOf(fund) !== -1;
+                option.hidden = !linked;
+                option.disabled = !linked;
+                if (linked) { visible.push(option); }
+            });
+            if (account.selectedOptions[0] && account.selectedOptions[0].hidden) { account.value = ''; }
+            if (!account.value && visible.length === 1) { account.value = visible[0].value; }
+            pay.querySelector('[data-pay-no-account]').classList.toggle('d-none', !(mode !== 'later' && fund && visible.length === 0));
+        }
+        if (pay) {
+            pay.addEventListener('change', function (event) {
+                // Taking money means the customer has committed: confirm by default (can be unticked).
+                if (event.target.matches('[data-pay-mode]') && event.target.value !== 'later') {
+                    var confirmBox = form.querySelector('[data-confirm-now]');
+                    if (confirmBox) { confirmBox.checked = true; }
+                }
+            });
         }
         function syncCustomer() {
             var walkin = form.querySelector('[data-customer-mode][value="walkin"]').checked;

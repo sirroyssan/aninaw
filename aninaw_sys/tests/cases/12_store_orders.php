@@ -8,6 +8,7 @@ require_once APP_ROOT . '/includes/services/ledger.php';
 section('Store: products, inventory, orders');
 
 $GLOBALS['members']['orderstaff'] = fixture_member((int) db_value("SELECT id FROM institutions WHERE institution_code = 'TST'"), fixture_user('orderstaff', 'Oscar', 'Staff'), ['order_staff']);
+$GLOBALS['members']['counter'] = fixture_member((int) db_value("SELECT id FROM institutions WHERE institution_code = 'TST'"), fixture_user('counter', 'Cara', 'Counter'), ['order_staff', 'cashier']);
 $GLOBALS['members']['custodian'] = fixture_member((int) db_value("SELECT id FROM institutions WHERE institution_code = 'TST'"), fixture_user('custodian', 'Cody', 'Keeper'), ['inventory_custodian']);
 
 function fx_variant(int $productId, string $name): int
@@ -194,6 +195,48 @@ test('cancelling: paid orders need their payment reversed first; reservations ar
     assert_rejected(fn() => fx_pay_order($order, '10'), 'cancelled');
     act_as('admin', 'TST');
     assert_rejected(fn() => cancel_order($fx['shirt_order'], 'Too late'), 'already released');
+});
+
+test('payment with the order: full or down payment, confirmed in one step, all or nothing', function () {
+    $fx = $GLOBALS['fx'];
+    act_as('treasurer', 'TST');
+    $box = save_financial_account(null, ['account_name' => 'Store Counter Box', 'account_type' => 'cash_custody', 'custodian_membership_id' => (string) $GLOBALS['members']['counter']]);
+    add_fund_mapping($fx['general'], ['financial_account_id' => (string) $box, 'valid_from' => date('Y-m-d')]);
+    $m = fx_variant($fx['shirt'], 'M');
+    $paper = fx_variant($fx['paper'], 'Standard');
+    $orders = static fn() => (int) db_value('SELECT COUNT(*) FROM sales_orders');
+    $payments = static fn() => (int) db_value('SELECT COUNT(*) FROM payments');
+    $pay = ['payment_method' => 'cash', 'financial_account_id' => (string) $box];
+
+    act_as('orderstaff', 'TST');
+    assert_rejected(fn() => create_order_with_payment(['customer_participant_id' => (string) $fx['p1'], 'lines' => [['variant_id' => (string) $m, 'quantity' => '1']], 'pay_mode' => 'full'] + $pay), 'cannot receive payments');
+    $later = create_order_with_payment(['customer_participant_id' => (string) $fx['p1'], 'lines' => [['variant_id' => (string) $m, 'quantity' => '1']], 'pay_mode' => 'later', 'confirm_now' => '0']);
+    assert_same(['pending', 'unpaid', null], [db_value('SELECT order_status FROM sales_orders WHERE id = ?', [$later['order_id']]), db_value('SELECT payment_status FROM sales_orders WHERE id = ?', [$later['order_id']]), $later['payment_id']]);
+
+    act_as('counter', 'TST');
+    $before = ledger_key_balance((int) current_institution_id(), 'sales', $fx['general']);
+    $down = create_order_with_payment(['customer_participant_id' => (string) $fx['p2'], 'lines' => [['variant_id' => (string) $m, 'quantity' => '2']],
+        'pay_mode' => 'down', 'pay_amount' => '300', 'confirm_now' => '1'] + $pay);
+    $order = find_order($down['order_id']);
+    assert_true(in_array($order['order_status'], ['confirmed', 'in_production'], true), 'confirmed together with the down payment');
+    assert_same(['partially_paid', 30000, to_cents($order['total_amount']) - 30000], [$order['payment_status'], $order['paid_cents'], $order['balance_cents']]);
+    assert_true((bool) db_value("SELECT 1 FROM receipts WHERE payment_id = ? AND receipt_status = 'issued'", [$down['payment_id']]), 'official receipt issued');
+    assert_same($before - 30000, ledger_key_balance((int) current_institution_id(), 'sales', $fx['general']), 'down payment posted as sales revenue');
+    assert_same(30000, cash_balance((int) current_institution_id(), $fx['general'], $box), 'cash is in the counter box');
+
+    // Items that must be paid in full: no down payment, and nothing is saved.
+    [$o, $p] = [$orders(), $payments()];
+    assert_rejected(fn() => create_order_with_payment(['customer_participant_id' => (string) $fx['p2'], 'lines' => [['variant_id' => (string) $paper, 'quantity' => '2']],
+        'pay_mode' => 'down', 'pay_amount' => '1', 'confirm_now' => '1'] + $pay), 'down payment is not allowed');
+    // Confirmation fails (not enough stock): the order and the payment are both rolled back.
+    $tooMany = find_variant($paper)['available'] + 1;
+    assert_rejected(fn() => create_order_with_payment(['customer_participant_id' => (string) $fx['p2'], 'lines' => [['variant_id' => (string) $paper, 'quantity' => (string) $tooMany]],
+        'pay_mode' => 'full', 'confirm_now' => '1'] + $pay));
+    assert_same([$o, $p], [$orders(), $payments()], 'nothing saved when any step fails');
+
+    $full = create_order_with_payment(['customer_participant_id' => (string) $fx['p2'], 'lines' => [['variant_id' => (string) $paper, 'quantity' => '3']], 'pay_mode' => 'full', 'confirm_now' => '1'] + $pay);
+    assert_same(['confirmed', 'fully_paid'], [db_value('SELECT order_status FROM sales_orders WHERE id = ?', [$full['order_id']]), db_value('SELECT payment_status FROM sales_orders WHERE id = ?', [$full['order_id']])]);
+    assert_same(0, find_order($full['order_id'])['balance_cents']);
 });
 
 test('store reports agree with stock, orders and posted payments', function () {

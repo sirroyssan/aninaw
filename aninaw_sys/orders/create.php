@@ -7,20 +7,29 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/auth_check.php';
 require_once APP_ROOT . '/includes/services/orders.php';
+require_once APP_ROOT . '/includes/services/payments.php';
 require_institution_context();
 require_permission('orders.manage');
 
 if (is_post()) {
     handle_post(function () {
-        $id = create_order($_POST);
-        flash('success', 'Order created', 'It is Pending and unpaid. Confirm it and record the payment on this page.');
-        return 'orders/view.php?id=' . $id;
+        $result = create_order_with_payment($_POST);
+        if ($result['payment_id']) {
+            $payment = db_one('SELECT p.amount, r.receipt_number FROM payments p LEFT JOIN receipts r ON r.payment_id = p.id AND r.institution_id = p.institution_id WHERE p.id = ?', [$result['payment_id']]);
+            $order = find_order($result['order_id']);
+            flash('success', 'Order created and payment received',
+                $order['order_number'] . ($result['confirmed'] ? ' is confirmed. ' : ' is saved. ') . 'Receipt ' . $payment['receipt_number'] . ' for ' . m($payment['amount'])
+                . ($order['balance_cents'] > 0 ? '; balance ' . money($order['balance_cents'], current_currency()) . '.' : '; fully paid.'));
+            return 'collections/payment.php?id=' . $result['payment_id'];
+        }
+        flash('success', 'Order created', $result['confirmed'] ? 'It is confirmed and unpaid. Record the payment on this page when the customer pays.' : 'It is Pending and unpaid. Confirm it and record the payment on this page.');
+        return 'orders/view.php?id=' . $result['order_id'];
     });
 }
 
 $institutionId = (int) current_institution_id();
 $items = db_all(
-    "SELECT v.id, v.variant_name, p.id AS product_id, p.product_name, p.sku, c.category_name, p.fulfillment, p.unit_of_measure, p.fund_id, f.fund_name,
+    "SELECT v.id, v.variant_name, p.id AS product_id, p.product_name, p.sku, c.category_name, p.allow_partial_payment, p.fulfillment, p.unit_of_measure, p.fund_id, f.fund_name,
             COALESCE(v.retail_price, p.retail_price) AS price, " . SQL_ON_HAND . ' AS on_hand, ' . SQL_RESERVED . " AS reserved
      FROM product_variants v JOIN products p ON p.id = v.product_id AND p.institution_id = v.institution_id
      JOIN fund_accounts f ON f.id = p.fund_id AND f.institution_id = p.institution_id
@@ -28,6 +37,17 @@ $items = db_all(
      WHERE v.institution_id = ? AND v.status = 'active' AND p.status = 'active' ORDER BY p.fulfillment = 'service', p.product_name, v.sort_order, v.id",
     [$institutionId]
 );
+$canReceive = can('collections.record');
+$payAccounts = [];
+if ($canReceive) {
+    foreach (usable_financial_accounts() as $account) {
+        $funds = db_query('SELECT fund_id FROM fund_account_mappings WHERE institution_id = ? AND financial_account_id = ? AND valid_from <= CURDATE() AND (valid_until IS NULL OR valid_until >= CURDATE())',
+            [$institutionId, $account['id']])->fetchAll(PDO::FETCH_COLUMN);
+        if ($funds) {
+            $payAccounts[] = $account + ['fund_ids' => implode(',', $funds)];
+        }
+    }
+}
 $preselect = get_int('product');
 $staff = member_options('orders.manage');
 $lines = old('lines');
@@ -47,7 +67,7 @@ $renderLine = static function (int|string $index, array $line) use ($items, $sta
             $group = $label;
         }
         $stock = $item['fulfillment'] === 'stock' ? ' — ' . max(0, (int) $item['on_hand'] - (int) $item['reserved']) . ' available' : ($item['fulfillment'] === 'made_to_order' ? ' — made to order' : '');
-        $options .= '<option value="' . (int) $item['id'] . '" data-price="' . e(cents_to_decimal(to_cents($item['price']))) . '" data-unit="' . e($item['unit_of_measure']) . '" data-service="' . ($item['fulfillment'] === 'service' ? '1' : '0') . '" data-fund="' . e($item['fund_name']) . '" data-search="' . e($item['sku'] . ' ' . ($item['category_name'] ?? '')) . '"'
+        $options .= '<option value="' . (int) $item['id'] . '" data-price="' . e(cents_to_decimal(to_cents($item['price']))) . '" data-unit="' . e($item['unit_of_measure']) . '" data-service="' . ($item['fulfillment'] === 'service' ? '1' : '0') . '" data-fund="' . e($item['fund_name']) . '" data-fund-id="' . (int) $item['fund_id'] . '" data-partial="' . ((int) $item['allow_partial_payment'] ? '1' : '0') . '" data-search="' . e($item['sku'] . ' ' . ($item['category_name'] ?? '')) . '"'
             . ((string) ($line['variant_id'] ?? '') === (string) $item['id'] ? ' selected' : '') . '>'
             . e($item['product_name'] . ($item['variant_name'] !== 'Standard' ? ' · ' . $item['variant_name'] : '') . ' — ' . m($item['price']) . '/' . $item['unit_of_measure'] . $stock) . '</option>';
     }
@@ -119,7 +139,41 @@ require APP_ROOT . '/includes/header.php';
             <div><dt>Discount</dt><dd data-order-discount-shown>0.00</dd></div>
             <div class="order-total"><dt>Total due</dt><dd data-order-total>0.00</dd></div>
         </dl>
+    </div></div>
+
+    <div class="card panel mt-3" data-order-pay><div class="card-body">
+        <h3 class="form-section-title">Payment</h3>
+        <?php $payMode = old('pay_mode', 'later'); ?>
+        <?php if (!$canReceive): ?>
+            <div class="notice notice-info mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i><div>The order is saved unpaid, and a cashier records the payment on the order page. Your role cannot receive money.
+                To take payments while creating orders, another administrator can add the <strong>Cashier</strong> role to your account (Users → Roles; roles can be combined), and a cash box in your custody must be linked to the product's fund (Funds → Financial Accounts).</div></div>
+            <input type="hidden" name="pay_mode" value="later">
+        <?php else: ?>
+            <div class="mb-2">
+                <?php foreach (['later' => 'Pay later', 'full' => 'Paid in full now', 'down' => 'Down payment now'] as $mode => $label): ?>
+                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="pay_mode" id="pay-<?= $mode ?>" value="<?= $mode ?>" <?= $payMode === $mode ? 'checked' : '' ?> data-pay-mode><label class="form-check-label" for="pay-<?= $mode ?>"><?= e($label) ?></label></div>
+                <?php endforeach; ?>
+                <div class="form-text d-none" data-pay-partial-note>A down payment is not available: one or more items must be paid in full. To allow it, turn on "Allow partial payment" for the product.</div>
+            </div>
+            <div class="row g-3 d-none" data-pay-fields>
+                <div class="col-md-3" data-pay-down-only><label class="form-label required" for="pay_amount">Down payment</label><input class="form-control text-amount" id="pay_amount" name="pay_amount" inputmode="decimal" value="<?= e(old('pay_amount')) ?>" data-pay-amount><div class="form-text">Balance after: <span data-pay-balance>0.00</span></div></div>
+                <div class="col-md-3" data-pay-full-only><label class="form-label">Amount received</label><div class="form-control-plaintext fw-semibold" data-pay-full>0.00</div></div>
+                <div class="col-md-3"><label class="form-label" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method"><?= options_html(PAYMENT_METHODS, old('payment_method', 'cash')) ?></select></div>
+                <div class="col-md-3"><label class="form-label required" for="financial_account_id">Received into</label>
+                    <select class="form-select" id="financial_account_id" name="financial_account_id" data-pay-account>
+                        <option value="">Select…</option>
+                        <?php foreach ($payAccounts as $account): ?>
+                            <option value="<?= (int) $account['id'] ?>" data-funds="<?= e($account['fund_ids']) ?>"<?= (string) old('financial_account_id') === (string) $account['id'] ? ' selected' : '' ?>><?= e(financial_account_label($account)) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text text-danger d-none" data-pay-no-account>You have no cash box or account linked to this item's fund. Ask the treasurer to link one (Funds → Financial Accounts).</div></div>
+                <div class="col-md-3"><label class="form-label" for="external_reference">Reference no.</label><input class="form-control" id="external_reference" name="external_reference" maxlength="150" value="<?= e(old('external_reference')) ?>" placeholder="Required for GCash / bank"></div>
+            </div>
+            <p class="text-muted-sm mt-2 mb-0">An official receipt is issued for the amount received. The order, its confirmation and the payment are saved together: if any part fails, nothing is saved.</p>
+        <?php endif; ?>
+        <div class="form-check mt-3"><input type="hidden" name="confirm_now" value="0"><input class="form-check-input" type="checkbox" id="confirm_now" name="confirm_now" value="1" <?= old('confirm_now', '0') === '1' ? 'checked' : '' ?> data-confirm-now><label class="form-check-label" for="confirm_now">Confirm the order now: the customer has committed (stock items are reserved; shirts join the production list)</label></div>
         <div class="form-actions">
+
             <a class="btn btn-outline-secondary" href="<?= e(url('orders/index.php')) ?>">Cancel</a>
             <button class="btn btn-primary" type="submit"><i class="bi bi-cart-check me-1" aria-hidden="true"></i>Create Order</button>
         </div>

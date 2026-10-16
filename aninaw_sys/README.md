@@ -120,7 +120,7 @@ Day-to-day work then follows the workflows in section 6.
 | Reports | `reports/` | `reports.view` (+ `audit.view` for the audit trail) | 20 reports, institution-scoped, with filters, totals, CSV and print layouts |
 | Products & services | `products/` | view `products.view`, add/edit `products.manage`, prices `products.pricing` | unique SKU per institution; price and cost changes need `products.pricing` and never alter existing orders; products are deactivated, never deleted once used |
 | Inventory | `inventory/` | view `inventory.view`, receive/order `inventory.manage`, adjust `inventory.adjust`, below-zero exception `inventory.override` | stock = sum of movements (never edited); every adjustment needs a reason; stock cannot go below zero unless an administrator flags the exception; quantities ordered from suppliers are not stock until received |
-| Orders, shirts and printing | `orders/` | create/confirm/release `orders.manage`, discounts `orders.discount`, cancel `orders.cancel`, take payment `collections.record` | prices and costs are copied onto each line; an order is paid only by posted payments (official receipt, cashier's own mapped account, never above the balance; full payment unless every item allows partial); stock is reserved at confirmation and cannot be oversold; release only when fully paid; cancelling a paid order needs the payment reversed first |
+| Orders, shirts and printing | `orders/` | create/confirm/release `orders.manage`, discounts `orders.discount`, cancel `orders.cancel`, take payment `collections.record` | prices and costs are copied onto each line; the customer can pay in full or a down payment while the order is created (confirmed in the same step; order, confirmation and payment are saved together or not at all), or later on the order page; an order is paid only by posted payments (official receipt, cashier's own mapped account, never above the balance; full payment unless every item allows partial); stock is reserved at confirmation and cannot be oversold; release only when fully paid; cancelling a paid order needs the payment reversed first |
 | Store dashboard and reports | `products/dashboard.php`, `products/reports.php` | any store permission; profit report `products.pricing` or `reports.view` | 10 store reports on the same report engine (filters, totals, CSV, print), institution-scoped |
 | Notifications | bell menu, `notifications/` | everyone | sent only to people whose role allows them to act; daily deadline reminders |
 
@@ -196,7 +196,7 @@ Gaps handled without schema changes (reprint history, rejection reasons and budg
 ### Automated tests
 
 The suite builds a fresh test database with fictitious data (it refuses any database whose name does
-not end in `_test`) and runs 106 tests: money handling, isolation between institutions, every workflow
+not end in `_test`) and runs 107 tests: money handling, isolation between institutions, every workflow
 above, ledger integrity, budgets, reports, and the store (catalogue, stock, shirt orders, printing jobs,
 reservations, discounts, cancellation and store reports) and the PDF class list import (using generated
 PDFs with fictitious names).

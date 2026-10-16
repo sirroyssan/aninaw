@@ -217,10 +217,17 @@ function db_in_transaction(): bool
     }
 }
 
-/** Runs $work inside a database transaction and returns its result. */
+/**
+ * Runs $work inside a database transaction and returns its result. Called while a
+ * transaction is already open, it joins that transaction: the outermost call commits,
+ * and any failure rolls the whole unit back (e.g. order + confirmation + payment).
+ */
 function db_transaction(callable $work): mixed
 {
     $pdo = db();
+    if ($pdo->inTransaction()) {
+        return $work($pdo);
+    }
     $pdo->beginTransaction();
     try {
         $result = $work($pdo);

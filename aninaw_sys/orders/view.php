@@ -26,8 +26,16 @@ if (is_post()) {
                 flash('success', 'Ready for release', 'The items are set aside for this customer.');
                 break;
             case 'pay':
-                $paymentId = record_order_payment($orderId, $_POST);
-                flash('success', 'Payment recorded', 'An official receipt was issued.');
+                // A pending order can be confirmed and paid in one step (both or neither are saved).
+                $confirmed = false;
+                $paymentId = db_transaction(function () use ($orderId, &$confirmed) {
+                    if (post_str('confirm_now', 1) === '1' && db_value('SELECT order_status FROM sales_orders WHERE institution_id = ? AND id = ?', [current_institution_id(), $orderId]) === 'pending') {
+                        confirm_order($orderId);
+                        $confirmed = true;
+                    }
+                    return record_order_payment($orderId, $_POST);
+                });
+                flash('success', $confirmed ? 'Order confirmed and payment recorded' : 'Payment recorded', 'An official receipt was issued.');
                 return 'collections/payment.php?id=' . $paymentId;
             case 'release':
                 $count = release_order_items($orderId, $_POST);
@@ -189,17 +197,26 @@ require APP_ROOT . '/includes/header.php';
                     <?php if (!$accountOptions): ?>
                         <p class="text-muted-sm mb-0">You have no cash box or account mapped to <?= e($order['fund_name']) ?>. Ask the treasurer to map one before receiving payments.</p>
                     <?php else: ?>
-                        <div class="mb-2"><label class="form-label required" for="amount">Amount</label><input class="form-control text-amount" id="amount" name="amount" required inputmode="decimal" value="<?= e(cents_to_decimal($order['balance_cents'])) ?>" <?= $order['partial_allowed'] ? '' : 'readonly' ?>><div class="form-text"><?= $order['partial_allowed'] ? 'Partial payment allowed; balance ' . e(money($order['balance_cents'], $currency)) . '.' : 'Full payment required.' ?></div></div>
+                        <div class="mb-2"><label class="form-label required" for="amount">Amount</label><input class="form-control text-amount" id="amount" name="amount" required inputmode="decimal" value="<?= e(cents_to_decimal($order['balance_cents'])) ?>" <?= $order['partial_allowed'] ? '' : 'readonly' ?>><div class="form-text"><?= $order['partial_allowed'] ? 'Full amount, or enter a smaller down payment. Balance ' . e(money($order['balance_cents'], $currency)) . '.' : 'Full payment required (down payment not allowed for these items).' ?></div></div>
                         <div class="row g-2 mb-2">
                             <div class="col-6"><label class="form-label" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method"><?= options_html(PAYMENT_METHODS, 'cash') ?></select></div>
                             <div class="col-6"><label class="form-label" for="payment_date">Date</label><input class="form-control" type="date" id="payment_date" name="payment_date" max="<?= e(date('Y-m-d')) ?>" value="<?= e(date('Y-m-d')) ?>"></div>
                         </div>
                         <div class="mb-2"><label class="form-label required" for="financial_account_id">Received into</label><select class="form-select" id="financial_account_id" name="financial_account_id" required><?= options_html($accountOptions, count($accountOptions) === 1 ? array_key_first($accountOptions) : null, 'Select…') ?></select></div>
                         <div class="mb-3"><label class="form-label" for="external_reference">Reference no.</label><input class="form-control" id="external_reference" name="external_reference" maxlength="150" placeholder="Required for GCash / bank"></div>
+                        <?php if ($order['order_status'] === 'pending' && $canManage): ?>
+                            <div class="form-check mb-3"><input type="hidden" name="confirm_now" value="0"><input class="form-check-input" type="checkbox" id="pay_confirm_now" name="confirm_now" value="1" checked><label class="form-check-label" for="pay_confirm_now">Also confirm the order (the customer has committed)</label></div>
+                        <?php endif; ?>
                         <button class="btn btn-primary w-100" type="submit"><i class="bi bi-cash me-1" aria-hidden="true"></i>Record Payment</button>
                     <?php endif; ?>
                 </div>
             </form>
+        <?php elseif ($open && $order['balance_cents'] > 0): ?>
+            <div class="card panel mb-3"><div class="card-body">
+                <h3 class="h6">Receiving payment</h3>
+                <p class="text-muted-sm mb-0">Balance <?= e(money($order['balance_cents'], $currency)) ?><?= $order['partial_allowed'] ? ' (a down payment is allowed)' : ' (full payment required)' ?>. Payments are recorded by a cashier, collector or treasurer, who issues the official receipt.
+                    To receive payments yourself, another administrator can add the Cashier role to your account (Users → Roles), with a cash box in your custody linked to <?= e($order['fund_name']) ?>.</p>
+            </div></div>
         <?php endif; ?>
 
         <?php if ($releasable && $canManage && in_array($order['order_status'], ['confirmed', 'in_production', 'ready_for_release', 'partially_released'], true)): ?>

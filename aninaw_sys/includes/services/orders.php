@@ -350,6 +350,51 @@ function refresh_order_release_status(int $orderId): void
 }
 
 /** Confirms a pending order. Stock lines are reserved now, so enough must be available. */
+/**
+ * Creates an order and, when the customer pays at the counter, confirms it and records the
+ * payment (full or down payment) in the same transaction: either all of it is saved or none.
+ * $input: the order form plus pay_mode (later|full|down), pay_amount, payment_method,
+ * external_reference, financial_account_id and confirm_now.
+ *
+ * @return array{order_id: int, payment_id: ?int, confirmed: bool}
+ */
+function create_order_with_payment(array $input): array
+{
+    $mode = input_enum($input, 'pay_mode', ['later', 'full', 'down'], 'later');
+    $confirm = input_str($input, 'confirm_now', 1) === '1';
+    if ($mode !== 'later' && !can('collections.record')) {
+        fail_user('You cannot receive payments. Save the order with "Pay later" and have a cashier record the payment on the order page.');
+    }
+    $paymentDate = input_date($input, 'order_date') ?? date('Y-m-d');
+
+    return db_transaction(function () use ($input, $mode, $confirm, $paymentDate) {
+        $orderId = create_order($input);
+        if ($confirm) {
+            confirm_order($orderId);
+        }
+        $paymentId = null;
+        if ($mode !== 'later') {
+            $order = find_order($orderId);
+            if ($mode === 'down' && !$order['partial_allowed']) {
+                $full = array_values(array_filter($order['items'], static fn($i) => !$i['allow_partial_payment']));
+                fail_user('A down payment is not allowed for ' . implode(', ', array_column($full, 'description')) . '. Collect the full amount, or turn on "Allow partial payment" for the product.');
+            }
+            $amount = $mode === 'full' ? cents_to_decimal($order['balance_cents']) : input_str($input, 'pay_amount', 20);
+            if ($mode === 'down' && (parse_money($amount) ?? 0) >= $order['balance_cents']) {
+                $mode = 'full'; // the whole balance was entered as the down payment
+            }
+            $paymentId = record_order_payment($orderId, [
+                'amount' => $amount,
+                'payment_method' => input_str($input, 'payment_method', 30),
+                'payment_date' => $paymentDate,
+                'external_reference' => input_str($input, 'external_reference', 150),
+                'financial_account_id' => input_str($input, 'financial_account_id', 20),
+            ]);
+        }
+        return ['order_id' => $orderId, 'payment_id' => $paymentId, 'confirmed' => $confirm];
+    });
+}
+
 function confirm_order(int $orderId): void
 {
     if (!can('orders.manage')) {
