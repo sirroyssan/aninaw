@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/auth_check.php';
 require_once APP_ROOT . '/includes/services/events.php';
+require_once APP_ROOT . '/includes/services/event_requirements.php';
 require_once APP_ROOT . '/includes/services/funds.php';
 require_institution_context();
 require_permission(['events.view', 'events.manage', 'collections.view']);
@@ -14,7 +15,7 @@ require_permission(['events.view', 'events.manage', 'collections.view']);
 $eventId = require_get_id();
 $event = require_found(find_event($eventId));
 $institutionId = (int) current_institution_id();
-$tab = in_array(get_str('tab', 20), ['overview', 'rules', 'people', 'obligations', 'setup'], true) ? get_str('tab', 20) : 'overview';
+$tab = in_array(get_str('tab', 20), ['overview', 'rules', 'people', 'requirements', 'obligations', 'setup'], true) ? get_str('tab', 20) : 'overview';
 
 if (is_post()) {
     $action = post_str('action', 30);
@@ -45,6 +46,14 @@ if (is_post()) {
             case 'remove_person':
                 remove_event_person($eventId, post_int('participant_id') ?? 0, post_str('reason', 1000));
                 flash('success', 'Removed from the event', 'Their unpaid charges for this event were cancelled.');
+                break;
+            case 'save_requirement':
+                save_event_requirement($eventId, post_int('requirement_id') ?: null, $_POST);
+                flash('success', 'Document requirement saved', 'Record papers from the checklist below.');
+                break;
+            case 'requirement_status':
+                set_event_requirement_status($eventId, post_int('requirement_id') ?? 0, post_str('status', 10));
+                flash('success', 'Requirement updated');
                 break;
             case 'waive':
                 waive_obligation(post_int('obligation_id') ?? 0, post_str('amount', 20), post_str('reason', 1000));
@@ -82,7 +91,7 @@ if (is_post()) {
                 fail_user('Unknown action.');
         }
         return 'events/view.php?id=' . $eventId . '&tab=' . $returnTab;
-    }, in_array($action, ['save_rule', 'generate', 'add_fund', 'add_group', 'add_organizer', 'add_people'], true));
+    }, in_array($action, ['save_rule', 'generate', 'add_fund', 'add_group', 'add_organizer', 'add_people', 'save_requirement'], true));
 }
 
 $canManage = $event['can_manage'];
@@ -115,6 +124,12 @@ $organizers = db_all(
     [$institutionId, $eventId]
 );
 
+if ($tab === 'requirements' && get_str('export', 10) === 'csv' && can_check_event_documents($event)) {
+    $checklist = event_document_checklist($eventId);
+    $show = in_array(get_str('show', 12), ['incomplete', 'cleared', 'to_check', 'returned'], true) ? get_str('show', 12) : '';
+    send_document_checklist_csv($event, $checklist, filter_document_checklist($checklist['people'], $show, get_str('q', 100)));
+}
+
 $pageTitle = $event['event_name'];
 $activeNav = 'events';
 $breadcrumb = [auth_context()['label'], 'Events'];
@@ -127,7 +142,8 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
     . ($canManage && !in_array($event['status'], ['closed', 'cancelled'], true) ? button_link('events/create.php?id=' . $eventId, 'Edit', 'bi-pencil', 'btn-outline-primary') : '')) ?>
 
 <ul class="nav nav-tabs-clean">
-    <?php foreach (['overview' => 'Collection Dashboard', 'rules' => 'Collection Rules', 'people' => 'People', 'obligations' => 'Balances', 'setup' => 'Setup'] as $key => $label): ?>
+    <?php foreach (['overview' => 'Collection Dashboard', 'rules' => 'Collection Rules', 'people' => 'People', 'requirements' => 'Requirements', 'obligations' => 'Balances', 'setup' => 'Setup'] as $key => $label): ?>
+        <?php if ($key === 'requirements' && !can_check_event_documents($event)) { continue; } ?>
         <li class="nav-item"><a class="nav-link<?= $tab === $key ? ' active' : '' ?>" href="<?= e($tabUrl($key)) ?>"><?= e($label) ?></a></li>
     <?php endforeach; ?>
 </ul>
@@ -242,6 +258,129 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
             </div>
         <?php endif; ?>
     </div>
+
+<?php elseif ($tab === 'requirements' && can_check_event_documents($event)): ?>
+    <?php
+    $checklist = event_document_checklist($eventId);
+    $allRequirements = event_requirements($eventId);
+    $editRequirement = null;
+    foreach ($allRequirements as $row) {
+        if ((int) $row['id'] === get_int('edit_req')) {
+            $editRequirement = $row;
+        }
+    }
+    $show = in_array(get_str('show', 12), ['incomplete', 'cleared', 'to_check', 'returned'], true) ? get_str('show', 12) : '';
+    $search = get_str('q', 100);
+    $people = filter_document_checklist($checklist['people'], $show, $search);
+    $totalPeople = count($checklist['people']);
+    $clearedCount = count(array_filter($checklist['people'], static fn($p) => $p['cleared']));
+    $toCheck = array_sum(array_column($checklist['people'], 'to_check'));
+    $returnedCount = array_sum(array_column($checklist['people'], 'returned'));
+    $cellBadge = static function (?array $cell): string {
+        if ($cell === null) {
+            return '<span class="text-muted-sm" title="Does not apply">—</span>';
+        }
+        [$class, $icon] = match ($cell['status']) {
+            'approved' => ['badge-soft-success', 'bi-check-lg'],
+            'waived' => ['badge-soft-secondary', 'bi-dash'],
+            'submitted' => ['badge-soft-info', 'bi-hourglass-split'],
+            'rejected' => ['badge-soft-danger', 'bi-arrow-return-left'],
+            default => ['badge-soft-warning', 'bi-exclamation'],
+        };
+        return '<span class="badge ' . $class . '" title="' . e(REQUIREMENT_STATUSES[$cell['status']] . ($cell['submission']['remarks'] ?? '' ? ': ' . $cell['submission']['remarks'] : '')) . '"><i class="bi ' . $icon . ' me-1" aria-hidden="true"></i>' . e(REQUIREMENT_STATUSES[$cell['status']]) . '</span>';
+    };
+    ?>
+    <div class="stat-grid">
+        <?= stat_card('bi-file-earmark-check', 'Cleared', number_format($clearedCount) . ' / ' . number_format($totalPeople), 'All required papers approved', $clearedCount === $totalPeople && $totalPeople ? 'success' : 'warning') ?>
+        <?= stat_card('bi-hourglass-split', 'To check', number_format($toCheck), 'Received, not yet checked', 'info') ?>
+        <?= stat_card('bi-arrow-return-left', 'Returned', number_format($returnedCount), 'Need to be submitted again', $returnedCount ? 'danger' : 'success') ?>
+        <?= stat_card('bi-list-check', 'Requirements', number_format(count($checklist['requirements'])), count(array_filter($checklist['requirements'], static fn($r) => $r['is_required'])) . ' required') ?>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-xl-8">
+            <div class="card panel h-100">
+                <div class="card-header"><h3>Required documents</h3></div>
+                <?php if (!$allRequirements): ?>
+                    <div class="card-body"><?= empty_state('bi-file-earmark-text', 'No documents required yet', 'Add what people must submit for this event, e.g. Parent\'s waiver, Medical certificate, Parent\'s ID with signature.') ?></div>
+                <?php else: ?>
+                    <div class="table-responsive"><table class="table table-clean align-middle mb-0">
+                        <thead><tr><th>Document</th><th>Who</th><th>Due</th><th class="text-end">Approved</th><th class="text-end">To check</th><th class="text-end">Returned</th><th></th></tr></thead>
+                        <tbody><?php foreach ($allRequirements as $row): ?>
+                            <tr class="<?= $row['status'] === 'inactive' ? 'text-muted' : '' ?>">
+                                <td><div class="fw-semibold"><?= e($row['requirement_name']) ?></div><div class="text-muted-sm"><?= e(($row['is_required'] ? 'Required' : 'Optional') . ($row['description'] ? ' · ' . $row['description'] : '') . ($row['status'] === 'inactive' ? ' · no longer asked' : '')) ?></div>
+                                    <?php if ($canManage): ?><div class="d-flex gap-2 mt-1 d-print-none">
+                                        <a class="text-muted-sm" href="<?= e($tabUrl('requirements') . '&edit_req=' . $row['id']) ?>">Edit</a>
+                                        <form method="post" data-confirm="<?= $row['status'] === 'active' ? 'Stop asking for this document?' : 'Ask for this document again?' ?>" data-confirm-text="Papers already recorded are kept.">
+                                            <?= csrf_field() ?><input type="hidden" name="action" value="requirement_status"><input type="hidden" name="tab" value="requirements"><input type="hidden" name="requirement_id" value="<?= (int) $row['id'] ?>"><input type="hidden" name="status" value="<?= $row['status'] === 'active' ? 'inactive' : 'active' ?>">
+                                            <button class="btn btn-link p-0 text-muted-sm align-baseline" type="submit"><?= $row['status'] === 'active' ? 'Remove' : 'Restore' ?></button>
+                                        </form>
+                                    </div><?php endif; ?></td>
+                                <td><?= e(REQUIREMENT_APPLIES[$row['applies_to_type']]) ?></td>
+                                <td class="text-muted-sm"><?= e($row['due_date'] ? format_date($row['due_date']) : '—') ?></td>
+                                <td class="text-end"><?= (int) $row['done_count'] ?></td><td class="text-end"><?= (int) $row['submitted_count'] ?></td><td class="text-end"><?= (int) $row['rejected_count'] ?></td>
+                                <td class="actions"><?php if ($row['status'] === 'active'): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('events/documents.php?event=' . $eventId . '&requirement=' . $row['id'])) ?>">Record</a><?php endif; ?></td>
+                            </tr>
+                        <?php endforeach; ?></tbody>
+                    </table></div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <?php if ($canManage && !in_array($event['status'], ['closed', 'cancelled'], true)): ?>
+                <form method="post" class="card panel form-card h-100">
+                    <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="save_requirement"><input type="hidden" name="tab" value="requirements"><input type="hidden" name="requirement_id" value="<?= (int) ($editRequirement['id'] ?? 0) ?>">
+                    <div class="card-header"><h3><?= $editRequirement ? 'Edit document' : 'Add a required document' ?></h3></div>
+                    <div class="card-body">
+                        <div class="mb-2"><label class="form-label required" for="requirement_name">Document</label><input class="form-control" id="requirement_name" name="requirement_name" required maxlength="180" list="requirement-suggestions" value="<?= e($editRequirement['requirement_name'] ?? '') ?>" placeholder="Parent's waiver">
+                            <datalist id="requirement-suggestions"><option value="Parent's waiver / consent form"><option value="Medical certificate"><option value="Parent's valid ID with signature"><option value="Student ID (photocopy)"><option value="Certificate of registration"><option value="Insurance"></datalist></div>
+                        <div class="mb-2"><label class="form-label" for="req-description">Details</label><input class="form-control" id="req-description" name="description" maxlength="1000" value="<?= e($editRequirement['description'] ?? '') ?>" placeholder="e.g. signed by parent or guardian, notarized"></div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6"><label class="form-label" for="req-applies">Who must submit</label><select class="form-select" id="req-applies" name="applies_to_type"><?= options_html(REQUIREMENT_APPLIES, $editRequirement['applies_to_type'] ?? 'all') ?></select></div>
+                            <div class="col-6"><label class="form-label" for="req-due">Due date</label><input class="form-control" type="date" id="req-due" name="due_date" value="<?= e($editRequirement['due_date'] ?? '') ?>"></div>
+                        </div>
+                        <div class="form-check mb-3"><input type="hidden" name="is_required" value="0"><input class="form-check-input" type="checkbox" id="req-required" name="is_required" value="1" <?= ($editRequirement['is_required'] ?? 1) ? 'checked' : '' ?>><label class="form-check-label" for="req-required">Required to be cleared for the event</label></div>
+                        <button class="btn btn-primary w-100" type="submit"><?= $editRequirement ? 'Save Changes' : 'Add Document' ?></button>
+                        <?php if ($editRequirement): ?><a class="btn btn-link w-100" href="<?= e($tabUrl('requirements')) ?>">Cancel</a><?php endif; ?>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <?php if ($checklist['requirements']): ?>
+    <div class="report-header"><h2><?= e($event['event_name']) ?> · Documents checklist</h2><p><?= e(auth_context()['label']) ?> · Generated <?= e(format_datetime(date('Y-m-d H:i:s'))) ?></p></div>
+    <div class="card panel">
+        <div class="card-header"><h3>Checklist</h3>
+            <div class="d-flex gap-2 d-print-none">
+                <a class="btn btn-outline-primary btn-xs" href="<?= e(query_url(['export' => 'csv'])) ?>"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>CSV</a>
+                <button class="btn btn-outline-primary btn-xs" type="button" data-print><i class="bi bi-printer me-1" aria-hidden="true"></i>Print</button>
+            </div>
+        </div>
+        <form class="filter-bar d-print-none" method="get">
+            <input type="hidden" name="id" value="<?= (int) $eventId ?>"><input type="hidden" name="tab" value="requirements">
+            <div class="filter-field"><label for="doc-q">Search</label><input class="form-control" type="search" id="doc-q" name="q" value="<?= e($search) ?>" placeholder="Name or ID number"></div>
+            <div class="filter-field"><label for="doc-show">Show</label><select class="form-select" id="doc-show" name="show"><?= options_html(['incomplete' => 'Not yet cleared', 'to_check' => 'Papers to check', 'returned' => 'Papers returned', 'cleared' => 'Cleared'], $show, 'Everyone') ?></select></div>
+            <button class="btn btn-primary" type="submit">Apply</button>
+        </form>
+        <?php if (!$people): ?>
+            <div class="card-body"><?= empty_state('bi-people', $totalPeople ? 'No one matches' : 'No one in this event yet', $totalPeople ? '' : 'Add people under the People tab or assign groups under Setup.') ?></div>
+        <?php else: ?>
+            <div class="table-responsive"><table class="table table-clean align-middle mb-0">
+                <thead><tr><th>Person</th><?php foreach ($checklist['requirements'] as $requirement): ?><th><?= e($requirement['requirement_name']) ?><?= $requirement['is_required'] ? '' : ' <span class="text-muted-sm">(optional)</span>' ?></th><?php endforeach; ?><th>Cleared</th><th class="d-print-none"></th></tr></thead>
+                <tbody><?php foreach ($people as $pid => $person): ?>
+                    <tr>
+                        <td><div class="fw-semibold"><?= e($person['last_name'] . ', ' . $person['first_name']) ?></div><div class="text-muted-sm"><?= e($person['participant_number'] . ' · ' . (PARTICIPANT_TYPES[$person['participant_type']] ?? '') . ($person['group_names'] ? ' · ' . $person['group_names'] : '')) ?></div></td>
+                        <?php foreach ($checklist['requirements'] as $requirement): ?><td><?= $cellBadge($person['cells'][(int) $requirement['id']]) ?></td><?php endforeach; ?>
+                        <td><?= $person['cleared'] ? '<span class="badge badge-soft-success">Cleared</span>' : '<span class="text-muted-sm">' . e($person['done'] . ' of ' . $person['required']) . '</span>' ?></td>
+                        <td class="actions d-print-none"><a class="btn btn-outline-primary btn-xs" href="<?= e(url('events/documents.php?event=' . $eventId . '&person=' . $pid)) ?>">Papers</a></td>
+                    </tr>
+                <?php endforeach; ?></tbody>
+            </table></div>
+        <?php endif; ?>
+        <div class="card-footer-note">Cleared = every required document that applies to the person is approved or marked not applicable. "—" means the document does not apply to that person.</div>
+    </div>
+    <?php endif; ?>
 
 <?php elseif ($tab === 'people'): ?>
     <?php

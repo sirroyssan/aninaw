@@ -14,7 +14,7 @@ function fx_pay(string $username, int $participantId, array $alloc, array $extra
     $account = ['collector' => 'collector_box', 'cashier' => 'cashier_box', 'treasurer' => 'treasurer_box'][$username] ?? 'collector_box';
     return record_payment(array_merge([
         'participant_id' => (string) $participantId, 'event_id' => (string) $fx['event'], 'payment_method' => 'cash',
-        'financial_account_id' => (string) $fx[$account], 'payment_date' => date('Y-m-d'), 'payment_time' => '09:00', 'alloc' => $alloc,
+        'financial_account_id' => (string) $fx[$account], 'payment_date' => date('Y-m-d'), 'payment_time' => date('H:i'), 'alloc' => $alloc,
     ], $extra));
 }
 

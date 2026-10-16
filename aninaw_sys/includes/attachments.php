@@ -32,6 +32,8 @@ const ATTACHMENT_ENTITY_PERMISSIONS = [
     'budget'          => ['budgets.view'],
     'product'         => ['products.view'],
     'order_item'      => ['orders.view', 'orders.manage'],
+    // Waivers, medical certificates, IDs: no blanket permission; see attachment_can_view().
+    'event_document'  => [],
 ];
 
 /** True when a file was submitted in the given field. */
@@ -140,6 +142,14 @@ function attachment_can_view(array $attachment): bool
         return false;
     }
     $type = (string) $attachment['entity_type'];
+    // Event documents (personal data): only those who check that event's documents now,
+    // not everyone who once uploaded one.
+    if ($type === 'event_document') {
+        require_once APP_ROOT . '/includes/services/event_requirements.php';
+        $eventId = (int) db_value('SELECT event_id FROM event_requirement_submissions WHERE institution_id = ? AND id = ?', [current_institution_id(), $attachment['entity_id']]);
+        $event = $eventId ? find_event($eventId) : null;
+        return $event !== null && can_check_event_documents($event);
+    }
     if (can_any(ATTACHMENT_ENTITY_PERMISSIONS[$type] ?? [])) {
         return true;
     }

@@ -38,11 +38,11 @@ Design decisions, the accounting model, schema gaps and module status are listed
 `schema.sql` is the original dump followed by clearly marked ANINAW additions (section 8):
 Part 1 (platform roles, participant login link), Part 2 (roles and permissions seed),
 Part 3 (migration 002 for the financial modules), Part 4 (migration 003 for the store:
-products, inventory, orders and printing services) and Part 5 (migration 004: people added
-directly to events).
+products, inventory, orders and printing services) Part 5 (migration 004: people added
+directly to events) and Part 6 (migration 005: cash advance requesters, event document requirements).
 
 That is all for a new installation. **Do not import the migration files below**: `schema.sql`
-already contains them (Parts 3, 4 and 5).
+already contains them (Parts 3 to 6).
 
 **Only if you are upgrading** a database that was imported from the *milestone 1* `schema.sql`
 (before the financial modules existed) and you want to keep its data:
@@ -62,6 +62,11 @@ tables and data are not touched, and it is safe to run again.
 (`mysql -u root aninaw_db < database/migration_004_event_people.sql`). It adds one table,
 `event_participants`, so students, faculty and customers can be added to an event without a
 group. Nothing else changes, and it is safe to run again.
+
+**And then** import `database/migration_005_advance_roles_event_requirements.sql` once. It adds
+the Faculty, Dean and Program Chair roles (and lets Class Presidents and Advisers request cash
+advances), the `events.requirements` permission and two tables for event document requirements.
+Safe to run again.
 
 ## 3. Configure
 
@@ -115,6 +120,7 @@ Day-to-day work then follows the workflows in section 6.
 |---|---|---|---|
 | Participants import | `participants/import.php` (CSV), `participants/import_pdf.php` (class list PDF) | `organization.manage` | PDF class lists from the enrollment system are read on the server (no external tools); every student is shown for review before saving; ID numbers already registered are never overwritten; all-or-nothing import; optional section group created from the PDF's section, school year and semester; the PDF is not stored |
 | People and events | `participants/` (shown as **People**), event **People** tab | `organization.manage`; event creator/organizers | one directory of students, faculty / staff, members and customers; people can be added to an event one by one, by type (e.g. all faculty) or by copying a group, with no group required; rules for "everyone in the event" charge them as soon as they are added; removing someone cancels only unpaid charges and is refused once they have paid |
+| Event document requirements | event **Requirements** tab, `events/documents.php` | event creator/organizers, `events.requirements` | each event lists the papers it needs (e.g. parent's waiver for students, medical certificate for everyone), required or optional, with due dates; papers are recorded per person or for many at once as submitted, approved, returned (reason required) or not applicable (reason required), with an optional scanned copy; a checklist shows who is cleared (CSV and print); scans and statuses are visible only to the event's document checkers; every change is audited |
 | Collections | `collections/` | collectors, cashiers, treasurer (`collections.record`, `receipts.issue`) | partial payments only when the rule allows; no overpayment; one official receipt per payment; reprints logged; reversal needs `payments.reverse` and a reason, voids the receipt and restores the obligation |
 | Cash turnovers | `turnovers/` | collector submits (`turnovers.submit`), assigned cashier counts (`turnovers.receive`) | a payment is turned over once; declared and counted amounts stay separate; differences become discrepancies resolved by a third person |
 | Deposits | `deposits/` | `deposits.manage` | pending until a different person confirms; moves cash between accounts, not income |
@@ -158,6 +164,7 @@ Day-to-day work then follows the workflows in section 6.
 | Auditor | Financial summary, journal balance check, reconciliation status, discrepancies, audit log (read-only) |
 | Student / Member | Own obligations, payments and receipts |
 | Cash Advance Recipient | Own advances, receipts, returns and outstanding balance |
+| Faculty, Dean, Program Chair | Own cash advances: request, liquidate, track the balance (Class Presidents, Advisers and Event Organizers can request advances too) |
 | Inventory Custodian | Store dashboard: catalogue, low stock, deliveries; manages stock, supplier/production orders and adjustments |
 | Order Staff | Store dashboard: order pipeline, printing queue; creates and confirms orders, runs printing jobs and releases paid items (payments are taken by a cashier) |
 
@@ -180,6 +187,8 @@ All changes are additive; no original column or row is modified.
 | `inventory_movements`, `stock_batches`, `stock_batch_items` (migration 003) | Stock as an append-only movement history; supplier and production (shirt printer) orders with ordered vs received quantities |
 | `sales_orders`, `sales_order_items`, `sales_order_payments`, `sales_order_releases` (migration 003) | Orders with snapshot prices/costs, order and payment status, links to the existing `payments`/`receipts`, and a record of every hand-over |
 | `event_participants` (migration 004) | People added to an event directly (no group); removals are kept as history |
+| `event_requirements`, `event_requirement_submissions` (migration 005) | Documents each event requires and the status of each person's paper (no row = not yet submitted) |
+| Roles `faculty`, `dean`, `program_chair`; permission `events.requirements` (migration 005) | Who may request cash advances; who may check documents for any event |
 | `service_consumption_rules` (migration 003) | Supplies a completed printing job deducts from stock (e.g. one sheet per page) |
 | Roles `inventory_custodian`, `order_staff` and `products.*`, `inventory.*`, `orders.*` permissions (migration 003) | Separation between catalogue, stock, orders and cash handling |
 
@@ -204,7 +213,7 @@ Gaps handled without schema changes (reprint history, rejection reasons and budg
 ### Automated tests
 
 The suite builds a fresh test database with fictitious data (it refuses any database whose name does
-not end in `_test`) and runs 109 tests: money handling, isolation between institutions, every workflow
+not end in `_test`) and runs 111 tests: money handling, isolation between institutions, every workflow
 above, ledger integrity, budgets, reports, and the store (catalogue, stock, shirt orders, printing jobs,
 reservations, discounts, cancellation and store reports) and the PDF class list import (using generated
 PDFs with fictitious names).
@@ -252,7 +261,7 @@ aninaw_sys/
 ├── groups/           index.php departments.php view.php
 ├── participants/     index.php form.php view.php import.php import_pdf.php
 ├── funds/            index.php create.php view.php accounts.php account.php
-├── events/           index.php create.php view.php
+├── events/           index.php create.php view.php documents.php
 ├── collections/      index.php record_payment.php payment.php payments.php print_receipt.php verify_receipt.php
 ├── turnovers/        index.php submit.php verify.php view.php
 ├── deposits/         index.php view.php
@@ -277,7 +286,8 @@ aninaw_sys/
 │                     expenses advances ledger budgets products orders class_list
 ├── config/           config.php db.php session.php
 ├── assets/           css/ js/ (app, validation, finance, charts) images/ vendor/ (Bootstrap, Icons, SweetAlert2, Chart.js)
-├── database/         schema.sql migration_002_financial_modules.sql migration_003_products_orders.sql migration_004_event_people.sql create_admin.php
+├── database/         schema.sql migration_002_financial_modules.sql migration_003_products_orders.sql migration_004_event_people.sql
+│                     migration_005_advance_roles_event_requirements.sql create_admin.php
 ├── tests/            run_tests.php bootstrap.php fixtures.php cases/
 ├── uploads/          receipts/ attachments/        Blocked from direct access
 └── logs/                                           Private application log

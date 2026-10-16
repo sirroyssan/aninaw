@@ -120,6 +120,7 @@ a:hover { color: var(--an-primary-hover); }
 .badge-soft-success { background: var(--an-soft-green); color: var(--an-primary-hover); }
 .badge-soft-warning { background: #FDF3DC; color: #8A6008; }
 .badge-soft-danger { background: #FBE7E9; color: #A52834; }
+.badge-soft-secondary { background: #ECEFED; color: #55625A; }
 .badge-soft-neutral { background: #EEF1EF; color: var(--an-text-muted); }
 .badge-soft-info { background: #E7F0FF; color: #0A58CA; }
 

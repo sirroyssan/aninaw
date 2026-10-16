@@ -43,7 +43,7 @@ test('faculty and customers join an event without a group and are charged at onc
     assert_rejected(fn() => add_event_people($eventId, ['participant_id' => (string) $faculty2]), 'creator or its assigned organizers');
     $obligation = (int) db_value('SELECT id FROM event_obligations WHERE event_id = ? AND participant_id = ? AND collection_rule_id = ?', [$eventId, $faculty, $rule]);
     record_payment(['participant_id' => (string) $faculty, 'event_id' => (string) $eventId, 'payment_method' => 'cash', 'financial_account_id' => (string) $fx['cashier_box'],
-        'payment_date' => date('Y-m-d'), 'payment_time' => '10:00', 'alloc' => [$obligation => '200']]);
+        'payment_date' => date('Y-m-d'), 'payment_time' => date('H:i'), 'alloc' => [$obligation => '200']]);
     assert_same('paid', db_value('SELECT status FROM event_obligations WHERE id = ?', [$obligation]), 'faculty paid without belonging to any group');
 
     act_as('organizer', 'TST');
