@@ -42,6 +42,8 @@ $activeNav = 'participants';
 $breadcrumb = [auth_context()['label'], 'Participants'];
 require APP_ROOT . '/includes/header.php';
 ?>
+<?= page_actions('Import participants from a CSV file. Have a class list PDF from the enrollment system? Import it directly.',
+    button_link('participants/import_pdf.php', 'Import Class List (PDF)', 'bi-file-earmark-pdf', 'btn-outline-primary')) ?>
 <div class="row g-3" style="max-width: 1100px">
     <div class="col-lg-7">
         <form method="post" enctype="multipart/form-data" class="card panel form-card">

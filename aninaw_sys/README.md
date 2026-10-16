@@ -107,6 +107,7 @@ Day-to-day work then follows the workflows in section 6.
 
 | Module | Where | Who (permission) | Rules enforced on the server |
 |---|---|---|---|
+| Participants import | `participants/import.php` (CSV), `participants/import_pdf.php` (class list PDF) | `organization.manage` | PDF class lists from the enrollment system are read on the server (no external tools); every student is shown for review before saving; ID numbers already registered are never overwritten; all-or-nothing import; optional section group created from the PDF's section, school year and semester; the PDF is not stored |
 | Collections | `collections/` | collectors, cashiers, treasurer (`collections.record`, `receipts.issue`) | partial payments only when the rule allows; no overpayment; one official receipt per payment; reprints logged; reversal needs `payments.reverse` and a reason, voids the receipt and restores the obligation |
 | Cash turnovers | `turnovers/` | collector submits (`turnovers.submit`), assigned cashier counts (`turnovers.receive`) | a payment is turned over once; declared and counted amounts stay separate; differences become discrepancies resolved by a third person |
 | Deposits | `deposits/` | `deposits.manage` | pending until a different person confirms; moves cash between accounts, not income |
@@ -195,9 +196,10 @@ Gaps handled without schema changes (reprint history, rejection reasons and budg
 ### Automated tests
 
 The suite builds a fresh test database with fictitious data (it refuses any database whose name does
-not end in `_test`) and runs 103 tests: money handling, isolation between institutions, every workflow
+not end in `_test`) and runs 106 tests: money handling, isolation between institutions, every workflow
 above, ledger integrity, budgets, reports, and the store (catalogue, stock, shirt orders, printing jobs,
-reservations, discounts, cancellation and store reports).
+reservations, discounts, cancellation and store reports) and the PDF class list import (using generated
+PDFs with fictitious names).
 
 ```bash
 cd /Applications/XAMPP/xamppfiles/htdocs/aninaw_sys
@@ -228,6 +230,7 @@ Use two browsers (or a private window) to act as two people at once.
 | 13 | Custodian places and receives a production order; staff clicks **Mark orders ready**; staff tries to release | Ready for Release; release is refused until the cashier records the balance; then items are released and leave stock |
 | 14 | Create a printing job (12 pages × 2 copies), pay it, start and complete it | Billed 24 pages; paper stock drops by the consumption rule; the job can then be released |
 | 15 | Adjust a stock item by more than is on hand | Refused unless an administrator ticks the below-zero exception, which is flagged in the movement report |
+| 16 | **Participants → Import Class List (PDF)**: upload a class list printed from the enrollment system | Students, section, school year and semester are shown for review; totals are checked against the PDF; importing creates the students and the section group; importing the same PDF again changes no existing record |
 
 ## 11. Folder structure
 
@@ -239,7 +242,7 @@ aninaw_sys/
 ├── institutions/     index.php create.php view.php settings.php
 ├── users/            index.php create.php edit.php roles.php
 ├── groups/           index.php departments.php view.php
-├── participants/     index.php form.php view.php import.php
+├── participants/     index.php form.php view.php import.php import_pdf.php
 ├── funds/            index.php create.php view.php accounts.php account.php
 ├── events/           index.php create.php view.php
 ├── collections/      index.php record_payment.php payment.php payments.php print_receipt.php verify_receipt.php
@@ -261,9 +264,9 @@ aninaw_sys/
 ├── notifications/    index.php
 ├── attachments/      download.php                  Authorised file downloads
 ├── includes/         header, sidebar, footer, auth, permissions, audit, ui, finance, attachments,
-│   │                 notifications, reports, store_reports, dashboard_data, dashboard/ panels
+│   │                 notifications, reports, store_reports, pdf_text, dashboard_data, dashboard/ panels
 │   └── services/     users institutions organization funds events payments turnovers movements
-│                     expenses advances ledger budgets products orders
+│                     expenses advances ledger budgets products orders class_list
 ├── config/           config.php db.php session.php
 ├── assets/           css/ js/ (app, validation, finance, charts) images/ vendor/ (Bootstrap, Icons, SweetAlert2, Chart.js)
 ├── database/         schema.sql migration_002_financial_modules.sql migration_003_products_orders.sql create_admin.php
@@ -274,6 +277,7 @@ aninaw_sys/
 
 ## 12. Known limitations
 
+- **PDF class lists** must contain text (saved or printed to PDF from the enrollment system). Scanned or photographed lists cannot be read (no OCR); use the CSV import for those. Male/female headings are used to check the list but are not stored, because participants have no sex field.
 - **PDF export** is not built in (no approved PDF library). Every report has a print layout; use the browser's *Save as PDF*.
 - **E-mail/SMS** are not configured. Notifications are in-app; password links are shown to the administrator to pass on.
 - **Commitments/purchase orders** are not in the schema, so budgets show approved, actual, pending and available amounts.
