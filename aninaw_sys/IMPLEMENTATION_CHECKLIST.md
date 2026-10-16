@@ -84,7 +84,7 @@ check before outflows; one-time form tokens against double submission; reversals
 | 2 | Events, organizers, groups, rules, obligations, waivers | events, event_organizers, event_funds, event_group_assignments, collection_rules, event_obligations | events.view/manage | org structure, funds | ✅ |
 | 3 | Payments, allocations, receipts, reprints, reversals | payments, payment_allocations, receipts | collections.record, receipts.issue, payments.reverse | events, accounts | ✅ |
 | 4 | Turnovers, acknowledgments, discrepancies | cash_turnovers, cash_turnover_details, turnover_acknowledgments, turnover_discrepancies | turnovers.submit/receive, reconciliation.manage | payments | ✅ |
-| 5 | Cash flow, deposits, transfers, reconciliation | cash_flow_transactions, deposits, fund_transfers | cashflow.view, deposits.manage, transfers.manage/approve, reconciliation.manage | ledger | ⬜ |
+| 5 | Cash flow, deposits, transfers, reconciliation | cash_flow_transactions, deposits, fund_transfers | cashflow.view, deposits.manage, transfers.manage/approve, reconciliation.manage | ledger | ✅ |
 | 6 | Expenses and approvals | expenses | expenses.record/approve | accounts | ⬜ |
 | 7 | Cash advances and liquidation | cash_advances, cash_advance_expenses, cash_advance_returns | advances.*, liquidation.* | accounts | ⬜ |
 | 8 | Ledger, journals, adjusting entries | journal_entries, journal_lines | ledger.view, ledger.post | foundation | ⬜ |

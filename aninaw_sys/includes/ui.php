@@ -369,3 +369,39 @@ function issued_link_notice(): string
         . '<button class="btn btn-outline-primary" type="button" data-copy="issued-link"><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy</button></div>'
         . '</div></div>';
 }
+
+// ---------------------------------------------------------------------------
+// CSV export
+// ---------------------------------------------------------------------------
+
+/**
+ * Streams rows as a CSV download. Cells starting with = + - @ are prefixed with an
+ * apostrophe so spreadsheets do not execute them as formulas (CSV injection).
+ */
+function send_csv(string $filename, array $header, iterable $rows, array $preamble = []): never
+{
+    $safe = static function ($value): string {
+        $value = (string) ($value ?? '');
+        return preg_match('/^[=+\-@\t\r]/', $value) && !preg_match('/^-?\d+(\.\d+)?$/', $value) ? "'" . $value : $value;
+    };
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . preg_replace('/[^A-Za-z0-9._-]/', '_', $filename) . '"');
+    header('Cache-Control: no-store');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+    foreach ($preamble as $line) {
+        fputcsv($out, array_map($safe, (array) $line), ',', '"', '\\');
+    }
+    if ($preamble) {
+        fputcsv($out, [], ',', '"', '\\');
+    }
+    fputcsv($out, array_map($safe, $header), ',', '"', '\\');
+    foreach ($rows as $row) {
+        fputcsv($out, array_map($safe, array_values($row)), ',', '"', '\\');
+    }
+    fclose($out);
+    if (auth_user()) {
+        audit_log('report.exported', 'report', null, current_institution_id(), (int) auth_user()['id'], ['file' => $filename]);
+    }
+    exit;
+}
