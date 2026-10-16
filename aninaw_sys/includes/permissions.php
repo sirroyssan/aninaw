@@ -88,12 +88,13 @@ function navigation_sections(): array
                 ['key' => 'participants', 'label' => 'Participants', 'icon' => 'bi-person-vcard', 'path' => 'participants/index.php', 'any' => ['participants.view', 'organization.manage'], 'ready' => true],
             ],
             'Collections' => [
-                ['key' => 'events', 'label' => 'Events', 'icon' => 'bi-calendar-event', 'path' => 'events/index.php', 'any' => ['events.view', 'events.manage'], 'ready' => false],
+                ['key' => 'events', 'label' => 'Events', 'icon' => 'bi-calendar-event', 'path' => 'events/index.php', 'any' => ['events.view', 'events.manage'], 'ready' => true],
                 ['key' => 'collections', 'label' => 'Collections', 'icon' => 'bi-cash-coin', 'path' => 'collections/index.php', 'any' => ['collections.view'], 'ready' => false],
                 ['key' => 'turnovers', 'label' => 'Cash Turnovers', 'icon' => 'bi-arrow-left-right', 'path' => 'turnovers/index.php', 'any' => ['turnovers.view'], 'ready' => false],
             ],
             'Finance' => [
-                ['key' => 'funds', 'label' => 'Funds', 'icon' => 'bi-wallet', 'path' => 'funds/index.php', 'any' => ['funds.view'], 'ready' => false],
+                ['key' => 'funds', 'label' => 'Funds', 'icon' => 'bi-wallet', 'path' => 'funds/index.php', 'any' => ['funds.view'], 'ready' => true],
+                ['key' => 'accounts', 'label' => 'Financial Accounts', 'icon' => 'bi-bank2', 'path' => 'funds/accounts.php', 'any' => ['funds.view_all', 'funds.manage', 'reconciliation.manage'], 'ready' => true],
                 ['key' => 'expenses', 'label' => 'Expenses', 'icon' => 'bi-receipt', 'path' => 'expenses/index.php', 'any' => ['expenses.view'], 'ready' => false],
                 ['key' => 'advances', 'label' => 'Cash Advances', 'icon' => 'bi-wallet2', 'path' => 'advances/index.php', 'any' => ['advances.view', 'advances.request', 'self.advances.view'], 'ready' => false],
                 ['key' => 'liquidation', 'label' => 'Liquidation', 'icon' => 'bi-journal-check', 'path' => 'liquidation/index.php', 'any' => ['liquidation.submit', 'liquidation.review'], 'ready' => false],

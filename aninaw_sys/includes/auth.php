@@ -244,7 +244,7 @@ function auth_available_contexts(int $userId): array
          JOIN membership_roles mr ON mr.membership_id = m.id
          JOIN roles r ON r.id = mr.role_id AND r.scope_type = 'institution'
          WHERE m.user_id = ? AND m.membership_status = 'active'
-         ORDER BY i.institution_name, r.role_name",
+         ORDER BY i.institution_name, r.id",
         [$userId]
     );
     foreach ($memberships as $row) {

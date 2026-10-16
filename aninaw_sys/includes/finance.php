@@ -215,10 +215,11 @@ function post_journal(array $entry): int
         throw new LogicException("Unbalanced journal entry: debits {$debits} credits {$credits}.");
     }
 
-    // A source may be posted once; corrections go through reverse_journal().
+    // A source may be posted once (until that posting is reversed); corrections go through reverse_journal().
     $existing = db_value(
-        "SELECT id FROM journal_entries
-         WHERE institution_id = ? AND source_type = ? AND source_id = ? AND reversal_of_id IS NULL AND status = 'posted'
+        "SELECT j.id FROM journal_entries j
+         WHERE j.institution_id = ? AND j.source_type = ? AND j.source_id = ? AND j.reversal_of_id IS NULL AND j.status = 'posted'
+           AND NOT EXISTS (SELECT 1 FROM journal_entries r WHERE r.institution_id = j.institution_id AND r.reversal_of_id = j.id)
          LIMIT 1 FOR UPDATE",
         [$institutionId, $entry['source_type'], $entry['source_id']]
     );
@@ -326,16 +327,14 @@ function cancel_pending_cash_flows(int $institutionId, string $sourceType, int $
 function reverse_journal(int $institutionId, string $sourceType, int $sourceId, string $reason, ?string $date = null): int
 {
     $original = db_one(
-        "SELECT * FROM journal_entries
-         WHERE institution_id = ? AND source_type = ? AND source_id = ? AND reversal_of_id IS NULL AND status = 'posted'
-         FOR UPDATE",
+        "SELECT j.* FROM journal_entries j
+         WHERE j.institution_id = ? AND j.source_type = ? AND j.source_id = ? AND j.reversal_of_id IS NULL AND j.status = 'posted'
+           AND NOT EXISTS (SELECT 1 FROM journal_entries r WHERE r.institution_id = j.institution_id AND r.reversal_of_id = j.id)
+         ORDER BY j.id DESC LIMIT 1 FOR UPDATE",
         [$institutionId, $sourceType, $sourceId]
     );
     if (!$original) {
-        fail_user('There is no posted entry to reverse.');
-    }
-    if (db_value('SELECT 1 FROM journal_entries WHERE institution_id = ? AND reversal_of_id = ?', [$institutionId, $original['id']])) {
-        fail_user('This entry has already been reversed.');
+        fail_user('There is no posted entry to reverse, or it has already been reversed.');
     }
 
     $userId = (int) auth_user()['id'];
