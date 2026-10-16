@@ -1,0 +1,38 @@
+/* ANINAW printable receipt (A5-friendly). Uses the theme variables from style.css. */
+.receipt-body { background: var(--an-bg); padding: 1.5rem 1rem; }
+.receipt-toolbar { max-width: 720px; margin: 0 auto 1rem; display: flex; justify-content: space-between; }
+.receipt {
+    position: relative; max-width: 720px; margin: 0 auto; background: #fff; border: 1px solid var(--an-border);
+    border-top: 6px solid var(--an-primary); border-radius: var(--an-radius); padding: 2rem 2.25rem; overflow: hidden;
+}
+.receipt-header { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--an-border); padding-bottom: 1rem; margin-bottom: 1rem; }
+.receipt-institution { font-size: 1.15rem; font-weight: 700; color: var(--an-forest); }
+.receipt-address { font-size: 0.8125rem; color: var(--an-text-muted); max-width: 320px; }
+.receipt-title { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--an-primary); }
+.receipt-number { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1rem; font-weight: 600; }
+.receipt-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.25rem; }
+.receipt-meta span { display: block; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--an-text-muted); }
+.receipt-meta strong { display: block; font-size: 0.9375rem; }
+.receipt-meta small { color: var(--an-text-muted); }
+.receipt-lines { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+.receipt-lines th, .receipt-lines td { padding: 0.5rem 0; border-bottom: 1px solid var(--an-border); }
+.receipt-lines thead th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--an-text-muted); }
+.receipt-lines tfoot th { font-size: 1.1rem; border-bottom: 2px solid var(--an-text); }
+.receipt-words { margin: 1rem 0 2rem; font-size: 0.875rem; }
+.receipt-words span { color: var(--an-text-muted); }
+.receipt-footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; }
+.receipt-sign { text-align: center; min-width: 220px; }
+.receipt-sign-line { border-top: 1px solid var(--an-text); padding-top: 0.25rem; font-weight: 600; }
+.receipt-sign span, .receipt-note { font-size: 0.75rem; color: var(--an-text-muted); }
+.receipt-note { text-align: right; max-width: 320px; }
+.receipt-watermark {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;
+    font-size: 7rem; font-weight: 800; letter-spacing: 0.1em; color: rgba(220, 53, 69, 0.18); transform: rotate(-20deg);
+}
+.receipt-watermark-soft { color: rgba(107, 119, 112, 0.14); font-size: 5rem; }
+@media (max-width: 575.98px) { .receipt { padding: 1.25rem; } .receipt-meta { grid-template-columns: 1fr; } .receipt-header, .receipt-footer { flex-direction: column; align-items: flex-start; } .receipt-note { text-align: left; } }
+@media print {
+    .no-print { display: none !important; }
+    .receipt-body { background: #fff; padding: 0; }
+    .receipt { border: 1px solid #999; border-top: 6px solid #198754; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
