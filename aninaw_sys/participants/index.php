@@ -47,13 +47,13 @@ $participants = db_all(
 );
 $canManage = can('organization.manage');
 
-$pageTitle = 'Participants';
+$pageTitle = 'People';
 $activeNav = 'participants';
 $breadcrumb = [auth_context()['label'], 'Organization'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<?= page_actions($visibility === '1 = 1' ? 'Everyone who can owe or pay collections in this institution.' : 'Participants in the groups you serve.',
-    $canManage ? button_link('participants/import_pdf.php', 'Import Class List (PDF)', 'bi-file-earmark-pdf', 'btn-outline-primary') . button_link('participants/import.php', 'Import CSV', 'bi-upload', 'btn-outline-primary') . button_link('participants/form.php', 'Register Participant', 'bi-person-plus') : '') ?>
+<?= page_actions($visibility === '1 = 1' ? 'Students, faculty / staff and customers: everyone who can owe, pay or buy. Add them to events directly; groups are optional.' : 'People in the groups you serve.',
+    $canManage ? button_link('participants/import_pdf.php', 'Import Class List (PDF)', 'bi-file-earmark-pdf', 'btn-outline-primary') . button_link('participants/import.php', 'Import CSV', 'bi-upload', 'btn-outline-primary') . button_link('participants/form.php', 'Add Person', 'bi-person-plus') : '') ?>
 
 <div class="card panel">
     <form class="filter-bar" method="get">

@@ -13,7 +13,7 @@ declare(strict_types=1);
             <?= stat_card('bi-people', 'Active Members', number_format((int) ($d['memberships']['active'] ?? 0)), number_format((int) ($d['memberships']['pending'] ?? 0)) . ' pending approval') ?>
             <?= stat_card('bi-calendar-event', 'Active Events', number_format($d['active_events']), 'Approved or collecting') ?>
             <?= stat_card('bi-wallet', 'Active Funds', number_format($d['active_funds'])) ?>
-            <?= stat_card('bi-diagram-3', 'Groups / Participants', number_format($d['active_groups']) . ' / ' . number_format($d['active_participants']), 'Active records', 'info') ?>
+            <?= stat_card('bi-diagram-3', 'Groups / People', number_format($d['active_groups']) . ' / ' . number_format($d['active_participants']), 'Active records', 'info') ?>
         </div>
         <div class="row g-3">
             <div class="col-lg-6">

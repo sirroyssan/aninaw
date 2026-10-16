@@ -180,7 +180,7 @@ require APP_ROOT . '/includes/header.php';
                         <?php if (!$candidates): ?>
                             <p class="text-muted-sm">No matching participants outside this group. <a href="<?= e(url('participants/form.php')) ?>">Register a participant</a>.</p>
                         <?php else: ?>
-                            <select class="form-select mb-2" name="participant_ids[]" multiple size="8" aria-label="Participants to add" required>
+                            <select class="form-select mb-2" name="participant_ids[]" multiple size="8" aria-label="People to add" required>
                                 <?php foreach ($candidates as $row): ?>
                                     <option value="<?= e($row['id']) ?>"><?= e($row['participant_number'] . ' — ' . $row['last_name'] . ', ' . $row['first_name']) ?></option>
                                 <?php endforeach; ?>

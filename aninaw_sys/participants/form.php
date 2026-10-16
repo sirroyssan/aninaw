@@ -19,16 +19,16 @@ if (is_post()) {
         if (!$participantId && $groupId) {
             add_group_members($groupId, [$id], '', '');
         }
-        flash('success', $participantId ? 'Participant updated' : 'Participant registered');
+        flash('success', $participantId ? 'Person updated' : 'Person added');
         return 'participants/view.php?id=' . $id;
     });
 }
 
 $field = static fn(string $key, string $default = '') => $participant[$key] ?? old($key, $default);
 
-$pageTitle = $participant ? 'Edit Participant' : 'Register Participant';
+$pageTitle = $participant ? 'Edit Person' : 'Add Person';
 $activeNav = 'participants';
-$breadcrumb = [auth_context()['label'], 'Participants'];
+$breadcrumb = [auth_context()['label'], 'People'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <form method="post" class="card panel form-card" style="max-width: 880px">

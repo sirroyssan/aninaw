@@ -73,7 +73,7 @@ require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Classes, sections, committees or other units. Members and officers are managed inside each group.',
     ($canManage ? button_link('groups/departments.php', 'Departments', 'bi-diagram-2', 'btn-outline-primary') : '')
-    . (can_view_participants() ? button_link('participants/index.php', 'Participants', 'bi-person-vcard', 'btn-outline-primary') : '')) ?>
+    . (can_view_participants() ? button_link('participants/index.php', 'People', 'bi-person-vcard', 'btn-outline-primary') : '')) ?>
 
 <div class="row g-3">
     <div class="<?= $canManage ? 'col-xl-8' : 'col-12' ?>">

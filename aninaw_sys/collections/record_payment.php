@@ -78,11 +78,11 @@ require APP_ROOT . '/includes/header.php';
         <div class="card-header"><h3>1. Find the payer</h3></div>
         <form class="filter-bar" method="get">
             <?php if ($eventId): ?><input type="hidden" name="event" value="<?= e($eventId) ?>"><?php endif; ?>
-            <div class="filter-field grow"><label for="q">Participant</label><input class="form-control" type="search" id="q" name="q" value="<?= e($search) ?>" placeholder="ID number or name" autofocus></div>
+            <div class="filter-field grow"><label for="q">Payer (student, faculty or customer)</label><input class="form-control" type="search" id="q" name="q" value="<?= e($search) ?>" placeholder="ID number or name" autofocus></div>
             <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1" aria-hidden="true"></i>Search</button>
         </form>
         <?php if (!$results): ?>
-            <div class="card-body"><?= empty_state('bi-person-search', $search !== '' ? 'No participant with open obligations matches' : 'Search for a participant', 'Only participants with unpaid obligations in events open for collection are listed.') ?></div>
+            <div class="card-body"><?= empty_state('bi-person-search', $search !== '' ? 'No one with unpaid obligations matches' : 'Search for a person', 'Only participants with unpaid obligations in events open for collection are listed.') ?></div>
         <?php else: ?>
             <ul class="list-clean">
                 <?php foreach ($results as $row): ?>
@@ -97,7 +97,7 @@ require APP_ROOT . '/includes/header.php';
         button_link('collections/record_payment.php', 'Change Payer', 'bi-arrow-left', 'btn-outline-secondary')) ?>
 
     <?php if (!$events): ?>
-        <div class="card panel"><div class="card-body"><?= empty_state('bi-check2-circle', 'Nothing to collect', 'This participant has no unpaid obligations in events open for collection.') ?></div></div>
+        <div class="card panel"><div class="card-body"><?= empty_state('bi-check2-circle', 'Nothing to collect', 'This person has no unpaid obligations in events open for collection.') ?></div></div>
     <?php else: ?>
         <?php if (count($events) > 1): ?>
             <form method="get" class="card panel mb-3" style="max-width: 880px">

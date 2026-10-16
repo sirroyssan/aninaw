@@ -80,7 +80,7 @@ function report_definitions(): array
                         WHERE " . implode(' AND ', $where) . ' GROUP BY e.id, e.event_name, r.id, r.rule_name', array_merge([$f['institution_id']], $params)];
             },
             'order' => 'event_name, rule_name',
-            'columns' => ['event_name' => ['Event'], 'rule_name' => ['Collection rule'], 'obligations' => ['Participants', 'int', true], 'fully_paid' => ['Fully paid', 'int', true],
+            'columns' => ['event_name' => ['Event'], 'rule_name' => ['Collection rule'], 'obligations' => ['People', 'int', true], 'fully_paid' => ['Fully paid', 'int', true],
                 'expected' => ['Expected', 'money', true], 'collected' => ['Collected', 'money', true], 'waived' => ['Waived', 'money', true], 'outstanding' => ['Outstanding', 'money', true]],
             'link' => ['event_name', 'events/view.php?id=', 'event_id'],
             'note' => 'Collected counts posted payments only; reversed payments are excluded.',
@@ -111,7 +111,7 @@ function report_definitions(): array
                         WHERE " . implode(' AND ', $where), $params];
             },
             'order' => 'participant, event_name, rule_name',
-            'columns' => ['participant_number' => ['No.'], 'participant' => ['Participant'], 'group_names' => ['Group'], 'event_name' => ['Event'], 'rule_name' => ['Rule'],
+            'columns' => ['participant_number' => ['No.'], 'participant' => ['Person'], 'group_names' => ['Group'], 'event_name' => ['Event'], 'rule_name' => ['Rule'],
                 'amount_due' => ['Due', 'money', true], 'waived_amount' => ['Waived', 'money', true], 'paid' => ['Paid', 'money', true], 'balance' => ['Balance', 'money', true, static fn($r) => cents_to_decimal(max(0, to_cents($r['amount_due']) - to_cents($r['waived_amount']) - to_cents($r['paid'])))],
                 'due_date' => ['Due date', 'date'], 'status' => ['Status', 'status']],
             'link' => ['participant', 'participants/view.php?id=', 'participant_id'],

@@ -14,7 +14,7 @@ require_permission(['events.view', 'events.manage', 'collections.view']);
 $eventId = require_get_id();
 $event = require_found(find_event($eventId));
 $institutionId = (int) current_institution_id();
-$tab = in_array(get_str('tab', 20), ['overview', 'rules', 'obligations', 'setup'], true) ? get_str('tab', 20) : 'overview';
+$tab = in_array(get_str('tab', 20), ['overview', 'rules', 'people', 'obligations', 'setup'], true) ? get_str('tab', 20) : 'overview';
 
 if (is_post()) {
     $action = post_str('action', 30);
@@ -27,7 +27,7 @@ if (is_post()) {
                 break;
             case 'save_rule':
                 save_collection_rule($eventId, post_int('rule_id') ?: null, $_POST);
-                flash('success', 'Collection rule saved', 'Generate obligations to apply it to eligible participants.');
+                flash('success', 'Collection rule saved', 'Generate obligations to apply it to everyone it covers.');
                 break;
             case 'rule_status':
                 set_rule_status($eventId, post_int('rule_id') ?? 0, post_str('status', 20), post_str('reason', 1000));
@@ -36,6 +36,15 @@ if (is_post()) {
             case 'generate':
                 $created = generate_obligations($eventId);
                 flash('success', 'Obligations generated', $created . ' new obligation(s) created. Existing ones were left unchanged.');
+                break;
+            case 'add_people':
+                $result = add_event_people($eventId, $_POST);
+                flash($result['added'] ? 'success' : 'info', $result['added'] ? $result['added'] . ' added to the event' : 'Already in the event',
+                    $result['obligations'] ? $result['obligations'] . ' charge(s) created from the collection rules.' : ($result['added'] ? 'Add a collection rule to charge them.' : 'Everyone chosen was already in the event.'));
+                break;
+            case 'remove_person':
+                remove_event_person($eventId, post_int('participant_id') ?? 0, post_str('reason', 1000));
+                flash('success', 'Removed from the event', 'Their unpaid charges for this event were cancelled.');
                 break;
             case 'waive':
                 waive_obligation(post_int('obligation_id') ?? 0, post_str('amount', 20), post_str('reason', 1000));
@@ -73,7 +82,7 @@ if (is_post()) {
                 fail_user('Unknown action.');
         }
         return 'events/view.php?id=' . $eventId . '&tab=' . $returnTab;
-    }, in_array($action, ['save_rule', 'generate', 'add_fund', 'add_group', 'add_organizer'], true));
+    }, in_array($action, ['save_rule', 'generate', 'add_fund', 'add_group', 'add_organizer', 'add_people'], true));
 }
 
 $canManage = $event['can_manage'];
@@ -98,6 +107,7 @@ $assignments = db_all(
      WHERE a.institution_id = ? AND a.event_id = ? AND a.status = 'active' ORDER BY g.group_name",
     [$institutionId, $eventId]
 );
+$hasMembers = $assignments || db_value("SELECT 1 FROM event_participants WHERE institution_id = ? AND event_id = ? AND status = 'active'", [$institutionId, $eventId]);
 $organizers = db_all(
     "SELECT eo.id, eo.membership_id, u.first_name, u.last_name FROM event_organizers eo
      JOIN institution_memberships m ON m.id = eo.membership_id JOIN users u ON u.id = m.user_id
@@ -117,20 +127,20 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
     . ($canManage && !in_array($event['status'], ['closed', 'cancelled'], true) ? button_link('events/create.php?id=' . $eventId, 'Edit', 'bi-pencil', 'btn-outline-primary') : '')) ?>
 
 <ul class="nav nav-tabs-clean">
-    <?php foreach (['overview' => 'Collection Dashboard', 'rules' => 'Collection Rules', 'obligations' => 'Participants', 'setup' => 'Setup'] as $key => $label): ?>
+    <?php foreach (['overview' => 'Collection Dashboard', 'rules' => 'Collection Rules', 'people' => 'People', 'obligations' => 'Balances', 'setup' => 'Setup'] as $key => $label): ?>
         <li class="nav-item"><a class="nav-link<?= $tab === $key ? ' active' : '' ?>" href="<?= e($tabUrl($key)) ?>"><?= e($label) ?></a></li>
     <?php endforeach; ?>
 </ul>
 
 <?php if ($tab === 'overview'): ?>
     <div class="stat-grid">
-        <?= stat_card('bi-bullseye', 'Expected Collection', money($stats['expected'], $currency), $stats['participants'] . ' participant(s) with obligations') ?>
+        <?= stat_card('bi-bullseye', 'Expected Collection', money($stats['expected'], $currency), $stats['participants'] . ' people with obligations') ?>
         <?= stat_card('bi-cash-coin', 'Amount Received', money($stats['received'], $currency), 'Posted payments') ?>
         <?= stat_card('bi-hourglass-split', 'Remaining', money($stats['remaining'], $currency), $stats['percent'] . '% collected', $stats['remaining'] > 0 ? 'warning' : 'success') ?>
         <?= stat_card('bi-arrow-left-right', 'Pending Turnover', money($stats['pending_turnover'], $currency), 'Collected by collectors, not yet verified by a cashier', $stats['pending_turnover'] > 0 ? 'warning' : 'success') ?>
-        <?= stat_card('bi-check2-circle', 'Fully Paid', number_format($stats['paid_count']), 'participants', 'success') ?>
-        <?= stat_card('bi-circle-half', 'Partially Paid', number_format($stats['partial_count']), 'participants', 'info') ?>
-        <?= stat_card('bi-x-circle', 'Unpaid', number_format($stats['unpaid_count']), 'participants', $stats['unpaid_count'] ? 'danger' : 'success') ?>
+        <?= stat_card('bi-check2-circle', 'Fully Paid', number_format($stats['paid_count']), 'people', 'success') ?>
+        <?= stat_card('bi-circle-half', 'Partially Paid', number_format($stats['partial_count']), 'people', 'info') ?>
+        <?= stat_card('bi-x-circle', 'Unpaid', number_format($stats['unpaid_count']), 'people', $stats['unpaid_count'] ? 'danger' : 'success') ?>
     </div>
     <div class="card panel mb-3"><div class="card-body"><div class="d-flex justify-content-between mb-1"><span class="fw-semibold">Collection progress</span><span><?= e((string) $stats['percent']) ?>%</span></div><?= progress_bar($stats['percent']) ?></div></div>
 
@@ -181,7 +191,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                             <?php foreach ($rules as $rule): ?>
                                 <tr>
                                     <td><div class="fw-semibold"><?= e($rule['rule_name']) ?></div><div class="text-muted-sm"><?= $rule['allow_partial_payment'] ? 'Partial payments allowed' : 'Full payment only' ?></div></td>
-                                    <td><?= e(match ($rule['applies_to_type']) { 'group' => 'Group: ' . $rule['group_name'], 'participant' => 'Participant: ' . $rule['participant_name'], default => $assignments ? 'All participating groups' : 'All active participants' }) ?></td>
+                                    <td><?= e(match ($rule['applies_to_type']) { 'group' => 'Group: ' . $rule['group_name'], 'participant' => 'One person: ' . $rule['participant_name'], default => $hasMembers ? 'Everyone in the event' : 'Everyone in the institution (no groups or people added yet)' }) ?></td>
                                     <td class="text-end fw-semibold"><?= e(m($rule['amount_due'])) ?></td>
                                     <td class="text-muted-sm"><?= e(format_date($rule['effective_until'] ?? $event['collection_deadline'])) ?></td>
                                     <td class="text-end"><?= e((string) $rule['obligations']) ?></td>
@@ -212,11 +222,11 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                     <div class="card-header"><h3><?= $editRule ? 'Edit Rule' : 'New Collection Rule' ?></h3></div>
                     <div class="card-body">
                         <div class="mb-2"><label class="form-label required" for="rule_name">Collection name</label><input class="form-control" id="rule_name" name="rule_name" required maxlength="180" value="<?= e($editRule['rule_name'] ?? old('rule_name')) ?>" placeholder="Registration fee"></div>
-                        <div class="mb-2"><label class="form-label required" for="amount_due">Amount per participant</label><input class="form-control text-amount" id="amount_due" name="amount_due" required inputmode="decimal" value="<?= e(isset($editRule) ? cents_to_decimal(to_cents($editRule['amount_due'])) : old('amount_due')) ?>" placeholder="150.00"></div>
-                        <div class="mb-2"><label class="form-label" for="applies_to_type">Applies to</label><select class="form-select" id="applies_to_type" name="applies_to_type"><?= options_html(['all' => 'All participating groups (or everyone if none)', 'group' => 'One group', 'participant' => 'One participant'], $editRule['applies_to_type'] ?? old('applies_to_type', 'all')) ?></select></div>
+                        <div class="mb-2"><label class="form-label required" for="amount_due">Amount per person</label><input class="form-control text-amount" id="amount_due" name="amount_due" required inputmode="decimal" value="<?= e(isset($editRule) ? cents_to_decimal(to_cents($editRule['amount_due'])) : old('amount_due')) ?>" placeholder="150.00"></div>
+                        <div class="mb-2"><label class="form-label" for="applies_to_type">Applies to</label><select class="form-select" id="applies_to_type" name="applies_to_type"><?= options_html(['all' => 'Everyone in the event (its groups and people added)', 'group' => 'One group', 'participant' => 'One person'], $editRule['applies_to_type'] ?? old('applies_to_type', 'all')) ?></select></div>
                         <div class="mb-2"><label class="form-label" for="applies_to_group">Group <span class="text-muted-sm">(if one group)</span></label><select class="form-select" id="applies_to_group" name="applies_to_group"><?= options_html(group_options(), ($editRule['applies_to_type'] ?? '') === 'group' ? $editRule['applies_to_id'] : null, '—') ?></select></div>
-                        <div class="mb-2"><label class="form-label" for="applies_to_participant">Participant ID <span class="text-muted-sm">(if one participant)</span></label>
-                            <select class="form-select" id="applies_to_participant" name="applies_to_participant"><?= options_html(options_from_rows(db_all("SELECT id, participant_number, first_name, last_name FROM participants WHERE institution_id = ? AND status = 'active' ORDER BY last_name LIMIT 1000", [$institutionId]), 'id', static fn($r) => $r['participant_number'] . ' — ' . $r['last_name'] . ', ' . $r['first_name']), ($editRule['applies_to_type'] ?? '') === 'participant' ? $editRule['applies_to_id'] : null, '—') ?></select></div>
+                        <div class="mb-2"><label class="form-label" for="applies_to_participant">Person <span class="text-muted-sm">(if one person)</span></label>
+                            <select class="form-select" id="applies_to_participant" name="applies_to_participant" data-searchable><?= options_html(options_from_rows(db_all("SELECT id, participant_number, first_name, last_name FROM participants WHERE institution_id = ? AND status = 'active' ORDER BY last_name LIMIT 1000", [$institutionId]), 'id', static fn($r) => $r['participant_number'] . ' — ' . $r['last_name'] . ', ' . $r['first_name']), ($editRule['applies_to_type'] ?? '') === 'participant' ? $editRule['applies_to_id'] : null, '—') ?></select></div>
                         <div class="row g-2 mb-2">
                             <div class="col-6"><label class="form-label" for="effective_from">From</label><input class="form-control" type="date" id="effective_from" name="effective_from" value="<?= e($editRule['effective_from'] ?? '') ?>"></div>
                             <div class="col-6"><label class="form-label" for="effective_until">Due date</label><input class="form-control" type="date" id="effective_until" name="effective_until" value="<?= e($editRule['effective_until'] ?? $event['collection_deadline']) ?>"></div>
@@ -231,6 +241,87 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                 </form>
             </div>
         <?php endif; ?>
+    </div>
+
+<?php elseif ($tab === 'people'): ?>
+    <?php
+    $people = event_people($eventId);
+    $inEvent = array_flip(array_map('intval', array_column($people, 'participant_id')));
+    $groupMembers = (int) db_value(
+        "SELECT COUNT(DISTINCT gm.participant_id) FROM event_group_assignments a JOIN group_memberships gm ON gm.institution_id = a.institution_id AND gm.group_id = a.group_id AND gm.status = 'active'
+         WHERE a.institution_id = ? AND a.event_id = ? AND a.status = 'active'", [$institutionId, $eventId]);
+    $canAddPeople = $canManage && !in_array($event['status'], ['completed', 'closed', 'cancelled'], true);
+    ?>
+    <div class="stat-grid">
+        <?= stat_card('bi-person-plus', 'Added directly', number_format(count($people)), 'Students, faculty or customers') ?>
+        <?= stat_card('bi-diagram-3', 'Through groups', number_format($groupMembers), count($assignments) . ' participating group(s)', 'info') ?>
+    </div>
+    <div class="row g-3">
+        <div class="col-xl-8">
+            <div class="card panel">
+                <div class="card-header"><h3>People added to this event</h3></div>
+                <?php if (!$people): ?>
+                    <div class="card-body"><?= empty_state('bi-people', 'No one added directly', 'Add students, faculty or customers here; no group is needed. People in participating groups are included automatically.') ?></div>
+                <?php else: ?>
+                    <div class="table-responsive"><table class="table table-clean align-middle mb-0">
+                        <thead><tr><th>ID no.</th><th>Name</th><th>Type</th><th class="text-end">Owes</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th></th></tr></thead>
+                        <tbody><?php foreach ($people as $row): $balance = max(0, to_cents($row['expected']) - to_cents($row['paid'])); ?>
+                            <tr>
+                                <td class="fw-semibold"><?= e($row['participant_number']) ?></td>
+                                <td><a href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a></td>
+                                <td><?= e(PARTICIPANT_TYPES[$row['participant_type']] ?? $row['participant_type']) ?></td>
+                                <td class="text-end"><?= e(m($row['expected'])) ?></td>
+                                <td class="text-end"><?= e(m($row['paid'])) ?></td>
+                                <td class="text-end fw-semibold<?= $balance > 0 ? ' text-danger' : '' ?>"><?= e(money($balance, $currency)) ?></td>
+                                <td class="actions"><?php if ($canManage): ?>
+                                    <form method="post" data-confirm="Remove <?= e($row['first_name'] . ' ' . $row['last_name']) ?> from the event?" data-confirm-text="Their unpaid charges for this event are cancelled. People who already paid cannot be removed." data-reason="Reason for removing" data-danger>
+                                        <?= csrf_field() ?><input type="hidden" name="action" value="remove_person"><input type="hidden" name="tab" value="people"><input type="hidden" name="participant_id" value="<?= (int) $row['participant_id'] ?>">
+                                        <button class="btn btn-outline-danger btn-xs" type="submit">Remove</button>
+                                    </form>
+                                <?php endif; ?></td>
+                            </tr>
+                        <?php endforeach; ?></tbody>
+                    </table></div>
+                <?php endif; ?>
+                <div class="card-footer-note">Collection rules that apply to everyone in the event are charged to people as soon as they are added. Rules for one group or one person apply only to them.</div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <?php if ($canAddPeople): ?>
+                <div class="card panel form-card mb-3">
+                    <div class="card-header"><h3>Add a person</h3></div>
+                    <form method="post" class="card-body">
+                        <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="add_people"><input type="hidden" name="tab" value="people">
+                        <label class="form-label required" for="ep-person">Student, faculty or customer</label>
+                        <select class="form-select mb-2" id="ep-person" name="participant_id" required data-searchable>
+                            <option value="">Search name or ID number…</option>
+                            <?php foreach (db_all("SELECT id, participant_number, first_name, last_name, participant_type FROM participants WHERE institution_id = ? AND status = 'active' ORDER BY last_name, first_name LIMIT 5000", [$institutionId]) as $person): ?>
+                                <?php if (isset($inEvent[(int) $person['id']])) { continue; } ?>
+                                <option value="<?= (int) $person['id'] ?>"><?= e($person['last_name'] . ', ' . $person['first_name'] . ' (' . $person['participant_number'] . ') · ' . (PARTICIPANT_TYPES[$person['participant_type']] ?? '')) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button class="btn btn-primary w-100" type="submit"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Add to Event</button>
+                        <div class="form-text">Not in the list? <a href="<?= e(url('participants/form.php')) ?>">Register them</a> first.</div>
+                    </form>
+                </div>
+                <div class="card panel form-card mb-3">
+                    <div class="card-header"><h3>Add many at once</h3></div>
+                    <form method="post" class="card-body border-bottom" data-confirm="Add everyone of this type?" data-confirm-text="Every active person of the chosen type is added to the event and charged its collection rules.">
+                        <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="add_people"><input type="hidden" name="tab" value="people">
+                        <label class="form-label" for="ep-type">Everyone who is a…</label>
+                        <div class="d-flex gap-2"><select class="form-select" id="ep-type" name="add_type" required><?= options_html(PARTICIPANT_TYPES, null, 'Choose type…') ?></select><button class="btn btn-outline-primary" type="submit">Add</button></div>
+                    </form>
+                    <form method="post" class="card-body" data-confirm="Add this group's members?" data-confirm-text="The group's current members are added as individuals. Later changes to the group do not change the event.">
+                        <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="add_people"><input type="hidden" name="tab" value="people">
+                        <label class="form-label" for="ep-group">Members of a group (one-time copy)</label>
+                        <div class="d-flex gap-2"><select class="form-select" id="ep-group" name="add_group_id" required data-searchable><?= options_html(group_options(), null, 'Choose group…') ?></select><button class="btn btn-outline-primary" type="submit">Add</button></div>
+                        <div class="form-text">To collect through a class president, assign the group under Setup instead.</div>
+                    </form>
+                </div>
+            <?php elseif ($canManage): ?>
+                <div class="notice notice-info"><i class="bi bi-info-circle" aria-hidden="true"></i><div>People cannot be added to a <?= e($event['status']) ?> event.</div></div>
+            <?php endif; ?>
+        </div>
     </div>
 
 <?php elseif ($tab === 'obligations'): ?>
@@ -281,7 +372,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-clean align-middle mb-0">
-                    <thead><tr><th>Participant</th><th>Collection</th><th class="text-end">Due</th><th class="text-end">Waived</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Status</th><?php if ($canManage): ?><th></th><?php endif; ?></tr></thead>
+                    <thead><tr><th>Person</th><th>Collection</th><th class="text-end">Due</th><th class="text-end">Waived</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Status</th><?php if ($canManage): ?><th></th><?php endif; ?></tr></thead>
                     <tbody>
                     <?php foreach ($obligations as $row): $balance = max(0, to_cents($row['amount_due']) - to_cents($row['waived_amount']) - to_cents($row['paid'])); ?>
                         <tr>

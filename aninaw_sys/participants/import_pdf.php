@@ -146,7 +146,7 @@ if ($review) {
 
 $pageTitle = 'Import Class List';
 $activeNav = 'participants';
-$breadcrumb = [auth_context()['label'], 'Participants'];
+$breadcrumb = [auth_context()['label'], 'People'];
 $pageScripts = ['js/class_list.js'];
 require APP_ROOT . '/includes/header.php';
 $sexLabel = ['male' => 'Male', 'female' => 'Female'];

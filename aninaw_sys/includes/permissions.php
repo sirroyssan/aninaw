@@ -85,7 +85,7 @@ function navigation_sections(): array
             ],
             'Organization' => [
                 ['key' => 'groups', 'label' => 'Departments & Groups', 'icon' => 'bi-diagram-3', 'path' => 'groups/index.php', 'any' => ['participants.view', 'organization.manage'], 'ready' => true],
-                ['key' => 'participants', 'label' => 'Participants', 'icon' => 'bi-person-vcard', 'path' => 'participants/index.php', 'any' => ['participants.view', 'organization.manage'], 'ready' => true],
+                ['key' => 'participants', 'label' => 'People', 'icon' => 'bi-person-vcard', 'path' => 'participants/index.php', 'any' => ['participants.view', 'organization.manage'], 'ready' => true],
             ],
             'Collections' => [
                 ['key' => 'events', 'label' => 'Events', 'icon' => 'bi-calendar-event', 'path' => 'events/index.php', 'any' => ['events.view', 'events.manage'], 'ready' => true],

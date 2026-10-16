@@ -37,9 +37,9 @@ if (is_post()) {
     });
 }
 
-$pageTitle = 'Import Participants';
+$pageTitle = 'Import People';
 $activeNav = 'participants';
-$breadcrumb = [auth_context()['label'], 'Participants'];
+$breadcrumb = [auth_context()['label'], 'People'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Import participants from a CSV file. Have a class list PDF from the enrollment system? Import it directly.',

@@ -87,7 +87,7 @@ require APP_ROOT . '/includes/header.php';
         <div class="table-responsive">
             <table class="table table-clean align-middle mb-0">
                 <thead><tr>
-                    <th><?= sort_link('Participant', 'name', $sortKey, $sortDir) ?></th>
+                    <th><?= sort_link('Payer', 'name', $sortKey, $sortDir) ?></th>
                     <th><?= sort_link('Event · Collection', 'event', $sortKey, $sortDir) ?></th>
                     <th class="text-end">Due</th><th class="text-end">Paid</th><th class="text-end">Balance</th>
                     <th><?= sort_link('Due date', 'due', $sortKey, $sortDir) ?></th>

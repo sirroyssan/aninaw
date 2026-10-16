@@ -8,7 +8,7 @@
 declare(strict_types=1);
 
 const GROUP_TYPES = ['class' => 'Class', 'section' => 'Section', 'team' => 'Team / Committee', 'organization' => 'Organization / Chapter', 'other' => 'Other'];
-const PARTICIPANT_TYPES = ['student' => 'Student', 'employee' => 'Employee', 'member' => 'Member', 'other' => 'Other'];
+const PARTICIPANT_TYPES = ['student' => 'Student', 'employee' => 'Faculty / Staff', 'member' => 'Member', 'other' => 'Customer / Other'];
 const OFFICER_TYPES = ['president' => 'President', 'collector' => 'Collector', 'adviser' => 'Adviser', 'other' => 'Other officer'];
 
 /**

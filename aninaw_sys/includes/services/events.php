@@ -380,9 +380,9 @@ function set_rule_status(int $eventId, int $ruleId, string $status, string $reas
 }
 
 /**
- * Participants a rule applies to:
- *  - all: active members of the event's participating groups (or, when the event has no
- *         groups, every active participant of the institution);
+ * People a rule applies to:
+ *  - all: active members of the event's participating groups plus the people added to the
+ *         event directly (when the event has neither, every active person in the institution);
  *  - group: active members of that group;
  *  - participant: that participant.
  */
@@ -400,13 +400,18 @@ function rule_eligible_participants(array $rule): array
         )->fetchAll(PDO::FETCH_COLUMN));
     }
     $hasGroups = db_value("SELECT 1 FROM event_group_assignments WHERE institution_id = ? AND event_id = ? AND status = 'active'", [$institutionId, $rule['event_id']]);
-    if ($hasGroups) {
+    $hasPeople = db_value("SELECT 1 FROM event_participants WHERE institution_id = ? AND event_id = ? AND status = 'active'", [$institutionId, $rule['event_id']]);
+    if ($hasGroups || $hasPeople) {
         return array_map('intval', db_query(
-            "SELECT DISTINCT gm.participant_id FROM event_group_assignments a
+            "SELECT gm.participant_id FROM event_group_assignments a
              JOIN group_memberships gm ON gm.institution_id = a.institution_id AND gm.group_id = a.group_id AND gm.status = 'active'
              JOIN participants p ON p.id = gm.participant_id AND p.institution_id = gm.institution_id AND p.status = 'active'
-             WHERE a.institution_id = ? AND a.event_id = ? AND a.status = 'active'",
-            [$institutionId, $rule['event_id']]
+             WHERE a.institution_id = ? AND a.event_id = ? AND a.status = 'active'
+             UNION
+             SELECT ep.participant_id FROM event_participants ep
+             JOIN participants p ON p.id = ep.participant_id AND p.institution_id = ep.institution_id AND p.status = 'active'
+             WHERE ep.institution_id = ? AND ep.event_id = ? AND ep.status = 'active'",
+            [$institutionId, $rule['event_id'], $institutionId, $rule['event_id']]
         )->fetchAll(PDO::FETCH_COLUMN));
     }
     return array_map('intval', db_query("SELECT id FROM participants WHERE institution_id = ? AND status = 'active'", [$institutionId])->fetchAll(PDO::FETCH_COLUMN));
@@ -442,6 +447,171 @@ function generate_obligations(int $eventId): int
         }
         audit_log('event.obligations_generated', 'event', $eventId, $institutionId, (int) auth_user()['id'], ['created' => $created]);
         return $created;
+    });
+}
+
+// ---------------------------------------------------------------------------
+// People added directly to an event (no group needed)
+// ---------------------------------------------------------------------------
+
+/** People added to the event directly, with how much they owe and have paid. */
+function event_people(int $eventId): array
+{
+    $institutionId = (int) current_institution_id();
+    return db_all(
+        "SELECT ep.id, ep.participant_id, ep.added_at, p.participant_number, p.first_name, p.last_name, p.participant_type, p.status AS person_status,
+                (SELECT COALESCE(SUM(o.amount_due - o.waived_amount), 0) FROM event_obligations o WHERE o.institution_id = ep.institution_id AND o.event_id = ep.event_id AND o.participant_id = ep.participant_id AND o.status <> 'cancelled') AS expected,
+                (SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocations pa JOIN payments pm ON pm.id = pa.payment_id AND pm.institution_id = pa.institution_id AND pm.status = 'posted'
+                   JOIN event_obligations o ON o.id = pa.obligation_id AND o.institution_id = pa.institution_id
+                  WHERE o.institution_id = ep.institution_id AND o.event_id = ep.event_id AND o.participant_id = ep.participant_id) AS paid
+         FROM event_participants ep JOIN participants p ON p.id = ep.participant_id AND p.institution_id = ep.institution_id
+         WHERE ep.institution_id = ? AND ep.event_id = ? AND ep.status = 'active'
+         ORDER BY p.last_name, p.first_name",
+        [$institutionId, $eventId]
+    );
+}
+
+/**
+ * Adds people to an event: chosen individually, everyone of a type (e.g. all faculty), or the
+ * current members of a group (a one-time copy; later group changes do not affect the event).
+ * Active "everyone in the event" rules are applied to them at once.
+ * $input: participant_ids[] | participant_id, add_type, add_group_id.
+ *
+ * @return array{added: int, obligations: int}
+ */
+function add_event_people(int $eventId, array $input): array
+{
+    $institutionId = (int) current_institution_id();
+    $event = require_event_manager($eventId);
+    if (in_array($event['status'], ['completed', 'closed', 'cancelled'], true)) {
+        fail_user('People cannot be added to a ' . $event['status'] . ' event.');
+    }
+    $ids = [];
+    foreach ((array) ($input['participant_ids'] ?? []) as $value) {
+        if (is_scalar($value) && ctype_digit((string) $value)) {
+            $ids[] = (int) $value;
+        }
+    }
+    if ($one = input_int($input, 'participant_id')) {
+        $ids[] = $one;
+    }
+    $type = input_enum($input, 'add_type', array_keys(PARTICIPANT_TYPES));
+    if ($type) {
+        $ofType = array_map('intval', db_query("SELECT id FROM participants WHERE institution_id = ? AND participant_type = ? AND status = 'active'", [$institutionId, $type])->fetchAll(PDO::FETCH_COLUMN));
+        if (!$ofType) {
+            fail_user('There are no active people of type "' . PARTICIPANT_TYPES[$type] . '". Add them under People first.');
+        }
+        $ids = array_merge($ids, $ofType);
+    }
+    if ($groupId = input_int($input, 'add_group_id')) {
+        $group = find_group($groupId) ?? fail_user('Group not found.');
+        $members = array_map('intval', db_query("SELECT participant_id FROM group_memberships WHERE institution_id = ? AND group_id = ? AND status = 'active'", [$institutionId, $groupId])->fetchAll(PDO::FETCH_COLUMN));
+        if (!$members) {
+            fail_user('The group "' . $group['group_name'] . '" has no active members.');
+        }
+        $ids = array_merge($ids, $members);
+    }
+    $ids = array_values(array_unique(array_filter($ids)));
+    if (!$ids) {
+        fail_user('Choose who to add: a person, a type of person, or a group.');
+    }
+    if (count($ids) > 5000) {
+        fail_user('Add at most 5,000 people at a time.');
+    }
+
+    return db_transaction(function () use ($institutionId, $eventId, $event, $ids) {
+        $added = 0;
+        $active = [];
+        foreach (array_chunk($ids, 500) as $chunk) {
+            $found = db_query('SELECT id FROM participants WHERE institution_id = ? AND status = \'active\' AND id IN (' . implode(',', array_fill(0, count($chunk), '?')) . ')', [$institutionId, ...$chunk])->fetchAll(PDO::FETCH_COLUMN);
+            if (count($found) !== count($chunk)) {
+                fail_user('Only active people of this institution can be added.');
+            }
+        }
+        foreach ($ids as $participantId) {
+            $row = db_one('SELECT id, status FROM event_participants WHERE institution_id = ? AND event_id = ? AND participant_id = ?', [$institutionId, $eventId, $participantId]);
+            if ($row && $row['status'] === 'active') {
+                continue;
+            }
+            if ($row) {
+                db_query("UPDATE event_participants SET status = 'active', removed_at = NULL, added_by = ?, added_at = NOW() WHERE id = ?", [(int) auth_user()['id'], $row['id']]);
+            } else {
+                db_query('INSERT INTO event_participants (institution_id, event_id, participant_id, added_by) VALUES (?, ?, ?, ?)', [$institutionId, $eventId, $participantId, (int) auth_user()['id']]);
+            }
+            $active[] = $participantId;
+            $added++;
+        }
+        $obligations = $active ? apply_everyone_rules($event, $active) : 0;
+        audit_log('event.people_added', 'event', $eventId, $institutionId, (int) auth_user()['id'], ['participant_ids' => array_slice($active, 0, 200), 'added' => $added, 'obligations' => $obligations]);
+        return ['added' => $added, 'obligations' => $obligations];
+    });
+}
+
+/**
+ * Creates (or restores) obligations under the event's active "everyone" rules for these people.
+ * Only while the event is still before completion. Returns the number created or restored.
+ */
+function apply_everyone_rules(array $event, array $participantIds): int
+{
+    if (!in_array($event['status'], ['draft', 'pending', 'approved', 'collecting'], true)) {
+        return 0;
+    }
+    $institutionId = (int) current_institution_id();
+    $count = 0;
+    $rules = db_all("SELECT * FROM collection_rules WHERE institution_id = ? AND event_id = ? AND status = 'active' AND applies_to_type = 'all'", [$institutionId, $event['id']]);
+    foreach ($rules as $rule) {
+        foreach ($participantIds as $participantId) {
+            $existing = db_one('SELECT id, status FROM event_obligations WHERE institution_id = ? AND event_id = ? AND participant_id = ? AND collection_rule_id = ?',
+                [$institutionId, $event['id'], $participantId, $rule['id']]);
+            if (!$existing) {
+                db_query("INSERT INTO event_obligations (institution_id, event_id, participant_id, collection_rule_id, amount_due, waived_amount, due_date, status) VALUES (?, ?, ?, ?, ?, 0, ?, 'unpaid')",
+                    [$institutionId, $event['id'], $participantId, $rule['id'], $rule['amount_due'], $rule['effective_until'] ?? $event['collection_deadline']]);
+                $count++;
+            } elseif ($existing['status'] === 'cancelled') {
+                // Removed earlier and added back: the charge applies again.
+                db_query("UPDATE event_obligations SET status = 'unpaid', amount_due = ?, waived_amount = 0 WHERE id = ?", [$rule['amount_due'], $existing['id']]);
+                refresh_obligation_status((int) $existing['id']);
+                $count++;
+            }
+        }
+    }
+    return $count;
+}
+
+/**
+ * Removes a person added to the event. Their unpaid obligations under "everyone" rules are
+ * cancelled unless they still belong through one of the event's groups. Refused when those
+ * obligations have payments (waive or reverse first). The record of the addition is kept.
+ */
+function remove_event_person(int $eventId, int $participantId, string $reason): void
+{
+    $institutionId = (int) current_institution_id();
+    $event = require_event_manager($eventId);
+    if (mb_strlen(trim($reason)) < 5) {
+        fail_user('Give a reason for removing this person.');
+    }
+    db_transaction(function () use ($institutionId, $eventId, $event, $participantId, $reason) {
+        $row = db_one("SELECT id FROM event_participants WHERE institution_id = ? AND event_id = ? AND participant_id = ? AND status = 'active' FOR UPDATE", [$institutionId, $eventId, $participantId])
+            ?? fail_user('This person is not in the event.');
+        db_query("UPDATE event_participants SET status = 'removed', removed_at = NOW() WHERE id = ?", [$row['id']]);
+        $cancelled = 0;
+        $rules = db_all("SELECT * FROM collection_rules WHERE institution_id = ? AND event_id = ? AND applies_to_type = 'all'", [$institutionId, $eventId]);
+        foreach ($rules as $rule) {
+            if (in_array($participantId, rule_eligible_participants($rule), true)) {
+                continue; // still in the event through a group
+            }
+            $obligation = db_one("SELECT id, status FROM event_obligations WHERE institution_id = ? AND event_id = ? AND participant_id = ? AND collection_rule_id = ? AND status <> 'cancelled' FOR UPDATE",
+                [$institutionId, $eventId, $participantId, $rule['id']]);
+            if (!$obligation) {
+                continue;
+            }
+            if (db_value("SELECT 1 FROM payment_allocations pa JOIN payments p ON p.id = pa.payment_id AND p.status IN ('posted', 'pending') WHERE pa.institution_id = ? AND pa.obligation_id = ?", [$institutionId, $obligation['id']])) {
+                fail_user('This person has already paid for "' . $rule['rule_name'] . '". Waive the balance or reverse the payment instead of removing them.');
+            }
+            db_query("UPDATE event_obligations SET status = 'cancelled' WHERE id = ?", [$obligation['id']]);
+            $cancelled++;
+        }
+        audit_log('event.person_removed', 'event', $eventId, $institutionId, (int) auth_user()['id'], ['participant_id' => $participantId, 'obligations_cancelled' => $cancelled], null, $reason);
     });
 }
 

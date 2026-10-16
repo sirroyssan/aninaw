@@ -38,11 +38,11 @@ $payments = can('collections.view') ? db_all(
 
 $pageTitle = person_name($participant);
 $activeNav = 'participants';
-$breadcrumb = [auth_context()['label'], 'Participants'];
+$breadcrumb = [auth_context()['label'], 'People'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions($participant['participant_number'] . ' · ' . (PARTICIPANT_TYPES[$participant['participant_type']] ?? $participant['participant_type']),
-    button_link('participants/index.php', 'All Participants', 'bi-arrow-left', 'btn-outline-secondary')
+    button_link('participants/index.php', 'All People', 'bi-arrow-left', 'btn-outline-secondary')
     . (can('collections.record') && $participant['status'] === 'active' ? button_link('collections/record_payment.php?participant=' . $participantId, 'Record Payment', 'bi-cash-coin') : '')
     . (can('organization.manage') ? button_link('participants/form.php?id=' . $participantId, 'Edit', 'bi-pencil', 'btn-outline-primary') : '')) ?>
 

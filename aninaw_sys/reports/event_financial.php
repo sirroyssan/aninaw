@@ -109,10 +109,10 @@ require APP_ROOT . '/includes/header.php';
                         <div><dt>Collected (posted)</dt><dd><?= e(money($collections['received'], $currency)) ?></dd></div>
                         <div><dt>Waived</dt><dd><?= e(money($waived, $currency)) ?></dd></div>
                         <div><dt>Outstanding</dt><dd><?= e(money($collections['remaining'], $currency)) ?></dd></div>
-                        <div><dt>Participants</dt><dd><?= e($collections['paid_count'] . ' paid · ' . $collections['partial_count'] . ' partial · ' . $collections['unpaid_count'] . ' unpaid') ?></dd></div>
+                        <div><dt>People</dt><dd><?= e($collections['paid_count'] . ' paid · ' . $collections['partial_count'] . ' partial · ' . $collections['unpaid_count'] . ' unpaid') ?></dd></div>
                         <div><dt>With collectors, not turned over</dt><dd><?= e(money($collections['pending_turnover'], $currency)) ?></dd></div>
                     </dl>
-                    <p class="text-muted-sm mt-3 mb-0">Funds: <?= $funds ? e(implode(', ', array_column($funds, 'fund_name'))) : 'none linked' ?> · <a class="d-print-none" href="<?= e(url('reports/view.php?r=collection_status&event=' . $eventId)) ?>">Participant status</a></p>
+                    <p class="text-muted-sm mt-3 mb-0">Funds: <?= $funds ? e(implode(', ', array_column($funds, 'fund_name'))) : 'none linked' ?> · <a class="d-print-none" href="<?= e(url('reports/view.php?r=collection_status&event=' . $eventId)) ?>">Status per person</a></p>
                 </div>
             </div>
         </div>
