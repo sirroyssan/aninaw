@@ -42,6 +42,7 @@ $field = static fn(string $key, $default = '') => $expense[$key] ?? old($key, $d
 $funds = options_from_rows(db_all("SELECT id, fund_name FROM fund_accounts WHERE institution_id = ? AND status = 'active' ORDER BY fund_name", [$institutionId]), 'id', 'fund_name');
 $accounts = options_from_rows(usable_financial_accounts(), 'id', static fn($row) => financial_account_label($row));
 
+$pageScripts = ['js/categories.js'];
 $pageTitle = $expense ? 'Edit Expense ' . $expense['expense_number'] : 'Record Expense';
 $activeNav = 'expenses';
 $breadcrumb = [auth_context()['label'], 'Expenses'];
@@ -56,7 +57,7 @@ require APP_ROOT . '/includes/header.php';
                 <div class="col-md-6"><label class="form-label required" for="payee">Payee / supplier</label><input class="form-control" id="payee" name="payee" required maxlength="180" value="<?= e($field('payee')) ?>"></div>
                 <div class="col-md-3"><label class="form-label required" for="amount">Amount</label><input class="form-control text-amount" id="amount" name="amount" required inputmode="decimal" value="<?= e($expense ? cents_to_decimal(to_cents($expense['amount'])) : old('amount')) ?>"></div>
                 <div class="col-md-3"><label class="form-label required" for="expense_date">Transaction date</label><input class="form-control" type="date" id="expense_date" name="expense_date" required max="<?= e(date('Y-m-d')) ?>" value="<?= e($field('expense_date', date('Y-m-d'))) ?>"></div>
-                <div class="col-md-6"><label class="form-label required" for="category">Category</label><select class="form-select" id="category" name="category" required><?= options_html(array_combine(expense_categories(), expense_categories()), $field('category'), 'Select…') ?></select></div>
+                <div class="col-md-6"><label class="form-label required" for="category">Category</label><?php $categorySelect = '<select class="form-select" id="category" name="category" required>' . options_html(array_combine(expense_categories(), expense_categories()), $field('category'), 'Select…') . '</select>'; ?><?php if (can('institution.settings.manage')): ?><div class="input-group"><?= $categorySelect ?><button class="btn btn-outline-primary" type="button" data-add-category="#category" data-url="<?= e(url('institutions/add_category.php')) ?>" title="Add a category"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New</button></div><?php else: ?><?= $categorySelect ?><?php endif; ?></div>
                 <div class="col-md-6"><label class="form-label" for="invoice_reference">Receipt / invoice no.</label><input class="form-control" id="invoice_reference" name="invoice_reference" maxlength="100" value="<?= e($invoice ?: old('invoice_reference')) ?>"></div>
                 <div class="col-12"><label class="form-label required" for="description">Purpose</label><textarea class="form-control" id="description" name="description" rows="3" required minlength="5" maxlength="3000"><?= e($description) ?></textarea></div>
             </div>

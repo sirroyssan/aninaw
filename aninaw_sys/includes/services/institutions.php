@@ -196,6 +196,37 @@ function expense_categories(): array
     return $categories ?: ['Miscellaneous'];
 }
 
+/**
+ * Adds one expense & budget category (e.g. from the "New" button beside Category) and returns
+ * its name. An existing category with the same name (any capitalisation) is returned as is.
+ */
+function add_expense_category(string $name): string
+{
+    if (!can('institution.settings.manage')) {
+        fail_user('Only an institution administrator can add categories.');
+    }
+    $name = trim((string) preg_replace('/\s+/u', ' ', $name));
+    if (mb_strlen($name) < 2 || mb_strlen($name) > 100) {
+        fail_user('Enter a category name of 2 to 100 characters.', 'category');
+    }
+    $categories = expense_categories();
+    foreach ($categories as $existing) {
+        if (mb_strtolower($existing) === mb_strtolower($name)) {
+            return $existing;
+        }
+    }
+    if (count($categories) >= 60) {
+        fail_user('There are already 60 categories. Remove unused ones in Institution Settings first.');
+    }
+    $institutionId = (int) current_institution_id();
+    $userId = (int) auth_user()['id'];
+    $before = implode("\n", $categories);
+    $after = implode("\n", array_merge($categories, [$name]));
+    save_institution_setting($institutionId, 'expense.categories', $after, $userId);
+    audit_log('institution.settings_changed', 'institution', $institutionId, $institutionId, $userId, ['expense.categories' => $after], ['expense.categories' => $before]);
+    return $name;
+}
+
 function save_institution_settings(array $input): void
 {
     $institutionId = (int) current_institution_id();

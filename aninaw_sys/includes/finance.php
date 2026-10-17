@@ -105,9 +105,16 @@ function next_document_number(int $institutionId, string $documentType, string $
 // Institution settings (institution_settings)
 // ---------------------------------------------------------------------------
 
-function institution_setting(int $institutionId, string $key, ?string $default = null): ?string
+/** Settings read in this request, per institution; cleared when a setting is saved. */
+function &institution_settings_cache(): array
 {
     static $cache = [];
+    return $cache;
+}
+
+function institution_setting(int $institutionId, string $key, ?string $default = null): ?string
+{
+    $cache = &institution_settings_cache();
     if (!isset($cache[$institutionId])) {
         $cache[$institutionId] = db_query(
             'SELECT setting_key, setting_value FROM institution_settings WHERE institution_id = ?',
@@ -124,6 +131,8 @@ function save_institution_setting(int $institutionId, string $key, ?string $valu
          ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_by = VALUES(updated_by)',
         [$institutionId, $key, $value, $userId]
     );
+    $cache = &institution_settings_cache();
+    unset($cache[$institutionId]);
 }
 
 // ---------------------------------------------------------------------------

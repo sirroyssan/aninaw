@@ -39,7 +39,7 @@ test('ledger codes lock after transactions but names can change', function () {
         $input["ledger_{$key}_code"] = $code;
         $input["ledger_{$key}_name"] = $name;
     }
-    $input += ['receipt_title' => 'Acknowledgment Receipt', 'receipt_footer' => '', 'expense_categories' => "Food\nSupplies", 'advance_default_days' => '10'];
+    $input += ['receipt_title' => 'Acknowledgment Receipt', 'receipt_footer' => '', 'expense_categories' => "Food\nSupplies\nPrinting", 'advance_default_days' => '10'];
     $input['ledger_expenses_name'] = 'Operating Expenses';
     save_institution_settings($input);
     assert_same('Operating Expenses', db_value("SELECT setting_value FROM institution_settings WHERE institution_id = ? AND setting_key = 'ledger.expenses.name'", [current_institution_id()]));
