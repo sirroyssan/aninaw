@@ -18,6 +18,22 @@ $event = require_found(find_event($eventId));
 $institutionId = (int) current_institution_id();
 $tab = in_array(get_str('tab', 20), ['overview', 'rules', 'people', 'requirements', 'obligations', 'setup'], true) ? get_str('tab', 20) : 'overview';
 
+// "Change amount" inside the Edit Rule pop-up: answered as JSON so the pop-up stays open and refreshes.
+if (is_post() && post_str('action', 30) === 'correct_amount' && wants_json()) {
+    require_csrf();
+    try {
+        $result = correct_rule_amount($eventId, post_int('rule_id') ?? 0, post_str('amount', 20), post_str('reason', 1000));
+        json_response(['ok' => true, 'message' => $result['charges'] . ' charge(s) updated.'
+            . ($result['overpaid_people'] ? ' ' . $result['overpaid_people'] . ' overpaid (' . money($result['overpaid_total'], current_currency()) . ' in total): settle them under Settle Overpayments.' : ''),
+            'overpaid' => $result['overpaid_people'], 'settle_url' => url('events/overpayments.php?event=' . $eventId)]);
+    } catch (UserFacingException $exception) {
+        if (db_in_transaction()) {
+            db()->rollBack();
+        }
+        json_response(['ok' => false, 'message' => $exception->getMessage()], 422);
+    }
+}
+
 if (is_post()) {
     $action = post_str('action', 30);
     $returnTab = post_str('tab', 20) ?: $tab;
@@ -224,18 +240,21 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
 
 <?php elseif ($tab === 'rules'): ?>
     <div class="row g-3">
-        <div class="<?= $canManage ? 'col-xl-8' : 'col-12' ?>">
+        <div class="col-12">
             <div class="card panel">
                 <div class="card-header"><h3>Collection rules</h3>
+                    <div class="d-flex gap-2">
+                    <?php if ($canManage): ?><button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#new-rule-modal"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New Rule</button><?php endif; ?>
                     <?php if ($canManage && $rules): ?>
                         <form method="post" data-confirm="Generate obligations now?" data-confirm-text="Creates an obligation for every eligible participant who does not have one yet. Existing obligations are not changed.">
                             <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="generate"><input type="hidden" name="tab" value="rules">
                             <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-people me-1" aria-hidden="true"></i>Generate Obligations</button>
                         </form>
                     <?php endif; ?>
+                    </div>
                 </div>
                 <?php if (!$rules): ?>
-                    <div class="card-body"><?= empty_state('bi-list-check', 'No collection rules', 'Example: "Registration fee — ₱150 per student, all participating groups".') ?></div>
+                    <div class="card-body"><?= empty_state('bi-list-check', 'No collection rules', 'Click New Rule. Example: "Registration fee — ₱150 per student, all participating groups".') ?></div>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-clean align-middle mb-0">
@@ -245,7 +264,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                                 <tr>
                                     <td><div class="fw-semibold"><?= e($rule['rule_name']) ?></div><?= inclusions_html($rule['inclusions'] ?? null) ?><div class="text-muted-sm"><?= $rule['allow_partial_payment'] ? 'Partial payments allowed' : 'Full payment only' ?></div></td>
                                     <td><?= e(match ($rule['applies_to_type']) { 'group' => 'Group: ' . $rule['group_name'], 'participant' => 'One person: ' . $rule['participant_name'], default => $hasMembers ? 'Everyone in the event' : 'Everyone in the institution (no groups or people added yet)' }) ?></td>
-                                    <td class="text-end fw-semibold"><?= e(m($rule['amount_due'])) ?><?php if (rule_has_payments((int) $rule['id'])): ?><div class="text-muted-sm fw-normal" title="Payments were received, so the amount is locked. Use Edit → Correct the amount."><i class="bi bi-lock" aria-hidden="true"></i> paid</div><?php endif; ?></td>
+                                    <td class="text-end fw-semibold"><?= e(m($rule['amount_due'])) ?><?php if (rule_has_payments((int) $rule['id'])): ?><div class="text-muted-sm fw-normal" title="Payments were received, so the amount is locked. Use Edit → Change amount."><i class="bi bi-lock" aria-hidden="true"></i> paid</div><?php endif; ?></td>
                                     <td class="text-muted-sm"><?= e(format_date($rule['effective_until'] ?? $event['collection_deadline'])) ?></td>
                                     <td class="text-end"><?= e((string) $rule['obligations']) ?></td>
                                     <td><?= status_badge($rule['status']) ?></td>
@@ -277,14 +296,27 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                 }
             }
             $renderRuleForm = static function (?array $ruleForm, string $rf, callable $rold) use ($event, $institutionId, $tabUrl, $canManage): void { ?>
-                <form method="post" class="card panel form-card<?= $ruleForm ? ' border-0 shadow-none mb-0' : '' ?>">
+                <form method="post" class="card panel form-card border-0 shadow-none mb-0">
                     <?= csrf_field() ?><?= idempotency_field() ?>
                     <input type="hidden" name="action" value="save_rule"><input type="hidden" name="tab" value="rules"><input type="hidden" name="rule_id" value="<?= e($ruleForm['id'] ?? '') ?>">
                     <div class="card-header"><h3><?= $ruleForm ? 'Edit Rule' : 'New Collection Rule' ?></h3></div>
                     <div class="card-body">
                         <div class="mb-2"><label class="form-label required" for="<?= $rf ?>rule_name">Collection name</label><input class="form-control" id="<?= $rf ?>rule_name" name="rule_name" required maxlength="180" value="<?= e($ruleForm['rule_name'] ?? $rold('rule_name')) ?>" placeholder="Registration fee"></div>
                         <div class="mb-2"><label class="form-label" for="<?= $rf ?>inclusions">What's included <span class="text-muted-sm">(optional, one per line or separated by commas)</span></label><textarea class="form-control" id="<?= $rf ?>inclusions" name="inclusions" rows="4" maxlength="4000" placeholder="T-shirt&#10;Lanyard&#10;AM snacks&#10;Lunch&#10;PM snacks"><?= e($ruleForm['inclusions'] ?? $rold('inclusions')) ?></textarea><div class="form-text<?= rule_inclusions_ready() ? '' : ' text-danger' ?>"><?= rule_inclusions_ready() ? 'Shown to payers on the payment form and printed on the receipt. Can be updated any time.' : 'Not available yet: import database/migration_008_rule_inclusions.sql once (phpMyAdmin → Import).' ?></div></div>
-                        <div class="mb-2"><label class="form-label required" for="<?= $rf ?>amount_due">Amount per person</label><input class="form-control text-amount" id="<?= $rf ?>amount_due" name="amount_due" required inputmode="decimal" value="<?= e(isset($ruleForm) ? cents_to_decimal(to_cents($ruleForm['amount_due'])) : $rold('amount_due')) ?>" placeholder="150.00"></div>
+                        <?php $lockedAmount = $ruleForm && rule_has_payments((int) $ruleForm['id']); ?>
+                        <div class="mb-2"><label class="form-label required" for="<?= $rf ?>amount_due">Amount per person</label>
+                            <?php if ($lockedAmount): ?>
+                                <div class="input-group">
+                                    <input class="form-control text-amount" id="<?= $rf ?>amount_due" name="amount_due" readonly value="<?= e(cents_to_decimal(to_cents($ruleForm['amount_due']))) ?>" aria-describedby="<?= $rf ?>amount-help">
+                                    <?php if ($canManage && corrections_ready() && !in_array($event['status'], ['closed', 'cancelled'], true)): ?>
+                                        <button class="btn btn-outline-warning" type="button" data-change-amount data-rule-id="<?= (int) $ruleForm['id'] ?>" data-rule-name="<?= e($ruleForm['rule_name']) ?>" data-current="<?= e(cents_to_decimal(to_cents($ruleForm['amount_due']))) ?>" data-current-label="<?= e(m($ruleForm['amount_due'])) ?>"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Change amount</button>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="form-text" id="<?= $rf ?>amount-help"><i class="bi bi-lock" aria-hidden="true"></i> Payments were received, so the amount is locked. Use Change amount if it was entered wrong.</div>
+                            <?php else: ?>
+                                <input class="form-control text-amount" id="<?= $rf ?>amount_due" name="amount_due" required inputmode="decimal" value="<?= e(isset($ruleForm) ? cents_to_decimal(to_cents($ruleForm['amount_due'])) : $rold('amount_due')) ?>" placeholder="150.00">
+                            <?php endif; ?>
+                        </div>
                         <div class="mb-2"><label class="form-label" for="<?= $rf ?>applies_to_type">Applies to</label><select class="form-select" id="<?= $rf ?>applies_to_type" name="applies_to_type"><?= options_html(['all' => 'Everyone in the event (its groups and people added)', 'group' => 'One group', 'participant' => 'One person'], $ruleForm['applies_to_type'] ?? $rold('applies_to_type', 'all')) ?></select></div>
                         <div class="mb-2"><label class="form-label" for="<?= $rf ?>applies_to_group">Group <span class="text-muted-sm">(if one group)</span></label><select class="form-select" id="<?= $rf ?>applies_to_group" name="applies_to_group"><?= options_html(group_options(), ($ruleForm['applies_to_type'] ?? '') === 'group' ? $ruleForm['applies_to_id'] : null, '—') ?></select></div>
                         <div class="mb-2"><label class="form-label" for="<?= $rf ?>applies_to_participant">Person <span class="text-muted-sm">(if one person)</span></label>
@@ -296,14 +328,20 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                         <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="<?= $rf ?>allow_partial_payment" name="allow_partial_payment" value="1" <?= ($ruleForm['allow_partial_payment'] ?? 1) ? 'checked' : '' ?>><label class="form-check-label" for="<?= $rf ?>allow_partial_payment">Allow partial payments (e.g. ₱50 three times)</label></div>
                         <p class="text-muted-sm mb-0">Once payments are received, the amount and coverage of a rule are locked.</p>
                         <div class="form-actions">
-                            <?php if ($ruleForm): ?><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button><?php endif; ?>
+                            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
                             <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save Rule</button>
                         </div>
                     </div>
                 </form>
             <?php }; ?>
-            <div class="col-xl-4">
-                <?php $renderRuleForm(null, 'nr-', static fn(string $key, $default = '') => old('action') === 'save_rule' && !old('rule_id') ? old($key, $default) : $default); ?>
+            <?php $newRuleFailed = old('action') === 'save_rule' && !old('rule_id'); ?>
+            <div class="modal fade" id="new-rule-modal" tabindex="-1" aria-labelledby="new-rule-title" aria-hidden="true"<?= $newRuleFailed ? ' data-open-on-load' : '' ?>>
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header"><h2 class="modal-title h5" id="new-rule-title">New collection rule</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                        <div class="modal-body p-0"><?php $renderRuleForm(null, 'nr-', static fn(string $key, $default = '') => $newRuleFailed ? old($key, $default) : $default); ?></div>
+                    </div>
+                </div>
             </div>
             <?php if ($editRule): ?>
                 <div class="modal fade" id="rule-modal" tabindex="-1" aria-labelledby="rule-modal-title" aria-hidden="true" data-open-on-load>
@@ -312,19 +350,6 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                             <div class="modal-header"><h2 class="modal-title h5" id="rule-modal-title"><?= e($editRule['rule_name']) ?></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                             <div class="modal-body p-0">
                                 <?php $ruleForm = $editRule; $renderRuleForm($editRule, 'er-', static fn(string $key, $default = '') => $default); ?>
-                <?php if ($ruleForm && $canManage && corrections_ready() && rule_has_payments((int) $ruleForm['id']) && !in_array($event['status'], ['closed', 'cancelled'], true)): ?>
-                    <form method="post" class="card panel form-card border-0 shadow-none mb-0 border-top" data-confirm="Correct the amount of <?= e($ruleForm['rule_name']) ?>?" data-confirm-text="Every charge changes to the new amount. Anyone who already paid more is marked Overpaid, to refund or apply to their other charges. Receipts already issued stay valid.">
-                        <?= csrf_field() ?><?= idempotency_field() ?>
-                        <input type="hidden" name="action" value="correct_amount"><input type="hidden" name="tab" value="rules"><input type="hidden" name="rule_id" value="<?= (int) $ruleForm['id'] ?>">
-                        <div class="card-header"><h3>Correct the amount</h3></div>
-                        <div class="card-body">
-                            <p class="text-muted-sm">Payments were already received, so the amount above is locked. If it was entered wrong (e.g. ₱1,750 instead of ₱1,500), lower it here.</p>
-                            <div class="mb-2"><label class="form-label required" for="correct-amount">Correct amount</label><input class="form-control text-amount" id="correct-amount" name="amount" required inputmode="decimal" placeholder="<?= e(cents_to_decimal(to_cents($ruleForm['amount_due']))) ?>"><div class="form-text">Lower than <?= e(m($ruleForm['amount_due'])) ?>. To charge more, add a separate collection for the difference.</div></div>
-                            <div class="mb-2"><label class="form-label required" for="correct-reason">Reason</label><input class="form-control" id="correct-reason" name="reason" required maxlength="1000" placeholder="e.g. Registration is ₱1,500; ₱1,750 was entered by mistake"></div>
-                            <button class="btn btn-warning w-100" type="submit"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Correct Amount</button>
-                        </div>
-                    </form>
-                <?php endif; ?>
                             </div>
                         </div>
                     </div>
