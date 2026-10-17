@@ -288,6 +288,8 @@ a.nav-link-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
 .notice .bi { font-size: 1.1rem; margin-top: 0.05rem; }
 .notice-info { background: var(--an-pale-green); border: 1px solid var(--an-soft-green); color: var(--an-text); }
 .notice-info .bi { color: var(--an-primary); }
+.notice-success { background: #E3F4EA; border: 1px solid #A9DCBF; color: #0F5132; align-items: center; }
+.notice-success .bi { color: #198754; }
 .notice-warning { background: #FDF3DC; border: 1px solid #F4DFAE; color: #6B4C06; }
 .notice-danger { background: #FBE7E9; border: 1px solid #F3C7CC; color: #842029; }
 

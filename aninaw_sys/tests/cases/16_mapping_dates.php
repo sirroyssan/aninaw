@@ -60,3 +60,24 @@ test('an order from last month is recorded with its own date once the cash box p
     assert_same($lastMonth, db_value("SELECT journal_date FROM journal_entries WHERE source_type = 'payment' AND source_id = ?", [$result['payment_id']]), 'ledger dated last month');
     assert_same('fully_paid', db_value('SELECT payment_status FROM sales_orders WHERE id = ?', [$result['order_id']]));
 });
+
+test('counter sale: an in-stock item paid in full is handed over and deducted in one step', function () {
+    $fx = $GLOBALS['fx'];
+    $box = (int) db_value("SELECT id FROM financial_accounts WHERE account_name = 'Shirt Counter Box'");
+    $paper = (int) db_value("SELECT id FROM product_variants WHERE product_id = ? AND variant_name = 'Standard'", [$fx['paper']]);
+    $m = (int) db_value("SELECT id FROM product_variants WHERE product_id = ? AND variant_name = 'M'", [$fx['shirt']]);
+    $pay = ['customer_participant_id' => (string) $fx['p2'], 'payment_method' => 'cash', 'financial_account_id' => (string) $box];
+
+    act_as('counter', 'TST');
+    $before = find_variant($paper)['on_hand'];
+    $sale = create_order_with_payment($pay + ['lines' => [['variant_id' => (string) $paper, 'quantity' => '2']], 'pay_mode' => 'full', 'release_now' => '1']);
+    $order = find_order($sale['order_id']);
+    assert_same(['completed', 'fully_paid', 2], [$order['order_status'], $order['payment_status'], $sale['released']]);
+    assert_same($before - 2, find_variant($paper)['on_hand'], 'stock deducted at the counter');
+    assert_true((bool) $sale['payment_id'], 'receipt issued');
+
+    $orders = (int) db_value('SELECT COUNT(*) FROM sales_orders');
+    assert_rejected(fn() => create_order_with_payment($pay + ['lines' => [['variant_id' => (string) $m, 'quantity' => '1']], 'pay_mode' => 'down', 'pay_amount' => '100', 'release_now' => '1']), 'paid in full');
+    assert_rejected(fn() => create_order_with_payment($pay + ['lines' => [['variant_id' => (string) $m, 'quantity' => '1']], 'pay_mode' => 'full', 'release_now' => '1']), 'Only items sold from stock');
+    assert_same($orders, (int) db_value('SELECT COUNT(*) FROM sales_orders'), 'nothing saved when the hand-over is not possible');
+});

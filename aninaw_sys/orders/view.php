@@ -36,7 +36,7 @@ if (is_post()) {
                     return record_order_payment($orderId, $_POST);
                 });
                 flash('success', $confirmed ? 'Order confirmed and payment recorded' : 'Payment recorded', 'An official receipt was issued.');
-                return 'collections/payment.php?id=' . $paymentId;
+                return 'orders/view.php?id=' . $orderId . '&paid=' . $paymentId;
             case 'release':
                 $count = release_order_items($orderId, $_POST);
                 flash('success', 'Released', $count . ' unit(s) handed over to the customer.');
@@ -87,6 +87,20 @@ $activeNav = 'orders';
 $breadcrumb = [auth_context()['label'], 'Orders'];
 require APP_ROOT . '/includes/header.php';
 ?>
+<?php
+// Just paid (from New Order or this page): offer the receipt and the next order right here.
+$justPaid = get_int('paid') ? db_one(
+    'SELECT p.id, p.amount, r.receipt_number FROM sales_order_payments sop JOIN payments p ON p.id = sop.payment_id AND p.institution_id = sop.institution_id
+     LEFT JOIN receipts r ON r.payment_id = p.id AND r.institution_id = p.institution_id
+     WHERE sop.institution_id = ? AND sop.order_id = ? AND sop.payment_id = ?', [current_institution_id(), $orderId, get_int('paid')]) : null;
+?>
+<?php if ($justPaid): ?>
+    <div class="notice notice-success d-flex flex-wrap align-items-center gap-2 mb-3 d-print-none"><i class="bi bi-check-circle" aria-hidden="true"></i>
+        <div class="flex-grow-1">Payment of <strong><?= e(m($justPaid['amount'])) ?></strong> recorded<?= $justPaid['receipt_number'] ? ' · receipt <strong>' . e($justPaid['receipt_number']) . '</strong>' : '' ?><?= $order['order_status'] === 'completed' ? ' · items handed over' : '' ?>.</div>
+        <a class="btn btn-primary btn-sm" href="<?= e(url('collections/print_receipt.php?id=' . $justPaid['id'])) ?>" target="_blank" rel="noopener"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print Receipt</a>
+        <?php if ($canManage): ?><a class="btn btn-outline-primary btn-sm" href="<?= e(url('orders/create.php')) ?>"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>New Order</a><?php endif; ?>
+    </div>
+<?php endif; ?>
 <?= page_actions($order['customer_name'] . ' · ' . $order['participant_number'] . ' · ' . format_date($order['order_date']) . ' · ' . $order['fund_name'],
     button_link('orders/index.php', 'All Orders', 'bi-arrow-left', 'btn-outline-secondary')
     . button_link('orders/slip.php?id=' . $orderId, 'Order Slip', 'bi-printer', 'btn-outline-primary')) ?>

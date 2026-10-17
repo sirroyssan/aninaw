@@ -354,20 +354,25 @@ function refresh_order_release_status(int $orderId): void
  * Creates an order and, when the customer pays at the counter, confirms it and records the
  * payment (full or down payment) in the same transaction: either all of it is saved or none.
  * $input: the order form plus pay_mode (later|full|down), pay_amount, payment_method,
- * external_reference, financial_account_id and confirm_now.
+ * external_reference, financial_account_id, confirm_now and release_now (counter sale: the
+ * customer takes the in-stock items at once; needs full payment).
  *
- * @return array{order_id: int, payment_id: ?int, confirmed: bool}
+ * @return array{order_id: int, payment_id: ?int, confirmed: bool, released: int}
  */
 function create_order_with_payment(array $input): array
 {
     $mode = input_enum($input, 'pay_mode', ['later', 'full', 'down'], 'later');
-    $confirm = input_str($input, 'confirm_now', 1) === '1';
+    $releaseNow = input_str($input, 'release_now', 1) === '1';
+    $confirm = input_str($input, 'confirm_now', 1) === '1' || $releaseNow;
+    if ($releaseNow && $mode !== 'full') {
+        fail_user('Items can be handed over at once only when the order is paid in full now.');
+    }
     if ($mode !== 'later' && !can('collections.record')) {
         fail_user('You cannot receive payments. Save the order with "Pay later" and have a cashier record the payment on the order page.');
     }
     $paymentDate = input_date($input, 'order_date') ?? date('Y-m-d');
 
-    return db_transaction(function () use ($input, $mode, $confirm, $paymentDate) {
+    return db_transaction(function () use ($input, $mode, $confirm, $paymentDate, $releaseNow) {
         $orderId = create_order($input);
         if ($confirm) {
             confirm_order($orderId);
@@ -391,7 +396,21 @@ function create_order_with_payment(array $input): array
                 'financial_account_id' => input_str($input, 'financial_account_id', 20),
             ]);
         }
-        return ['order_id' => $orderId, 'payment_id' => $paymentId, 'confirmed' => $confirm];
+        $released = 0;
+        if ($releaseNow) {
+            // Counter sale: hand over every in-stock item now (stock is deducted); made-to-order
+            // and service lines follow their usual steps.
+            $order = find_order($orderId);
+            $lines = array_filter($order['items'], static fn($i) => $i['fulfillment'] === 'stock');
+            if (!$lines) {
+                fail_user('Only items sold from stock can be handed over at once. Untick "Customer takes the items now".');
+            }
+            $released = release_order_items($orderId, [
+                'received_by_name' => input_str($input, 'received_by_name', 180) ?: $order['customer_name'],
+                'release' => array_column(array_map(static fn($i) => ['id' => $i['id'], 'qty' => (int) $i['quantity'] - (int) $i['quantity_released']], $lines), 'qty', 'id'),
+            ]);
+        }
+        return ['order_id' => $orderId, 'payment_id' => $paymentId, 'confirmed' => $confirm, 'released' => $released];
     });
 }
 

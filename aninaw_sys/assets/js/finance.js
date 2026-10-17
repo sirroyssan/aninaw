@@ -217,6 +217,14 @@
             if (account.selectedOptions[0] && account.selectedOptions[0].hidden) { account.value = ''; }
             if (!account.value && visible.length === 1) { account.value = visible[0].value; }
             pay.querySelector('[data-pay-no-account]').classList.toggle('d-none', !(mode !== 'later' && fund && visible.length === 0));
+            // Counter sale: offered when paid in full now and something is sold from stock.
+            var releaseWrap = pay.querySelector('[data-release-now-wrap]');
+            if (releaseWrap) {
+                var hasStock = chosen.some(function (o) { return o.getAttribute('data-stock') === '1'; });
+                var canRelease = mode === 'full' && hasStock;
+                releaseWrap.classList.toggle('d-none', !canRelease);
+                if (!canRelease) { releaseWrap.querySelector('[data-release-now]').checked = false; }
+            }
         }
         var orderDate = form.querySelector('[data-order-date]');
         if (orderDate) {
@@ -229,6 +237,10 @@
         if (pay) {
             pay.addEventListener('change', function (event) {
                 // Taking money means the customer has committed: confirm by default (can be unticked).
+                if (event.target.matches('[data-release-now]') && event.target.checked) {
+                    var confirmNow = form.querySelector('[data-confirm-now]');
+                    if (confirmNow) { confirmNow.checked = true; }
+                }
                 if (event.target.matches('[data-pay-mode]') && event.target.value !== 'later') {
                     var confirmBox = form.querySelector('[data-confirm-now]');
                     if (confirmBox) { confirmBox.checked = true; }

@@ -65,7 +65,9 @@ require APP_ROOT . '/includes/header.php';
                         <td class="text-end fw-semibold<?= $row['available'] < 0 ? ' text-danger' : '' ?>"><?= e(number_format($row['available'])) ?><?= $row['low_stock'] ? '<div class="text-muted-sm">low</div>' : '' ?></td>
                         <td class="text-end text-muted-sm"><?= e(number_format((int) $row['on_order'])) ?></td>
                         <td class="text-end text-muted-sm"><?= e((string) $row['reorder_level']) ?></td>
-                        <td class="actions d-print-none"><?php if (can_any(['inventory.manage', 'inventory.adjust'])): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/adjust.php?variant=' . $row['id'])) ?>">Record</a><?php endif; ?></td>
+                        <td class="actions d-print-none">
+                            <?php if (can('orders.manage') && $row['fulfillment'] === 'stock' && $row['available'] > 0): ?><a class="btn btn-primary btn-xs" href="<?= e(url('orders/create.php?variant=' . $row['id'])) ?>">Sell</a><?php endif; ?>
+                            <?php if (can_any(['inventory.manage', 'inventory.adjust'])): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/adjust.php?variant=' . $row['id'])) ?>">Record</a><?php endif; ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

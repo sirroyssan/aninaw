@@ -17,10 +17,11 @@ if (is_post()) {
         if ($result['payment_id']) {
             $payment = db_one('SELECT p.amount, r.receipt_number FROM payments p LEFT JOIN receipts r ON r.payment_id = p.id AND r.institution_id = p.institution_id WHERE p.id = ?', [$result['payment_id']]);
             $order = find_order($result['order_id']);
-            flash('success', 'Order created and payment received',
-                $order['order_number'] . ($result['confirmed'] ? ' is confirmed. ' : ' is saved. ') . 'Receipt ' . $payment['receipt_number'] . ' for ' . m($payment['amount'])
+            flash('success', $result['released'] ? 'Sold and handed over' : 'Order created and payment received',
+                $order['order_number'] . ($result['released'] ? ' is completed: ' . $result['released'] . ' item(s) handed over and deducted from stock. ' : ($result['confirmed'] ? ' is confirmed. ' : ' is saved. '))
+                . 'Receipt ' . $payment['receipt_number'] . ' for ' . m($payment['amount'])
                 . ($order['balance_cents'] > 0 ? '; balance ' . money($order['balance_cents'], current_currency()) . '.' : '; fully paid.'));
-            return 'collections/payment.php?id=' . $result['payment_id'];
+            return 'orders/view.php?id=' . $result['order_id'] . '&paid=' . $result['payment_id'];
         }
         flash('success', 'Order created', $result['confirmed'] ? 'It is confirmed and unpaid. Record the payment on this page when the customer pays.' : 'It is Pending and unpaid. Confirm it and record the payment on this page.');
         return 'orders/view.php?id=' . $result['order_id'];
@@ -49,10 +50,14 @@ if ($canReceive) {
     }
 }
 $preselect = get_int('product');
+$preselectVariant = get_int('variant');
 $staff = member_options('orders.manage');
 $lines = old('lines');
 if (!is_array($lines) || !$lines) {
     $first = $preselect ? array_values(array_filter($items, static fn($i) => (int) $i['product_id'] === $preselect))[0]['id'] ?? null : null;
+    if ($preselectVariant && array_filter($items, static fn($i) => (int) $i['id'] === $preselectVariant)) {
+        $first = $preselectVariant; // "Sell" from the inventory list
+    }
     $lines = [['variant_id' => $first]];
 }
 
@@ -67,7 +72,7 @@ $renderLine = static function (int|string $index, array $line) use ($items, $sta
             $group = $label;
         }
         $stock = $item['fulfillment'] === 'stock' ? ' — ' . max(0, (int) $item['on_hand'] - (int) $item['reserved']) . ' available' : ($item['fulfillment'] === 'made_to_order' ? ' — made to order' : '');
-        $options .= '<option value="' . (int) $item['id'] . '" data-price="' . e(cents_to_decimal(to_cents($item['price']))) . '" data-unit="' . e($item['unit_of_measure']) . '" data-service="' . ($item['fulfillment'] === 'service' ? '1' : '0') . '" data-fund="' . e($item['fund_name']) . '" data-fund-id="' . (int) $item['fund_id'] . '" data-partial="' . ((int) $item['allow_partial_payment'] ? '1' : '0') . '" data-search="' . e($item['sku'] . ' ' . ($item['category_name'] ?? '')) . '"'
+        $options .= '<option value="' . (int) $item['id'] . '" data-price="' . e(cents_to_decimal(to_cents($item['price']))) . '" data-unit="' . e($item['unit_of_measure']) . '" data-service="' . ($item['fulfillment'] === 'service' ? '1' : '0') . '" data-fund="' . e($item['fund_name']) . '" data-fund-id="' . (int) $item['fund_id'] . '" data-partial="' . ((int) $item['allow_partial_payment'] ? '1' : '0') . '" data-stock="' . ($item['fulfillment'] === 'stock' ? '1' : '0') . '" data-search="' . e($item['sku'] . ' ' . ($item['category_name'] ?? '')) . '"'
             . ((string) ($line['variant_id'] ?? '') === (string) $item['id'] ? ' selected' : '') . '>'
             . e($item['product_name'] . ($item['variant_name'] !== 'Standard' ? ' · ' . $item['variant_name'] : '') . ' — ' . m($item['price']) . '/' . $item['unit_of_measure'] . $stock) . '</option>';
     }
@@ -170,6 +175,7 @@ require APP_ROOT . '/includes/header.php';
                     <div class="form-text text-danger d-none" data-pay-no-account>You have no cash box or account linked to this item's fund. Ask the treasurer to link one (Funds → Financial Accounts).</div></div>
                 <div class="col-md-3"><label class="form-label" for="external_reference">Reference no.</label><input class="form-control" id="external_reference" name="external_reference" maxlength="150" value="<?= e(old('external_reference')) ?>" placeholder="Required for GCash / bank"></div>
             </div>
+            <div class="form-check mt-3 d-none" data-release-now-wrap><input type="hidden" name="release_now" value="0"><input class="form-check-input" type="checkbox" id="release_now" name="release_now" value="1" <?= old('release_now') === '1' ? 'checked' : '' ?> data-release-now><label class="form-check-label" for="release_now"><strong>Customer takes the items now</strong>: hand over the in-stock items and deduct them from inventory (order completed in one step)</label></div>
             <p class="text-muted-sm mt-2 mb-0">An official receipt is issued for the amount received. The order, its confirmation and the payment are saved together: if any part fails, nothing is saved.</p>
         <?php endif; ?>
         <div class="form-check mt-3"><input type="hidden" name="confirm_now" value="0"><input class="form-check-input" type="checkbox" id="confirm_now" name="confirm_now" value="1" <?= old('confirm_now', '0') === '1' ? 'checked' : '' ?> data-confirm-now><label class="form-check-label" for="confirm_now">Confirm the order now: the customer has committed (stock items are reserved; shirts join the production list)</label></div>
