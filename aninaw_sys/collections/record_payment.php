@@ -1,7 +1,8 @@
 <?php
 /**
  * Record a participant payment (full or partial) and issue the receipt.
- * Step 1: find the participant. Step 2: pick the event and enter amounts per obligation.
+ * Find the participant, pick the event and enter amounts per obligation.
+ * Event managers can also waive a balance here (e.g. insurance the person already has).
  */
 declare(strict_types=1);
 
@@ -10,6 +11,15 @@ require_once APP_ROOT . '/includes/services/payments.php';
 require_institution_context();
 require_permission('collections.record');
 
+if (is_post() && post_str('action', 10) === 'waive') {
+    handle_post(function () {
+        $obligationId = post_int('obligation_id') ?? 0;
+        $row = db_one('SELECT participant_id, event_id FROM event_obligations WHERE institution_id = ? AND id = ?', [current_institution_id(), $obligationId]) ?? fail_user('Obligation not found.');
+        waive_obligation($obligationId, post_str('amount', 20), post_str('reason', 1000));
+        flash('success', 'Balance waived', 'The reason is kept in the audit log.');
+        return 'collections/record_payment.php?participant=' . $row['participant_id'] . '&event=' . $row['event_id'];
+    }, false);
+}
 if (is_post()) {
     handle_post(function () {
         $paymentId = record_payment($_POST);
@@ -66,6 +76,7 @@ foreach ($funds as $fund) {
     }
 }
 $currency = current_currency();
+$canWaive = $eventId && $obligations && (find_event($eventId)['can_manage'] ?? false);
 
 $pageTitle = 'Record Payment';
 $activeNav = 'collections';
@@ -75,7 +86,7 @@ require APP_ROOT . '/includes/header.php';
 ?>
 <?php if (!$participant): ?>
     <div class="card panel" style="max-width: 880px">
-        <div class="card-header"><h3>1. Find the payer</h3></div>
+        <div class="card-header"><h3>Find the payer</h3></div>
         <form class="filter-bar" method="get">
             <?php if ($eventId): ?><input type="hidden" name="event" value="<?= e($eventId) ?>"><?php endif; ?>
             <div class="filter-field grow"><label for="q">Payer (student, faculty or customer)</label><input class="form-control" type="search" id="q" name="q" value="<?= e($search) ?>" placeholder="ID number or name" autofocus></div>
@@ -114,10 +125,10 @@ require APP_ROOT . '/includes/header.php';
                 <?= csrf_field() ?><?= idempotency_field() ?>
                 <input type="hidden" name="participant_id" value="<?= e($participant['id']) ?>">
                 <input type="hidden" name="event_id" value="<?= e($eventId) ?>">
-                <div class="card-header"><h3>2. Amounts for <?= e($events[$eventId]) ?></h3></div>
+                <div class="card-header"><h3>Amounts for <?= e($events[$eventId]) ?></h3></div>
                 <div class="table-responsive">
                     <table class="table table-clean align-middle mb-0" data-money-sum="#payment-total">
-                        <thead><tr><th>Collection</th><th class="text-end">Balance</th><th style="width:220px">Amount paid now</th></tr></thead>
+                        <thead><tr><th>Collection</th><th class="text-end">Balance</th><th style="width:220px">Amount paid now</th><?php if ($canWaive): ?><th></th><?php endif; ?></tr></thead>
                         <tbody>
                         <?php foreach ($obligations as $row): ?>
                             <tr>
@@ -129,10 +140,11 @@ require APP_ROOT . '/includes/header.php';
                                         <button class="btn btn-outline-primary" type="button" data-fill-max>Full</button>
                                     </div>
                                 </td>
+                                <?php if ($canWaive): ?><td class="actions"><button class="btn btn-outline-secondary btn-xs" type="submit" form="waive-<?= e($row['id']) ?>" title="Waive this balance (e.g. already insured)">Waive</button></td><?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
-                        <tfoot><tr><th colspan="2" class="text-end">Total received</th><th><span id="payment-total" class="amount-highlight" data-currency="<?= e($currency === 'PHP' ? '₱' : $currency . ' ') ?>">0.00</span></th></tr></tfoot>
+                        <tfoot><tr><th colspan="2" class="text-end">Total received</th><th<?= $canWaive ? ' colspan="2"' : '' ?>><span id="payment-total" class="amount-highlight" data-currency="<?= e($currency === 'PHP' ? '₱' : $currency . ' ') ?>">0.00</span></th></tr></tfoot>
                     </table>
                 </div>
                 <div class="card-body">
@@ -161,6 +173,11 @@ require APP_ROOT . '/includes/header.php';
                     </div>
                 </div>
             </form>
+            <?php if ($canWaive): foreach ($obligations as $row): ?>
+                <form method="post" id="waive-<?= e($row['id']) ?>" class="d-none" data-confirm="Waive <?= e(money($row['balance'], $currency)) ?> of <?= e($row['rule_name']) ?>?" data-confirm-text="Nothing is collected for it and the event's expected total goes down. The reason is recorded." data-reason="Who approved this and why? (e.g. already insured until Dec 2026, policy no.)">
+                    <?= csrf_field() ?><input type="hidden" name="action" value="waive"><input type="hidden" name="obligation_id" value="<?= e($row['id']) ?>"><input type="hidden" name="amount" value="<?= e(cents_to_decimal($row['balance'])) ?>">
+                </form>
+            <?php endforeach; endif; ?>
         <?php endif; ?>
     <?php endif; ?>
 <?php endif; ?>
