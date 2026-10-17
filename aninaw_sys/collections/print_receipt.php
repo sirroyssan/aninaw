@@ -59,8 +59,15 @@ $voided = $payment['receipt_status'] === 'voided';
     <table class="receipt-lines">
         <thead><tr><th>Particulars</th><th class="text-end">Amount</th></tr></thead>
         <tbody>
-        <?php foreach ($payment['allocations'] as $row): ?>
+        <?php foreach ($payment['allocations'] as $row): if (to_cents($row['allocated_amount']) === 0) { continue; } ?>
             <tr><td><?= e($row['event_name']) ?> — <?= e($row['rule_name']) ?><?= inclusions_html($row['inclusions'], 'receipt-includes') ?></td><td class="text-end"><?= e(m($row['allocated_amount'])) ?></td></tr>
+        <?php endforeach; ?>
+        <?php foreach ($payment['adjustments'] as $adj): ?>
+            <?php if ($adj['adjustment_type'] === 'refund'): ?>
+                <tr><td>Overpayment refunded to payer — <?= e($adj['from_rule']) ?><div class="receipt-includes"><?= e($adj['adjustment_number'] . ' · ' . format_date($adj['adjustment_date'])) ?></div></td><td class="text-end"><?= e(m($adj['amount'])) ?></td></tr>
+            <?php else: ?>
+                <tr><td colspan="2"><div class="receipt-includes">Includes <?= e(m($adj['amount'])) ?> moved from <?= e($adj['from_rule']) ?> to <?= e($adj['to_rule']) ?> after an amount correction (<?= e($adj['adjustment_number']) ?>)</div></td></tr>
+            <?php endif; ?>
         <?php endforeach; ?>
         <?php if ($payment['donation']): $d = $payment['donation']; ?>
             <tr><td>Donation / solicitation<?= $d['event_name'] ? ' — ' . e($d['event_name']) : ' — ' . e($d['fund_name']) ?><?= $d['purpose'] ? '<div class="receipt-includes">For: ' . e($d['purpose']) . '</div>' : '' ?><div class="receipt-includes">Ref. <?= e($d['donation_number']) ?></div></td><td class="text-end"><?= e(m($payment['amount'])) ?></td></tr>

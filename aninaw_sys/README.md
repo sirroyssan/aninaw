@@ -92,6 +92,14 @@ amount received is an ordinary payment with an official receipt, booked as Donat
 Solicitations income (4300) in the chosen fund; reversals re-open the pledge. Donors are kept in
 People as Customer / Other (DON- numbers). Printable list and CSV. Safe to run again.
 
+**Then** import `database/migration_011_rule_corrections.sql` once. It lets an event organizer
+**correct the amount** of a collection after payments were received (Collection Rules → Edit →
+Correct the amount; lower only, with a reason): every charge changes at once, and anyone who
+already paid more is listed under **Settle Overpayments** to be refunded in cash (RF- refund slip,
+treasurer) or applied to their other charges (ADJ-). The overpaid money is booked to Overpayments /
+Refunds Payable (2100) until settled. Issued receipts stay valid and show the refund or move.
+Safe to run again.
+
 **Optional, once:** `database/migration_007_uppercase_names.sql` converts names already saved to
 capital letters. New and edited names are saved in capitals automatically.
 
@@ -320,7 +328,8 @@ aninaw_sys/
 │                     migration_006_people_details.sql migration_007_uppercase_names.sql
 │                     migration_008_rule_inclusions.sql
 │                     migration_009_default_passwords.sql
-│                     migration_010_solicitations.sql create_admin.php
+│                     migration_010_solicitations.sql
+│                     migration_011_rule_corrections.sql create_admin.php
 ├── tests/            run_tests.php bootstrap.php fixtures.php cases/
 ├── uploads/          receipts/ attachments/        Blocked from direct access
 └── logs/                                           Private application log

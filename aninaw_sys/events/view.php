@@ -36,6 +36,14 @@ if (is_post()) {
                     ? 'Charged to ' . $charged . ' ' . ($charged === 1 ? 'person' : 'people') . ($charged > $countBefore && $editing ? ' (' . ($charged - $countBefore) . ' new)' : '') . ' in the event.'
                     : 'No one is in the event yet. Add people or groups; they are charged as they join (or use Generate Obligations to charge everyone in the institution).');
                 break;
+            case 'correct_amount':
+                $result = correct_rule_amount($eventId, post_int('rule_id') ?? 0, post_str('amount', 20), post_str('reason', 1000));
+                flash('success', 'Amount corrected', $result['charges'] . ' charge(s) updated.'
+                    . ($result['overpaid_people'] ? ' ' . $result['overpaid_people'] . ' ' . ($result['overpaid_people'] === 1 ? 'person' : 'people') . ' paid more than the new amount (' . money($result['overpaid_total'], current_currency()) . ' in total): refund it or apply it to their other charges.' : ''));
+                if ($result['overpaid_people']) {
+                    return 'events/overpayments.php?event=' . $eventId;
+                }
+                break;
             case 'rule_status':
                 set_rule_status($eventId, post_int('rule_id') ?? 0, post_str('status', 20), post_str('reason', 1000));
                 flash('success', 'Rule updated');
@@ -167,6 +175,13 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
     <?php endforeach; ?>
 </ul>
 
+<?php $overpaid = in_array($tab, ['overview', 'obligations'], true) ? event_overpayments($eventId) : []; ?>
+<?php if ($overpaid): ?>
+    <div class="notice notice-warning d-flex flex-wrap align-items-center gap-2"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+        <div class="flex-grow-1"><strong><?= count($overpaid) ?> charge(s) overpaid · <?= e(money(array_sum(array_column($overpaid, 'overpaid')), $currency)) ?></strong> owed back after an amount correction. Refund it or apply it to the person's other charges.</div>
+        <a class="btn btn-warning btn-sm" href="<?= e(url('events/overpayments.php?event=' . $eventId)) ?>">Settle Overpayments</a>
+    </div>
+<?php endif; ?>
 <?php if ($tab === 'overview'): ?>
     <div class="stat-grid">
         <?= stat_card('bi-bullseye', 'Expected Collection', money($stats['expected'], $currency), $stats['participants'] . ' people with obligations') ?>
@@ -230,7 +245,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                                 <tr>
                                     <td><div class="fw-semibold"><?= e($rule['rule_name']) ?></div><?= inclusions_html($rule['inclusions'] ?? null) ?><div class="text-muted-sm"><?= $rule['allow_partial_payment'] ? 'Partial payments allowed' : 'Full payment only' ?></div></td>
                                     <td><?= e(match ($rule['applies_to_type']) { 'group' => 'Group: ' . $rule['group_name'], 'participant' => 'One person: ' . $rule['participant_name'], default => $hasMembers ? 'Everyone in the event' : 'Everyone in the institution (no groups or people added yet)' }) ?></td>
-                                    <td class="text-end fw-semibold"><?= e(m($rule['amount_due'])) ?></td>
+                                    <td class="text-end fw-semibold"><?= e(m($rule['amount_due'])) ?><?php if (rule_has_payments((int) $rule['id'])): ?><div class="text-muted-sm fw-normal" title="Payments were received, so the amount is locked. Use Edit → Correct the amount."><i class="bi bi-lock" aria-hidden="true"></i> paid</div><?php endif; ?></td>
                                     <td class="text-muted-sm"><?= e(format_date($rule['effective_until'] ?? $event['collection_deadline'])) ?></td>
                                     <td class="text-end"><?= e((string) $rule['obligations']) ?></td>
                                     <td><?= status_badge($rule['status']) ?></td>
@@ -278,6 +293,19 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                         </div>
                     </div>
                 </form>
+                <?php if ($editRule && $canManage && corrections_ready() && rule_has_payments((int) $editRule['id']) && !in_array($event['status'], ['closed', 'cancelled'], true)): ?>
+                    <form method="post" class="card panel form-card mt-3" data-confirm="Correct the amount of <?= e($editRule['rule_name']) ?>?" data-confirm-text="Every charge changes to the new amount. Anyone who already paid more is marked Overpaid, to refund or apply to their other charges. Receipts already issued stay valid.">
+                        <?= csrf_field() ?><?= idempotency_field() ?>
+                        <input type="hidden" name="action" value="correct_amount"><input type="hidden" name="tab" value="rules"><input type="hidden" name="rule_id" value="<?= (int) $editRule['id'] ?>">
+                        <div class="card-header"><h3>Correct the amount</h3></div>
+                        <div class="card-body">
+                            <p class="text-muted-sm">Payments were already received, so the amount above is locked. If it was entered wrong (e.g. ₱1,750 instead of ₱1,500), lower it here.</p>
+                            <div class="mb-2"><label class="form-label required" for="correct-amount">Correct amount</label><input class="form-control text-amount" id="correct-amount" name="amount" required inputmode="decimal" placeholder="<?= e(cents_to_decimal(to_cents($editRule['amount_due']))) ?>"><div class="form-text">Lower than <?= e(m($editRule['amount_due'])) ?>. To charge more, add a separate collection for the difference.</div></div>
+                            <div class="mb-2"><label class="form-label required" for="correct-reason">Reason</label><input class="form-control" id="correct-reason" name="reason" required maxlength="1000" placeholder="e.g. Registration is ₱1,500; ₱1,750 was entered by mistake"></div>
+                            <button class="btn btn-warning w-100" type="submit"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Correct Amount</button>
+                        </div>
+                    </form>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
@@ -598,7 +626,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                         <tr>
                             <td><a class="fw-semibold" href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>" data-person-card="<?= e(url('participants/card.php?id=' . $row['participant_id'] . '&event=' . $eventId . '&fragment=1')) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a><div class="text-muted-sm"><?= e($row['participant_number']) ?></div></td>
                             <td><?php foreach ($lines as [$ruleName, $lineStatus, $lineBalance]): ?>
-                                <div class="text-muted-sm d-flex justify-content-between gap-3"><span><?= e($ruleName) ?></span><span class="text-nowrap"><?= in_array($lineStatus, ['waived', 'cancelled'], true) ? e(humanize($lineStatus)) : e(money(max(0, to_cents($lineBalance)), $currency)) ?></span></div>
+                                <div class="text-muted-sm d-flex justify-content-between gap-3"><span><?= e($ruleName) ?></span><span class="text-nowrap"><?= in_array($lineStatus, ['waived', 'cancelled'], true) ? e(humanize($lineStatus)) : (to_cents($lineBalance) < 0 ? '<span class="text-warning-emphasis">Overpaid ' . e(money(-to_cents($lineBalance), $currency)) . '</span>' : e(money(to_cents($lineBalance), $currency))) ?></span></div>
                             <?php endforeach; ?></td>
                             <td class="text-end"><?= e(m($row['due'])) ?><?= to_cents($row['waived']) > 0 ? '<div class="text-muted-sm">' . e(m($row['waived'])) . ' waived</div>' : '' ?></td>
                             <td class="text-end"><?= e(m($row['paid'])) ?></td>

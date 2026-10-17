@@ -231,6 +231,7 @@ function find_payment(int $paymentId, bool $ownOnly = false): ?array
             'SELECT description, quantity, unit_price, additional_charge, line_total FROM sales_order_items WHERE institution_id = ? AND order_id = ? ORDER BY id',
             [current_institution_id(), $payment['order']['id']]
         ) : [];
+        $payment['adjustments'] = payment_adjustment_parts($paymentId);
         $payment['donation'] = donations_ready() ? db_one(
             'SELECT d.id, d.donation_number, d.purpose, d.pledged_amount, f.fund_name, e.event_name FROM donation_payments dp
              JOIN donations d ON d.id = dp.donation_id AND d.institution_id = dp.institution_id
@@ -279,6 +280,9 @@ function reverse_payment(int $paymentId, string $reason): void
         $payment = db_one('SELECT * FROM payments WHERE institution_id = ? AND id = ? FOR UPDATE', [$institutionId, $paymentId]) ?? fail_user('Payment not found.');
         if ($payment['status'] !== 'posted') {
             fail_user('Only posted payments can be reversed. This payment is ' . $payment['status'] . '.');
+        }
+        if (payment_adjustment_parts($paymentId)) {
+            fail_user('Part of this payment was refunded or applied to another charge after an amount correction, so it cannot be reversed. Correct it with a ledger adjustment instead.');
         }
         if ($turnover = payment_turnover($paymentId)) {
             fail_user('This payment is part of turnover ' . $turnover['turnover_number'] . ' (' . humanize($turnover['status']) . '). Cancel that turnover first, or record a refund adjustment through the ledger if the cash was already handed over.');
@@ -369,3 +373,4 @@ function amount_in_words(int $cents, string $currency = 'PHP'): string
 // Product/service orders and solicitations settle through these payments (loaded last: they build on this file).
 require_once __DIR__ . '/orders.php';
 require_once __DIR__ . '/donations.php';
+require_once __DIR__ . '/corrections.php';

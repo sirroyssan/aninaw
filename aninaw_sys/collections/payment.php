@@ -67,6 +67,14 @@ require APP_ROOT . '/includes/header.php';
                             <td><?= status_badge($row['obligation_status']) ?></td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php foreach ($payment['adjustments'] as $adj): ?>
+                        <tr>
+                            <td><?= $adj['adjustment_type'] === 'refund' ? 'Refunded to payer (' . e($adj['from_rule']) . ')' : 'Moved from ' . e($adj['from_rule']) . ' to ' . e($adj['to_rule']) ?>
+                                <div class="text-muted-sm"><?= e($adj['adjustment_number'] . ' · ' . format_date($adj['adjustment_date'])) ?> · after an amount correction</div></td>
+                            <td class="text-end fw-semibold"><?= e(m($adj['amount'])) ?></td>
+                            <td><?php if ($adj['adjustment_type'] === 'refund'): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('events/refund_slip.php?id=' . $adj['id'])) ?>">Refund slip</a><?php else: ?><span class="text-muted-sm">Applied</span><?php endif; ?></td>
+                        </tr>
+                    <?php endforeach; ?>
                     <?php if ($payment['donation']): $d = $payment['donation']; ?>
                         <tr>
                             <td><a href="<?= e(url('donations/view.php?id=' . $d['id'])) ?>">Solicitation <?= e($d['donation_number']) ?></a>
@@ -123,7 +131,9 @@ require APP_ROOT . '/includes/header.php';
             <div class="card panel">
                 <div class="card-header"><h3>Reverse payment</h3></div>
                 <div class="card-body">
-                    <?php if ($turnover): ?>
+                    <?php if ($payment['adjustments']): ?>
+                        <p class="text-muted-sm mb-0">Part of this payment was refunded or applied to another charge after an amount correction, so it cannot be reversed.</p>
+                    <?php elseif ($turnover): ?>
                         <p class="text-muted-sm mb-0">Included in turnover <?= e($turnover['turnover_number']) ?> (<?= e(humanize($turnover['status'])) ?>). It cannot be reversed here.</p>
                     <?php else: ?>
                         <p class="text-muted-sm">For payments entered incorrectly. The receipt is voided (its number is never reused) and a reversing entry restores the balances. The original record stays visible.</p>

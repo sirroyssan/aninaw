@@ -417,7 +417,7 @@ function trial_balance(?int $fundId = null, ?string $asOf = null): array
         $row['credit_balance'] = $net < 0 ? -$net : 0;
     }
     unset($row);
-    $classOrder = ['asset' => 1, 'equity' => 2, 'income' => 3, 'expense' => 4];
+    $classOrder = ['asset' => 1, 'liability' => 2, 'equity' => 3, 'income' => 4, 'expense' => 5];
     usort($rows, static fn($a, $b) => [$classOrder[$a['class']] ?? 9, $a['account_code']] <=> [$classOrder[$b['class']] ?? 9, $b['account_code']]);
     return $rows;
 }
@@ -496,6 +496,10 @@ function ledger_integrity_checks(): array
         'liquidated'=> ['Verified liquidation expenses have a journal entry', "SELECT x.cash_advance_id AS id, CONCAT('Expense line #', x.id) AS reference, CONCAT('Amount ', x.amount) AS detail FROM cash_advance_expenses x WHERE x.institution_id = ? AND x.verification_status = 'verified' AND NOT %s", 'advance_expense', 'x', 'advances/view.php?id='],
         'returns'   => ['Confirmed advance returns have a journal entry', "SELECT r.cash_advance_id AS id, r.return_number AS reference, CONCAT('Return of ', r.returned_amount) AS detail FROM cash_advance_returns r WHERE r.institution_id = ? AND r.status = 'confirmed' AND NOT %s", 'advance_return', 'r', 'advances/view.php?id='],
     ];
+    if (function_exists('corrections_ready') && corrections_ready()) {
+        $sources['adjustments'] = ['Refunds and applied overpayments have a journal entry', "SELECT a.event_id AS id, a.adjustment_number AS reference, CONCAT(a.adjustment_type, ' of ', a.amount) AS detail FROM payment_adjustments a WHERE a.institution_id = ? AND NOT %s", 'payment_adjustment', 'a', 'events/overpayments.php?event='];
+        $sources['corrections'] = ['Amount corrections with overpayments have a journal entry', "SELECT c.event_id AS id, CONCAT('Correction #', c.id) AS reference, CONCAT('Overpaid ', c.overpaid_total) AS detail FROM rule_corrections c WHERE c.institution_id = ? AND c.overpaid_total > 0 AND NOT %s", 'rule_correction', 'c', 'events/overpayments.php?event='];
+    }
     foreach ($sources as $key => [$title, $sql, $sourceType, $alias, $link]) {
         $checks[$key] = [
             'title' => $title,

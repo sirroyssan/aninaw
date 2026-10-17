@@ -18,7 +18,7 @@ $rows = trial_balance($fundId, $asOf);
 $debitTotal = array_sum(array_column($rows, 'debit_balance'));
 $creditTotal = array_sum(array_column($rows, 'credit_balance'));
 $currency = current_currency();
-$classLabels = ['asset' => 'Assets', 'equity' => 'Fund balance', 'income' => 'Income', 'expense' => 'Expenses', 'unclassified' => 'Not in the chart of accounts'];
+$classLabels = ['asset' => 'Assets', 'liability' => 'Liabilities (owed back to payers)', 'equity' => 'Fund balance', 'income' => 'Income', 'expense' => 'Expenses', 'unclassified' => 'Not in the chart of accounts'];
 
 if (get_str('export', 10) === 'csv') {
     send_csv('trial_balance_' . $asOf . '.csv', ['Account code', 'Account', 'Class', 'Total debits', 'Total credits', 'Debit balance', 'Credit balance'],

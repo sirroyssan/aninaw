@@ -137,6 +137,7 @@ const LEDGER_ACCOUNTS = [
     'e_wallet'      => ['1030', 'E-Wallet Balances', 'asset'],
     'other'         => ['1090', 'Other Cash Accounts', 'asset'],
     'advances'      => ['1200', 'Cash Advances Receivable', 'asset'],
+    'overpayments'  => ['2100', 'Overpayments / Refunds Payable', 'liability'],
     'fund_balance'  => ['3000', 'Fund Balance', 'equity'],
     'collections'   => ['4000', 'Collections and Contributions', 'income'],
     'sales'         => ['4100', 'Sales Revenue', 'income'],
