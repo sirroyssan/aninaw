@@ -362,3 +362,8 @@ label.member-result { justify-content: flex-start; cursor: pointer; }
 /* Person names are stored in capitals; show them that way while typing. */
 input[data-uppercase] { text-transform: uppercase; }
 input[data-uppercase]::placeholder { text-transform: none; }
+
+/* Person pop-up (participants/card.php): "Edit details" toggle */
+.person-edit > summary { list-style: none; display: inline-block; }
+.person-edit > summary::-webkit-details-marker { display: none; }
+.person-edit[open] > summary { display: none; }

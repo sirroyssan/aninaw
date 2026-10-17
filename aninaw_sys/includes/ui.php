@@ -128,12 +128,26 @@ function remember_input(): void
 
 function old(string $key, mixed $default = ''): mixed
 {
+    return old_all()[$key] ?? $default;
+}
+
+/** All values kept by remember_input(), read once per request. */
+function old_all(): array
+{
     static $old = null;
     if ($old === null) {
         $old = $_SESSION['old_input'] ?? [];
         unset($_SESSION['old_input']);
     }
-    return $old[$key] ?? $default;
+    return $old;
+}
+
+/** Keeps the values for the next request too, e.g. a pop-up form the page loads right after. */
+function pass_old_input_on(): void
+{
+    if (old_all()) {
+        $_SESSION['old_input'] = old_all();
+    }
 }
 
 /**

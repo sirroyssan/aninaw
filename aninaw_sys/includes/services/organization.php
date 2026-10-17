@@ -330,6 +330,16 @@ function new_person_input(array $post): array
     return ['status' => 'active'] + array_intersect_key($post, array_flip($fields));
 }
 
+/** Edit from the person pop-up: the record as it is, with only the person fields from the form changed (status and linked login kept). */
+function edit_person_input(array $participant, array $post): array
+{
+    $keep = ['participant_number', 'participant_type', 'first_name', 'last_name', 'middle_name', 'no_middle_name', 'program_id', 'birth_date',
+        'phone', 'address', 'guardian_name', 'guardian_relationship', 'guardian_phone', 'email', 'status'];
+    $current = array_map(static fn($value) => $value === null ? '' : (string) $value, array_intersect_key($participant, array_flip($keep)));
+    $current['link_membership_id'] = (string) ($participant['linked_membership_id'] ?? '');
+    return array_diff_key(new_person_input($post), ['status' => true]) + $current;
+}
+
 function save_participant(?int $participantId, array $input, bool $strict = false): int
 {
     $institutionId = (int) current_institution_id();

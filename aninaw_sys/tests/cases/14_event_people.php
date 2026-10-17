@@ -70,3 +70,15 @@ test('a new person registered from the event modal cannot set a linked account o
     assert_true(!isset($input['link_membership_id']) && !isset($input['institution_id']), 'only person fields pass through');
     assert_same('Ana', $input['first_name']);
 });
+
+test('editing a person from the pop-up keeps their status and linked login', function () {
+    act_as('admin', 'TST');
+    $id = save_participant(null, ['participant_number' => 'ED-1', 'first_name' => 'Edna', 'last_name' => 'Edit', 'participant_type' => 'employee', 'status' => 'inactive']);
+    $before = find_participant($id);
+    save_participant($id, edit_person_input($before, ['participant_number' => 'ED-1', 'first_name' => 'Edna', 'last_name' => 'Edit', 'participant_type' => 'employee',
+        'address' => '1 Main St', 'status' => 'active', 'link_membership_id' => '1']), true);
+    $after = find_participant($id);
+    assert_same('1 Main St', $after['address']);
+    assert_same('inactive', $after['status'], 'status is not changed from the pop-up');
+    assert_same($before['user_id'], $after['user_id'], 'linked login is not changed from the pop-up');
+});

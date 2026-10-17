@@ -148,7 +148,7 @@ if ($tab === 'requirements' && get_str('export', 10) === 'csv' && can_check_even
 $pageTitle = $event['event_name'];
 $activeNav = 'events';
 $breadcrumb = [auth_context()['label'], 'Events'];
-$pageScripts = array_merge($pageScripts ?? [], ['js/member_picker.js']);
+$pageScripts = array_merge($pageScripts ?? [], ['js/member_picker.js', 'js/person_modal.js']);
 require APP_ROOT . '/includes/header.php';
 $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&tab=' . $name);
 ?>
@@ -427,7 +427,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                         <tbody><?php foreach ($people as $row): $balance = max(0, to_cents($row['expected']) - to_cents($row['paid'])); ?>
                             <tr>
                                 <td class="fw-semibold"><?= e($row['participant_number']) ?></td>
-                                <td><a href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a></td>
+                                <td><a href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>" data-person-card="<?= e(url('participants/card.php?id=' . $row['participant_id'] . '&event=' . $eventId . '&fragment=1')) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a></td>
                                 <td><?= e(PARTICIPANT_TYPES[$row['participant_type']] ?? $row['participant_type']) ?></td>
                                 <td class="text-end"><?= e(m($row['expected'])) ?></td>
                                 <td class="text-end"><?= e(m($row['paid'])) ?></td>
@@ -535,7 +535,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                     <tbody>
                     <?php foreach ($obligations as $row): $balance = max(0, to_cents($row['amount_due']) - to_cents($row['waived_amount']) - to_cents($row['paid'])); ?>
                         <tr>
-                            <td><a class="fw-semibold" href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a><div class="text-muted-sm"><?= e($row['participant_number']) ?></div></td>
+                            <td><a class="fw-semibold" href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>" data-person-card="<?= e(url('participants/card.php?id=' . $row['participant_id'] . '&event=' . $eventId . '&fragment=1')) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a><div class="text-muted-sm"><?= e($row['participant_number']) ?></div></td>
                             <td><?= e($row['rule_name']) ?></td>
                             <td class="text-end"><?= e(m($row['amount_due'])) ?></td>
                             <td class="text-end"><?= e(m($row['waived_amount'])) ?></td>
@@ -668,6 +668,20 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
             </div>
         </div>
     </div>
+<?php endif; ?>
+<?php if (in_array($tab, ['people', 'obligations'], true)): $reopenPerson = old('action') === 'edit_person' ? (int) old('participant_id') : 0; if ($reopenPerson) { pass_old_input_on(); } ?>
+<div class="modal fade" id="person-modal" tabindex="-1" aria-labelledby="person-modal-title" aria-hidden="true"<?= $reopenPerson ? ' data-reopen-card="' . e(url('participants/card.php?id=' . $reopenPerson . '&event=' . $eventId . '&fragment=1')) . '" data-reopen-profile="' . e(url('participants/view.php?id=' . $reopenPerson)) . '"' : '' ?>>
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="person-modal-title" data-person-title>Person</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0" data-person-body></div>
+            <div class="modal-footer justify-content-start py-2"><a class="text-muted-sm" href="#" data-person-full>Open the full profile (payments, receipts, documents)</a></div>
+        </div>
+    </div>
+</div>
 <?php endif; ?>
 <?php if ($tab === 'people' && $canAddPeople): ?>
     <?php $newPerson = ['action' => 'add_new_person', 'title' => 'Add a new person to ' . $event['event_name'], 'intro' => 'They are added to the People list and to this event at once, and charged its collections for everyone.',
