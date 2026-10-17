@@ -11,6 +11,7 @@ $balanceTotal = array_sum(array_column($obligations, 'balance'));
     <?= csrf_field() ?><?= idempotency_field() ?>
     <input type="hidden" name="participant_id" value="<?= e($participant['id']) ?>">
     <input type="hidden" name="event_id" value="<?= e($eventId) ?>">
+    <?php if ($inModal): ?><input type="hidden" name="back" value="referer"><?php endif; ?>
     <div class="card-header"><h3><?= $inModal ? 'Collections' : 'Amounts for ' . e($events[$eventId]) ?></h3>
     <?php if (count($obligations) > 1): ?><button class="btn btn-outline-primary btn-sm" type="button" data-fill-all>Pay all · <?= e(money($balanceTotal, $currency)) ?></button><?php endif; ?></div>
     <div class="table-responsive">

@@ -153,6 +153,7 @@ $pageScripts = array_merge($pageScripts ?? [], ['js/member_picker.js', 'js/perso
 require APP_ROOT . '/includes/header.php';
 $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&tab=' . $name);
 ?>
+<?= recent_payment_notice() ?>
 <?= page_actions($event['event_code'] . ' · ' . humanize($event['status']) . ($event['collection_deadline'] ? ' · collection deadline ' . format_date($event['collection_deadline']) : '') . ' · created by ' . $event['created_by_name'],
     button_link('events/index.php', 'All Events', 'bi-arrow-left', 'btn-outline-secondary')
     . (can('collections.record') && donations_ready() && !in_array($event['status'], ['closed', 'cancelled'], true) ? button_link('donations/create.php?event=' . $eventId, 'Record Solicitation', 'bi-gift', 'btn-outline-primary') : '')

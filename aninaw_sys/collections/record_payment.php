@@ -27,6 +27,10 @@ if (is_post()) {
     handle_post(function () {
         $paymentId = record_payment($_POST);
         flash('success', 'Payment recorded', 'The receipt is ready to print.');
+        if (post_str('back', 10) === 'referer') {
+            remember_recent_payment($paymentId);
+            redirect_back('collections/index.php'); // paid from a pop-up: stay on that page
+        }
         return 'collections/payment.php?id=' . $paymentId;
     });
 }

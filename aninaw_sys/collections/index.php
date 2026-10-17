@@ -79,6 +79,7 @@ $breadcrumb = [auth_context()['label'], 'Collections'];
 $pageScripts = ['js/finance.js', 'js/collections.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
+<?= recent_payment_notice() ?>
 <?= page_actions('Payment balances of participants. Paid amounts count posted payments only.',
     button_link('collections/list.php' . ($eventId ? '?event=' . $eventId . ($groupId ? '&group=' . $groupId : '') : ''), 'Print List', 'bi-printer', 'btn-outline-primary')
     . button_link('collections/payments.php', 'Payment History', 'bi-clock-history', 'btn-outline-primary')

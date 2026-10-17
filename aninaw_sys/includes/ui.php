@@ -391,6 +391,33 @@ function issued_link_notice(): string
         . '</div></div>';
 }
 
+/** After paying from a pop-up: remember the payment so the page shows its receipt link once. */
+function remember_recent_payment(int $paymentId): void
+{
+    $row = db_one('SELECT p.amount, r.receipt_number, pt.first_name, pt.last_name FROM payments p
+        JOIN participants pt ON pt.id = p.payer_participant_id AND pt.institution_id = p.institution_id
+        LEFT JOIN receipts r ON r.payment_id = p.id AND r.institution_id = p.institution_id
+        WHERE p.institution_id = ? AND p.id = ?', [current_institution_id(), $paymentId]);
+    if ($row) {
+        $_SESSION['recent_payment'] = $row + ['id' => $paymentId];
+    }
+}
+
+/** "₱850.00 received from JUAN DELA CRUZ · receipt AR-… [Print Receipt]", shown once. */
+function recent_payment_notice(): string
+{
+    $paid = $_SESSION['recent_payment'] ?? null;
+    unset($_SESSION['recent_payment']);
+    if (!is_array($paid)) {
+        return '';
+    }
+    return '<div class="notice notice-success d-flex flex-wrap align-items-center gap-2 mb-3 d-print-none"><i class="bi bi-check-circle" aria-hidden="true"></i>'
+        . '<div class="flex-grow-1"><strong>' . e(money(to_cents($paid['amount']), current_currency())) . ' received from ' . e(trim($paid['first_name'] . ' ' . $paid['last_name'])) . '</strong>'
+        . ($paid['receipt_number'] ? ' · receipt ' . e($paid['receipt_number']) : '') . '</div>'
+        . '<a class="btn btn-outline-primary btn-sm" href="' . e(url('collections/payment.php?id=' . $paid['id'])) . '">Details</a>'
+        . '<a class="btn btn-primary btn-sm" href="' . e(url('collections/print_receipt.php?id=' . $paid['id'])) . '" target="_blank" rel="noopener"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print Receipt</a></div>';
+}
+
 /** Keeps a just-generated default password for one display (session only, never in the database). */
 function remember_issued_password(string $name, string $username, string $password): void
 {
