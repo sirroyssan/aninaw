@@ -30,7 +30,7 @@ declare(strict_types=1);
                                 <tbody>
                                 <?php foreach ($d['obligations'] as $row): ?>
                                     <tr>
-                                        <td><div class="fw-semibold"><?= e($row['event_name']) ?></div><div class="text-muted-sm"><?= e($row['rule_name']) ?><?= $row['due_date'] ? ' · Due ' . e(format_date($row['due_date'])) : '' ?></div></td>
+                                        <td><div class="fw-semibold"><?= e($row['event_name']) ?></div><div class="text-muted-sm"><?= e($row['rule_name']) ?><?= $row['due_date'] ? ' · Due ' . e(format_date($row['due_date'])) : '' ?></div><?= inclusions_html($row['inclusions']) ?></td>
                                         <td class="text-end"><?= e(format_money((float) $row['amount_due'] - (float) $row['waived_amount'], $currency)) ?></td>
                                         <td class="text-end"><?= e(format_money($row['paid'], $currency)) ?></td>
                                         <td class="text-end fw-semibold"><?= e(format_money($row['balance'], $currency)) ?></td>

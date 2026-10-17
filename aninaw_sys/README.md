@@ -74,6 +74,10 @@ table (filled with BSIT, BSCS, BSIS, ACT, BEEd, BECEd and BECAEd for each instit
 columns to `participants`: birthday, address, program, "no middle name", parent / guardian name,
 relationship and contact number. Safe to run again.
 
+**Then** import `database/migration_008_rule_inclusions.sql` once. It adds the "What's included"
+field to collection rules (e.g. Registration Fee: T-shirt, Lanyard, AM/PM snacks, Lunch), shown on
+the payment form, the receipt and the payer's balances. Safe to run again.
+
 **Optional, once:** `database/migration_007_uppercase_names.sql` converts names already saved to
 capital letters. New and edited names are saved in capitals automatically.
 
@@ -299,7 +303,8 @@ aninaw_sys/
 ├── assets/           css/ js/ (app, validation, finance, charts) images/ vendor/ (Bootstrap, Icons, SweetAlert2, Chart.js)
 ├── database/         schema.sql migration_002_financial_modules.sql migration_003_products_orders.sql migration_004_event_people.sql
 │                     migration_005_advance_roles_event_requirements.sql
-│                     migration_006_people_details.sql migration_007_uppercase_names.sql create_admin.php
+│                     migration_006_people_details.sql migration_007_uppercase_names.sql
+│                     migration_008_rule_inclusions.sql create_admin.php
 ├── tests/            run_tests.php bootstrap.php fixtures.php cases/
 ├── uploads/          receipts/ attachments/        Blocked from direct access
 └── logs/                                           Private application log

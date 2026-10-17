@@ -19,7 +19,7 @@ $groups = db_all(
     [current_institution_id(), $participantId]
 );
 $obligations = can('collections.view') ? db_all(
-    "SELECT o.id, o.amount_due, o.waived_amount, o.due_date, o.status, e.id AS event_id, e.event_name, cr.rule_name,
+    "SELECT o.id, o.amount_due, o.waived_amount, o.due_date, o.status, e.id AS event_id, e.event_name, cr.rule_name, cr.inclusions,
             (SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocations pa
                JOIN payments p ON p.id = pa.payment_id AND p.institution_id = pa.institution_id AND p.status = 'posted'
               WHERE pa.institution_id = o.institution_id AND pa.obligation_id = o.id) AS paid
@@ -92,7 +92,7 @@ require APP_ROOT . '/includes/header.php';
                             <?php foreach ($obligations as $row): ?>
                                 <?php $balance = max(0, to_cents($row['amount_due']) - to_cents($row['waived_amount']) - to_cents($row['paid'])); ?>
                                 <tr>
-                                    <td><div class="fw-semibold"><?= e($row['event_name']) ?></div><div class="text-muted-sm"><?= e($row['rule_name']) ?><?= $row['due_date'] ? ' · due ' . e(format_date($row['due_date'])) : '' ?></div></td>
+                                    <td><div class="fw-semibold"><?= e($row['event_name']) ?></div><div class="text-muted-sm"><?= e($row['rule_name']) ?><?= $row['due_date'] ? ' · due ' . e(format_date($row['due_date'])) : '' ?></div><?= inclusions_html($row['inclusions']) ?></td>
                                     <td class="text-end"><?= e(m($row['amount_due'])) ?></td>
                                     <td class="text-end"><?= e(m($row['waived_amount'])) ?></td>
                                     <td class="text-end"><?= e(m($row['paid'])) ?></td>

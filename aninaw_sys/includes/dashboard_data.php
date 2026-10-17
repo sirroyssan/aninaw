@@ -622,7 +622,7 @@ function dashboard_member(): array
     }
 
     $obligations = db_all(
-        'SELECT o.id, e.event_name, cr.rule_name, o.amount_due, o.waived_amount, o.due_date, o.status,
+        'SELECT o.id, e.event_name, cr.rule_name, cr.inclusions, o.amount_due, o.waived_amount, o.due_date, o.status,
                 ' . SQL_OBLIGATION_PAID . " AS paid
          FROM event_obligations o
          JOIN events e ON e.id = o.event_id AND e.institution_id = o.institution_id

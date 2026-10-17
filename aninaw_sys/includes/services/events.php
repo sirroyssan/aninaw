@@ -286,6 +286,7 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
     $amount = parse_money(input_str($input, 'amount_due', 20)) ?? fail_user('Enter the amount required (greater than zero).');
     $data = [
         'rule_name'             => input_str($input, 'rule_name', 180),
+        'inclusions'            => implode("\n", array_map(static fn($item) => mb_substr($item, 0, 120), array_slice(rule_inclusions(input_str($input, 'inclusions', 4000)), 0, 30))) ?: null,
         'amount_due'            => cents_to_decimal($amount),
         'applies_to_type'       => input_enum($input, 'applies_to_type', ['all', 'group', 'participant'], 'all'),
         'applies_to_id'         => null,
@@ -318,8 +319,8 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
                 fail_user('Payments were already received under this rule, so its amount and coverage are locked. Use waivers for individual adjustments or add a new rule.');
             }
             db_query(
-                'UPDATE collection_rules SET rule_name = ?, amount_due = ?, applies_to_type = ?, applies_to_id = ?, effective_from = ?, effective_until = ?, allow_partial_payment = ? WHERE id = ?',
-                [$data['rule_name'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment'], $ruleId]
+                'UPDATE collection_rules SET rule_name = ?, inclusions = ?, amount_due = ?, applies_to_type = ?, applies_to_id = ?, effective_from = ?, effective_until = ?, allow_partial_payment = ? WHERE id = ?',
+                [$data['rule_name'], $data['inclusions'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment'], $ruleId]
             );
             if ($amountChanged) {
                 db_query("UPDATE event_obligations SET amount_due = ? WHERE institution_id = ? AND collection_rule_id = ? AND status <> 'cancelled'", [$data['amount_due'], $institutionId, $ruleId]);
@@ -342,9 +343,9 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
             return $ruleId;
         }
         db_query(
-            "INSERT INTO collection_rules (institution_id, event_id, rule_name, amount_due, applies_to_type, applies_to_id, effective_from, effective_until, allow_partial_payment, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')",
-            [$institutionId, $eventId, $data['rule_name'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment']]
+            "INSERT INTO collection_rules (institution_id, event_id, rule_name, inclusions, amount_due, applies_to_type, applies_to_id, effective_from, effective_until, allow_partial_payment, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')",
+            [$institutionId, $eventId, $data['rule_name'], $data['inclusions'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment']]
         );
         $id = (int) db()->lastInsertId();
         audit_log('collection_rule.created', 'collection_rule', $id, $institutionId, (int) auth_user()['id'], $data);

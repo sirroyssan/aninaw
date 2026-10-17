@@ -2725,3 +2725,14 @@ ALTER TABLE `participants`
   ADD CONSTRAINT `participants_program_fk` FOREIGN KEY IF NOT EXISTS (`institution_id`, `program_id`) REFERENCES `programs` (`institution_id`, `id`);
 
 COMMIT;
+
+-- ===========================================================================
+-- Part 8: migration 008 (what a collection includes). Existing installs
+-- run database/migration_008_rule_inclusions.sql instead.
+-- ===========================================================================
+START TRANSACTION;
+
+ALTER TABLE `collection_rules`
+  ADD COLUMN IF NOT EXISTS `inclusions` text DEFAULT NULL AFTER `rule_name`;
+
+COMMIT;

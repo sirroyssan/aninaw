@@ -149,3 +149,14 @@ test('another institution cannot see this event', function () {
     act_as('other_treasurer', 'OTH');
     assert_same(null, find_event($GLOBALS['fx']['event']));
 });
+
+test('a collection rule lists what it includes, shown to payers', function () {
+    act_as('organizer', 'TST');
+    $fx = $GLOBALS['fx'];
+    save_collection_rule($fx['event'], $fx['rule'], ['rule_name' => 'Registration fee', 'amount_due' => '150', 'applies_to_type' => 'all', 'allow_partial_payment' => '1',
+        'inclusions' => " T-shirt \r\nLanyard\n\nAM snacks; Lunch\n"]);
+    assert_same("T-shirt\nLanyard\nAM snacks\nLunch", db_value('SELECT inclusions FROM collection_rules WHERE id = ?', [$fx['rule']]), 'trimmed, one per line');
+    assert_same('<div class="text-muted-sm"><i class="bi bi-box-seam me-1" aria-hidden="true"></i>Includes: T-shirt, Lanyard, AM snacks, Lunch</div>', inclusions_html("T-shirt\nLanyard\nAM snacks\nLunch"));
+    assert_same('', inclusions_html(null));
+    assert_same('<div class="text-muted-sm"><i class="bi bi-box-seam me-1" aria-hidden="true"></i>Includes: &lt;b&gt;</div>', inclusions_html('<b>'), 'escaped');
+});

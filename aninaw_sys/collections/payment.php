@@ -62,7 +62,7 @@ require APP_ROOT . '/includes/header.php';
                     <tbody>
                     <?php foreach ($payment['allocations'] as $row): ?>
                         <tr>
-                            <td><a href="<?= e(url('events/view.php?id=' . $row['event_id'])) ?>"><?= e($row['event_name']) ?></a><div class="text-muted-sm"><?= e($row['rule_name']) ?></div></td>
+                            <td><a href="<?= e(url('events/view.php?id=' . $row['event_id'])) ?>"><?= e($row['event_name']) ?></a><div class="text-muted-sm"><?= e($row['rule_name']) ?></div><?= inclusions_html($row['inclusions']) ?></td>
                             <td class="text-end fw-semibold"><?= e(m($row['allocated_amount'])) ?></td>
                             <td><?= status_badge($row['obligation_status']) ?></td>
                         </tr>

@@ -19,7 +19,7 @@ $balanceTotal = array_sum(array_column($obligations, 'balance'));
             <tbody>
             <?php foreach ($obligations as $row): ?>
                 <tr>
-                    <td><div class="fw-semibold"><?= e($row['rule_name']) ?></div><div class="text-muted-sm"><?= $row['allow_partial_payment'] ? 'Partial payment allowed' : 'Must be paid in full' ?><?= $row['due_date'] ? ' · due ' . e(format_date($row['due_date'])) : '' ?></div></td>
+                    <td><div class="fw-semibold"><?= e($row['rule_name']) ?></div><?= inclusions_html($row['inclusions']) ?><div class="text-muted-sm"><?= $row['allow_partial_payment'] ? 'Partial payment allowed' : 'Must be paid in full' ?><?= $row['due_date'] ? ' · due ' . e(format_date($row['due_date'])) : '' ?></div></td>
                     <td class="text-end fw-semibold"><?= e(money($row['balance'], $currency)) ?></td>
                     <td>
                         <div class="input-group input-group-sm">

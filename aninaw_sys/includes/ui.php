@@ -412,3 +412,16 @@ function send_csv(string $filename, array $header, iterable $rows, array $preamb
     }
     exit;
 }
+
+/** "T-shirt\nLanyard" (one per line, as typed) → ['T-shirt', 'Lanyard']. */
+function rule_inclusions(?string $text): array
+{
+    return array_values(array_filter(array_map('trim', preg_split('/\R|;/', (string) $text) ?: [])));
+}
+
+/** "Includes: T-shirt, Lanyard, Lunch" (escaped), or '' when the rule lists nothing. */
+function inclusions_html(?string $text, string $class = 'text-muted-sm'): string
+{
+    $items = rule_inclusions($text);
+    return $items ? '<div class="' . e($class) . '"><i class="bi bi-box-seam me-1" aria-hidden="true"></i>Includes: ' . e(implode(', ', $items)) . '</div>' : '';
+}
