@@ -8,3 +8,5 @@
 .DS_Store
 aninaw_sys.zip
 server.log
+/aninaw_sys/*.png
+/aninaw_sys/*.pdf
