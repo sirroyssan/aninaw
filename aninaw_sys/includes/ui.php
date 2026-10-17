@@ -8,11 +8,15 @@ declare(strict_types=1);
 /** Raised by services for problems the user can fix; the message is safe to display. */
 final class UserFacingException extends RuntimeException
 {
+    /** The form field the message is about (e.g. 'external_reference'), so a pop-up can focus it. */
+    public ?string $field = null;
 }
 
-function fail_user(string $message): never
+function fail_user(string $message, ?string $field = null): never
 {
-    throw new UserFacingException($message);
+    $exception = new UserFacingException($message);
+    $exception->field = $field;
+    throw $exception;
 }
 
 // ---------------------------------------------------------------------------

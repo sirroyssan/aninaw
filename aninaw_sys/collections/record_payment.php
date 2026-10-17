@@ -36,6 +36,31 @@ if (is_post() && post_str('action', 10) === 'waive') {
         return 'collections/record_payment.php?participant=' . $row['participant_id'] . '&event=' . $row['event_id'];
     }, false);
 }
+// Payment from inside the Pay pop-up: answered as JSON so a mistake (e.g. no reference number)
+// keeps the pop-up open with everything typed, and the field in question is focused.
+if (is_post() && wants_json()) {
+    require_csrf();
+    $token = $_POST['_idem'] ?? '';
+    if (!is_string($token) || !isset($_SESSION['idem_tokens'][$token])) {
+        json_response(['ok' => false, 'message' => 'This form was already processed. Check the record list before trying again.'], 409);
+    }
+    unset($_SESSION['idem_tokens'][$token]);
+    try {
+        remember_recent_payment(record_payment($_POST));
+        flash('success', 'Payment recorded', 'The receipt is ready to print.');
+        json_response(['ok' => true]);
+    } catch (Throwable $exception) {
+        if (db_in_transaction()) {
+            db()->rollBack();
+        }
+        $_SESSION['idem_tokens'][$token] = time(); // nothing was saved: the same form may be sent again
+        if ($exception instanceof UserFacingException) {
+            json_response(['ok' => false, 'message' => $exception->getMessage(), 'field' => $exception->field], 422);
+        }
+        error_log('Payment from pop-up failed: ' . $exception->getMessage());
+        json_response(['ok' => false, 'message' => 'The payment was not saved. Please try again.'], 500);
+    }
+}
 if (is_post()) {
     handle_post(function () {
         $paymentId = record_payment($_POST);

@@ -70,6 +70,9 @@
         }
         var none = form.querySelector('[data-method-none]');
         if (none) { none.classList.toggle('d-none', matching.length > 0); }
+        // GCash and bank transfers need the transaction reference number (checked again on the server).
+        var reference = form.querySelector('[name="external_reference"]');
+        if (reference) { reference.required = methodSelect.value === 'gcash' || methodSelect.value === 'bank_transfer'; }
     }
     function syncMethods(root) {
         (root || document).querySelectorAll('select[data-method-select]').forEach(syncMethod);

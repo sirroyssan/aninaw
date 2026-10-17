@@ -7,7 +7,7 @@
  */
 $balanceTotal = array_sum(array_column($obligations, 'balance'));
 ?>
-<form method="post" action="<?= e(url('collections/record_payment.php')) ?>" enctype="multipart/form-data" class="card panel <?= $inModal ? 'border-0 rounded-0 shadow-none' : 'form-card' ?>"<?= $inModal ? '' : ' style="max-width: 980px"' ?> data-confirm="Record this payment?" data-confirm-text="The payment is posted and a receipt is issued. Corrections require an authorised reversal.">
+<form method="post" action="<?= e(url('collections/record_payment.php')) ?>" enctype="multipart/form-data" class="card panel <?= $inModal ? 'border-0 rounded-0 shadow-none' : 'form-card' ?>"<?= $inModal ? ' data-ajax data-pay-form' : ' style="max-width: 980px"' ?> data-confirm="Record this payment?" data-confirm-text="The payment is posted and a receipt is issued. Corrections require an authorised reversal.">
     <?= csrf_field() ?><?= idempotency_field() ?>
     <input type="hidden" name="participant_id" value="<?= e($participant['id']) ?>">
     <input type="hidden" name="event_id" value="<?= e($eventId) ?>">

@@ -31,9 +31,38 @@
             });
     }
 
+    // The payment itself: sent in the background. A mistake (e.g. no reference number) keeps the
+    // pop-up open with everything typed and focuses the field; success refreshes the page behind.
+    function submitPayment(form) {
+        var buttons = form.querySelectorAll('button[type="submit"]');
+        buttons.forEach(function (button) { button.disabled = true; });
+        fetch(form.getAttribute('action'), { method: 'POST', body: new FormData(form), credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+            .then(function (response) { return response.json(); })
+            .then(function (result) {
+                if (result.ok) { modalEl.addEventListener('hidden.bs.modal', function () { window.location.reload(); }); modal.hide(); return; }
+                buttons.forEach(function (button) { button.disabled = false; });
+                var field = result.field ? form.querySelector('[name="' + result.field + '"]') : null;
+                var shown = window.Swal
+                    ? window.Swal.fire({ target: modalEl, icon: 'warning', title: 'Not saved', text: result.message, confirmButtonText: 'OK', customClass: { confirmButton: 'btn btn-primary' }, buttonsStyling: false, returnFocus: false })
+                    : Promise.resolve(window.alert(result.message));
+                shown.then(function () {
+                    if (!field) { return; }
+                    field.classList.add('is-invalid');
+                    field.addEventListener('input', function () { field.classList.remove('is-invalid'); }, { once: true });
+                    field.scrollIntoView({ block: 'center' });
+                    field.focus();
+                });
+            })
+            .catch(function () {
+                buttons.forEach(function (button) { button.disabled = false; });
+                if (window.Aninaw) { window.Aninaw.toast('error', 'Not saved', 'Please try again.'); }
+            });
+    }
+
     // Waive inside the pop-up: saved in the background, then the pop-up reloads with the new balances.
     body.addEventListener('aninaw:confirmed', function (event) {
         var form = event.target;
+        if (form.hasAttribute('data-pay-form')) { submitPayment(form); return; }
         fetch(form.getAttribute('action'), { method: 'POST', body: new FormData(form), credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
             .then(function (response) { return response.json(); })
             .then(function (result) {

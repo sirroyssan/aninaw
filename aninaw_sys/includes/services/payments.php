@@ -92,7 +92,7 @@ function record_payment(array $input): int
         fail_user('The payment date cannot be in the future.');
     }
     if ($method !== 'cash' && $reference === '') {
-        fail_user('Enter the transaction reference number for ' . PAYMENT_METHODS[$method] . ' payments.');
+        fail_user('Enter the transaction reference number for ' . PAYMENT_METHODS[$method] . ' payments.', 'external_reference');
     }
 
     $participant = find_participant($participantId) ?? fail_user('Participant not found or not in your groups.');
