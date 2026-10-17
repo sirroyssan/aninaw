@@ -61,6 +61,7 @@ require APP_ROOT . '/includes/header.php';
     </div>
 <?php endif; ?>
 
+<div data-modal-body>
 <div class="stat-grid">
     <?= $donation['pledged_amount'] !== null ? stat_card('bi-hand-thumbs-up', 'Pledged', money(to_cents($donation['pledged_amount']), $currency), $donation['expected_date'] ? 'Expected ' . format_date($donation['expected_date']) : 'Promised amount') : '' ?>
     <?= stat_card('bi-gift', 'Received', money($donation['received_cents'], $currency), count(array_filter($donation['payments'], static fn($p) => $p['status'] === 'posted')) . ' payment(s)', 'success') ?>
@@ -131,5 +132,6 @@ require APP_ROOT . '/includes/header.php';
             <div class="notice notice-info"><i class="bi bi-info-circle" aria-hidden="true"></i><div>This pledge was cancelled. The reason is in the audit log.</div></div>
         <?php endif; ?>
     </div>
+</div>
 </div>
 <?php require APP_ROOT . '/includes/footer.php'; ?>

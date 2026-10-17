@@ -76,6 +76,7 @@ if ($ready) {
 $pageTitle = 'Solicitations';
 $activeNav = 'donations';
 $breadcrumb = [auth_context()['label'], 'Solicitations'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <div class="report-header"><h2>Solicitations<?= $eventId ? ' · ' . e(event_options(['draft', 'pending', 'approved', 'collecting', 'completed', 'closed'])[$eventId] ?? '') : '' ?></h2><p><?= e(auth_context()['label']) ?> · Printed <?= e(format_datetime(date('Y-m-d H:i:s'))) ?> by <?= e(auth_user()['username']) ?></p></div>
@@ -106,7 +107,7 @@ require APP_ROOT . '/includes/header.php';
                 <thead><tr><th>Donor</th><th>For</th><th class="text-end">Pledged</th><th class="text-end">Received</th><th>Status</th><th>Receipt</th></tr></thead>
                 <tbody><?php foreach ($rows as $r): ?>
                     <tr>
-                        <td><a class="fw-semibold" href="<?= e(url('donations/view.php?id=' . $r['id'])) ?>"><?= e(donor_display_name($r)) ?></a><div class="text-muted-sm"><?= e($r['donation_number'] . ' · ' . (DONOR_KINDS[$r['donor_kind']] ?? '')) ?></div></td>
+                        <td><a class="fw-semibold" href="<?= e(url('donations/view.php?id=' . $r['id'])) ?>" data-page-modal="xl" data-modal-title="<?= e(donor_display_name($r) . ' · ' . $r['donation_number']) ?>"><?= e(donor_display_name($r)) ?></a><div class="text-muted-sm"><?= e($r['donation_number'] . ' · ' . (DONOR_KINDS[$r['donor_kind']] ?? '')) ?></div></td>
                         <td><?= e($r['event_name'] ?: $r['fund_name']) ?><div class="text-muted-sm"><?= e(trim(($r['event_name'] ? $r['fund_name'] : '') . ($r['purpose'] ? ($r['event_name'] ? ' · ' : '') . $r['purpose'] : ''))) ?></div></td>
                         <td class="text-end"><?= $r['pledged_amount'] !== null ? e(m($r['pledged_amount'])) : '<span class="text-muted-sm">—</span>' ?></td>
                         <td class="text-end fw-semibold"><?= e(m($r['received'])) ?><?= $r['last_received'] ? '<div class="text-muted-sm">' . e(format_date($r['last_received'])) . '</div>' : '' ?></td>
