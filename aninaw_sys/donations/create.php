@@ -108,9 +108,9 @@ require APP_ROOT . '/includes/header.php';
             <div class="row g-3 mt-0" data-received-only>
                 <div class="col-md-4"><label class="form-label required" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method"><?= options_html(PAYMENT_METHODS, old('payment_method', 'cash')) ?></select></div>
                 <div class="col-md-8"><label class="form-label required" for="financial_account_id">Received into</label>
-                    <select class="form-select" id="financial_account_id" name="financial_account_id" data-donation-account>
+                    <select class="form-select" id="financial_account_id" name="financial_account_id" data-donation-account data-allowed="<?= e((string) json_encode(PAYMENT_METHOD_ACCOUNT_TYPES)) ?>">
                         <option value="">Select account…</option>
-                        <?php foreach ($accounts as $account): ?><option value="<?= (int) $account['id'] ?>" data-funds="<?= e($account['fund_ids']) ?>"<?= (string) old('financial_account_id') === (string) $account['id'] ? ' selected' : '' ?>><?= e(financial_account_label($account)) ?></option><?php endforeach; ?>
+                        <?php foreach ($accounts as $account): ?><option value="<?= (int) $account['id'] ?>" data-type="<?= e($account['account_type']) ?>" data-funds="<?= e($account['fund_ids']) ?>"<?= (string) old('financial_account_id') === (string) $account['id'] ? ' selected' : '' ?>><?= e(financial_account_label($account)) ?></option><?php endforeach; ?>
                     </select>
                     <div class="form-text text-danger d-none" data-donation-no-account>You have no cash box or account linked to this fund. Ask the treasurer to link one (Funds → the fund → Financial Accounts).</div></div>
                 <div class="col-md-3"><label class="form-label required" for="payment_date">Date received</label><input class="form-control" type="date" id="payment_date" name="payment_date" max="<?= e(date('Y-m-d')) ?>" value="<?= e(old('payment_date', date('Y-m-d'))) ?>"></div>

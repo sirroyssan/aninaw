@@ -3,6 +3,8 @@
  *   data-money-sum="#target"  sums the amount inputs inside the element into #target
  *   data-fill-max             button that fills the sibling input with its data-max value
  *   data-fill-all             button that fills every data-max input in its form
+ *   data-method-select        payment method; the form's [data-method-accounts] select then offers only the
+ *                             accounts whose data-type fits (data-allowed JSON) and picks one by itself
  *   data-checked-sum="#t"     sums data-amount of ticked boxes into #t (or counts them if #t has data-count)
  *   data-row-editor           add/remove repeatable rows from a <template>
  *   data-journal-lines        adjusting-entry lines (cash-account select, debit/credit totals)
@@ -47,7 +49,36 @@
         (root || document).querySelectorAll('[data-money-sum]').forEach(refresh);
     }
     refreshAll();
-    window.AninawFinance = { refreshSums: refreshAll };
+
+    // Payment method → matching "Received into" accounts (Cash → cash custody, GCash → e-wallet, …).
+    function syncMethod(methodSelect) {
+        var form = methodSelect.form;
+        var accounts = form && form.querySelector('[data-method-accounts]');
+        if (!accounts) { return; }
+        var allowed = (JSON.parse(accounts.getAttribute('data-allowed') || '{}')[methodSelect.value]) || [];
+        var matching = [];
+        Array.prototype.forEach.call(accounts.options, function (option) {
+            if (!option.value) { return; }
+            var fits = allowed.indexOf(option.getAttribute('data-type')) !== -1;
+            option.hidden = !fits;
+            option.disabled = !fits;
+            if (fits) { matching.push(option); }
+        });
+        var current = accounts.options[accounts.selectedIndex];
+        if (!current || !current.value || current.disabled) {
+            accounts.value = matching.length ? matching[0].value : '';
+        }
+        var none = form.querySelector('[data-method-none]');
+        if (none) { none.classList.toggle('d-none', matching.length > 0); }
+    }
+    function syncMethods(root) {
+        (root || document).querySelectorAll('select[data-method-select]').forEach(syncMethod);
+    }
+    document.addEventListener('change', function (event) {
+        if (event.target.matches && event.target.matches('select[data-method-select]')) { syncMethod(event.target); }
+    });
+    syncMethods();
+    window.AninawFinance = { refreshSums: refreshAll, syncMethods: syncMethods };
 
     document.addEventListener('click', function (event) {
         var all = event.target.closest('[data-fill-all]');
@@ -223,15 +254,18 @@
             var account = pay.querySelector('[data-pay-account]');
             account.required = mode !== 'later';
             var visible = [];
+            var method = pay.querySelector('[name="payment_method"]');
+            var types = (JSON.parse(account.getAttribute('data-allowed') || '{}')[method ? method.value : 'cash']) || [];
             Array.prototype.forEach.call(account.options, function (option) {
                 if (!option.value) { return; }
-                var linked = !fund || (option.getAttribute('data-funds') || '').split(',').indexOf(fund) !== -1;
+                var linked = (!fund || (option.getAttribute('data-funds') || '').split(',').indexOf(fund) !== -1)
+                    && types.indexOf(option.getAttribute('data-type')) !== -1;
                 option.hidden = !linked;
                 option.disabled = !linked;
                 if (linked) { visible.push(option); }
             });
             if (account.selectedOptions[0] && account.selectedOptions[0].hidden) { account.value = ''; }
-            if (!account.value && visible.length === 1) { account.value = visible[0].value; }
+            if (!account.value && visible.length) { account.value = visible[0].value; }
             pay.querySelector('[data-pay-no-account]').classList.toggle('d-none', !(mode !== 'later' && fund && visible.length === 0));
             // Counter sale: offered when paid in full now and something is sold from stock.
             var releaseWrap = pay.querySelector('[data-release-now-wrap]');

@@ -25,7 +25,7 @@
             })
             .then(function (html) {
                 body.innerHTML = html;
-                if (window.AninawFinance) { window.AninawFinance.refreshSums(body); }
+                if (window.AninawFinance) { window.AninawFinance.refreshSums(body); window.AninawFinance.syncMethods(body); }
                 var first = body.querySelector('input.text-amount');
                 if (first) { first.focus(); }
             });

@@ -85,6 +85,7 @@ $fulfillmentLabels = ['stock' => 'From stock', 'made_to_order' => 'Made to order
 $pageTitle = 'Order ' . $order['order_number'];
 $activeNav = 'orders';
 $breadcrumb = [auth_context()['label'], 'Orders'];
+$pageScripts = ['js/finance.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?php
@@ -213,10 +214,10 @@ $justPaid = get_int('paid') ? db_one(
                     <?php else: ?>
                         <div class="mb-2"><label class="form-label required" for="amount">Amount</label><input class="form-control text-amount" id="amount" name="amount" required inputmode="decimal" value="<?= e(cents_to_decimal($order['balance_cents'])) ?>" <?= $order['partial_allowed'] ? '' : 'readonly' ?>><div class="form-text"><?= $order['partial_allowed'] ? 'Full amount, or enter a smaller down payment. Balance ' . e(money($order['balance_cents'], $currency)) . '.' : 'Full payment required (down payment not allowed for these items).' ?></div></div>
                         <div class="row g-2 mb-2">
-                            <div class="col-6"><label class="form-label" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method"><?= options_html(PAYMENT_METHODS, 'cash') ?></select></div>
+                            <div class="col-6"><label class="form-label" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method" data-method-select><?= options_html(PAYMENT_METHODS, 'cash') ?></select></div>
                             <div class="col-6"><label class="form-label" for="payment_date">Date</label><input class="form-control" type="date" id="payment_date" name="payment_date" max="<?= e(date('Y-m-d')) ?>" value="<?= e(date('Y-m-d')) ?>"></div>
                         </div>
-                        <div class="mb-2"><label class="form-label required" for="financial_account_id">Received into</label><select class="form-select" id="financial_account_id" name="financial_account_id" required><?= options_html($accountOptions, count($accountOptions) === 1 ? array_key_first($accountOptions) : null, 'Select…') ?></select></div>
+                        <div class="mb-2"><label class="form-label required" for="financial_account_id">Received into</label><select class="form-select" id="financial_account_id" name="financial_account_id" required<?= method_account_select_attrs() ?>><?= account_options_by_type($accounts, null, 'Select…') ?></select><div class="form-text text-danger d-none" data-method-none>No account for this method is linked to this fund.</div></div>
                         <div class="mb-3"><label class="form-label" for="external_reference">Reference no.</label><input class="form-control" id="external_reference" name="external_reference" maxlength="150" placeholder="Required for GCash / bank"></div>
                         <?php if ($order['order_status'] === 'pending' && $canManage): ?>
                             <div class="form-check mb-3"><input type="hidden" name="confirm_now" value="0"><input class="form-check-input" type="checkbox" id="pay_confirm_now" name="confirm_now" value="1" checked><label class="form-check-label" for="pay_confirm_now">Also confirm the order (the customer has committed)</label></div>

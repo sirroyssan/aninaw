@@ -22,6 +22,26 @@ const PAYMENT_METHOD_ACCOUNT_TYPES = [
     'other'         => ['cash_custody', 'bank', 'e_wallet', 'other'],
 ];
 
+/**
+ * "Received into" options with each account's type, so the form can offer only the accounts that fit
+ * the chosen method (Cash → cash custody, GCash → e-wallet, bank transfer → bank) and pick one by itself.
+ * Pair with method_account_select_attrs() on the account select and data-method-select on the method select.
+ */
+function account_options_by_type(array $accounts, $selected = null, string $placeholder = 'Select account…'): string
+{
+    $html = '<option value="">' . e($placeholder) . '</option>';
+    foreach ($accounts as $account) {
+        $html .= '<option value="' . (int) $account['id'] . '" data-type="' . e($account['account_type']) . '"'
+            . ((string) $selected === (string) $account['id'] ? ' selected' : '') . '>' . e(financial_account_label($account)) . '</option>';
+    }
+    return $html;
+}
+
+function method_account_select_attrs(): string
+{
+    return ' data-method-accounts data-allowed="' . e((string) json_encode(PAYMENT_METHOD_ACCOUNT_TYPES)) . '"';
+}
+
 /** Open obligations (unpaid or partially paid) of a participant, with balances in centavos. */
 function open_obligations(int $participantId, ?int $eventId = null): array
 {

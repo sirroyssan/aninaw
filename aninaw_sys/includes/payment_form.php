@@ -42,12 +42,13 @@ $balanceTotal = array_sum(array_column($obligations, 'balance'));
             <?php endif; ?>
             <div class="col-md-6">
                 <label class="form-label required" for="payment_method">Method</label>
-                <select class="form-select" id="payment_method" name="payment_method" required><?= options_html(PAYMENT_METHODS, old('payment_method', 'cash')) ?></select>
+                <select class="form-select" id="payment_method" name="payment_method" required data-method-select><?= options_html(PAYMENT_METHODS, old('payment_method', 'cash')) ?></select>
             </div>
             <div class="col-md-6">
                 <label class="form-label required" for="financial_account_id">Received into</label>
-                <select class="form-select" id="financial_account_id" name="financial_account_id" required><?= options_html($accounts, old('financial_account_id', count($accounts) === 1 ? array_key_first($accounts) : null), 'Select account…') ?></select>
-                <?php if (!$accounts): ?><div class="form-text text-danger">You are not the custodian of any account authorised for this event's fund. Ask the treasurer to set one up.</div><?php else: ?><div class="form-text">Cash goes to a cash custody account (yours, as collector or cashier).</div><?php endif; ?>
+                <select class="form-select" id="financial_account_id" name="financial_account_id" required<?= method_account_select_attrs() ?>><?= account_options_by_type($accounts, old('financial_account_id')) ?></select>
+                <div class="form-text text-danger d-none" data-method-none>No account for this method is linked to the event's fund. Ask the treasurer: Financial Accounts → New Account (e.g. type E-wallet for GCash), then link it to the fund.</div>
+                <?php if (!$accounts): ?><div class="form-text text-danger">You are not the custodian of any account authorised for this event's fund. Ask the treasurer to set one up.</div><?php else: ?><div class="form-text">Follows the method: Cash → cash box, GCash → e-wallet, Bank transfer → bank account.</div><?php endif; ?>
             </div>
             <div class="col-md-3"><label class="form-label required" for="payment_date">Payment date</label><input class="form-control" type="date" id="payment_date" name="payment_date" required max="<?= e(date('Y-m-d')) ?>" value="<?= e(old('payment_date', date('Y-m-d'))) ?>"></div>
             <div class="col-md-3"><label class="form-label" for="payment_time">Time</label><input class="form-control" type="time" id="payment_time" name="payment_time" value="<?= e(old('payment_time', date('H:i'))) ?>"></div>

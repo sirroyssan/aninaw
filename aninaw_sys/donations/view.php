@@ -40,7 +40,7 @@ $paid = get_int('paid');
 $accounts = [];
 if ($open && $canRecord) {
     foreach (usable_financial_accounts((int) $donation['fund_id']) as $account) {
-        $accounts[$account['id']] = financial_account_label($account);
+        $accounts[$account['id']] = $account;
     }
 }
 
@@ -112,8 +112,8 @@ require APP_ROOT . '/includes/header.php';
                 <div class="card-body">
                     <div class="row g-2">
                         <div class="col-md-6"><label class="form-label required" for="amount">Amount</label><div class="input-group"><input class="form-control text-amount" id="amount" name="amount" required inputmode="decimal" value="<?= e(old('amount', cents_to_decimal($donation['outstanding_cents']))) ?>" data-max="<?= e(cents_to_decimal($donation['outstanding_cents'])) ?>"><button class="btn btn-outline-primary" type="button" data-fill-max>Full</button></div></div>
-                        <div class="col-md-6"><label class="form-label required" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method"><?= options_html(PAYMENT_METHODS, old('payment_method', 'cash')) ?></select></div>
-                        <div class="col-12"><label class="form-label required" for="financial_account_id">Received into</label><select class="form-select" id="financial_account_id" name="financial_account_id" required><?= options_html($accounts, old('financial_account_id', count($accounts) === 1 ? array_key_first($accounts) : null), 'Select account…') ?></select>
+                        <div class="col-md-6"><label class="form-label required" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method" data-method-select><?= options_html(PAYMENT_METHODS, old('payment_method', 'cash')) ?></select></div>
+                        <div class="col-12"><label class="form-label required" for="financial_account_id">Received into</label><select class="form-select" id="financial_account_id" name="financial_account_id" required<?= method_account_select_attrs() ?>><?= account_options_by_type($accounts, old('financial_account_id')) ?></select><div class="form-text text-danger d-none" data-method-none>No account for this method is linked to <?= e($donation['fund_name']) ?>.</div>
                             <?php if (!$accounts): ?><div class="form-text text-danger">You have no cash box or account linked to <?= e($donation['fund_name']) ?>. Ask the treasurer to link one.</div><?php endif; ?></div>
                         <div class="col-md-6"><label class="form-label required" for="payment_date">Date received</label><input class="form-control" type="date" id="payment_date" name="payment_date" required max="<?= e(date('Y-m-d')) ?>" value="<?= e(old('payment_date', date('Y-m-d'))) ?>"></div>
                         <div class="col-md-6"><label class="form-label" for="payment_time">Time</label><input class="form-control" type="time" id="payment_time" name="payment_time" value="<?= e(old('payment_time', date('H:i'))) ?>"></div>

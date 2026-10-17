@@ -57,18 +57,22 @@
 
     function syncAccounts() {
         var fund = fundSelect.value;
+        var method = form.querySelector('[name="payment_method"]');
+        var types = (JSON.parse(accountSelect.getAttribute('data-allowed') || '{}')[method ? method.value : 'cash']) || [];
         var visible = 0;
         Array.prototype.forEach.call(accountSelect.options, function (option) {
             if (!option.value) { return; }
-            var linked = fund !== '' && (option.getAttribute('data-funds') || '').split(',').indexOf(fund) !== -1;
+            var linked = fund !== '' && (option.getAttribute('data-funds') || '').split(',').indexOf(fund) !== -1
+                && types.indexOf(option.getAttribute('data-type')) !== -1;
             option.hidden = !linked;
             option.disabled = !linked;
             if (linked) { visible += 1; }
         });
         var current = accountSelect.options[accountSelect.selectedIndex];
         if (current && current.value && current.disabled) { accountSelect.value = ''; }
-        if (!accountSelect.value && visible === 1) {
-            Array.prototype.forEach.call(accountSelect.options, function (option) { if (option.value && !option.disabled) { accountSelect.value = option.value; } });
+        if (!accountSelect.value && visible > 0) {
+            var first = Array.prototype.find.call(accountSelect.options, function (option) { return option.value && !option.disabled; });
+            accountSelect.value = first.value;
         }
         noAccount.classList.toggle('d-none', !fund || visible > 0 || checked('mode') === 'pledge');
     }
@@ -83,6 +87,7 @@
     form.addEventListener('change', function (event) {
         if (event.target.matches('[data-donor-mode], [data-donor-kind]')) { syncDonor(); }
         if (event.target.matches('[data-donation-mode]')) { syncMode(); }
+        if (event.target.matches('[name="payment_method"]')) { syncAccounts(); }
     });
     syncDonor();
     syncMode();

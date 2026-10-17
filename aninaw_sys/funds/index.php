@@ -43,6 +43,7 @@ $funds = db_all(
     array_merge([$advancesCode, $institutionId], $params)
 );
 
+$pageScripts = ['js/modal_from.js'];
 $pageTitle = 'Funds';
 $activeNav = 'funds';
 $breadcrumb = [auth_context()['label'], 'Finance'];
@@ -50,7 +51,7 @@ require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Each fund is a purpose money is collected for. Balances come from posted journal entries.',
     (can_any(['funds.manage', 'funds.view_all']) ? button_link('funds/accounts.php', 'Financial Accounts', 'bi-bank', 'btn-outline-primary') : '')
-    . (can('funds.manage') ? button_link('funds/create.php', 'New Fund', 'bi-plus-lg') : '')) ?>
+    . (can('funds.manage') ? '<a class="btn btn-primary" href="' . e(url('funds/create.php')) . '" data-bs-toggle="modal" data-bs-target="#new-fund-modal"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New Fund</a>' : '')) ?>
 
 <div class="card panel">
     <form class="filter-bar" method="get">
@@ -89,4 +90,30 @@ require APP_ROOT . '/includes/header.php';
     <?php endif; ?>
     <?= pagination_links($pagination) ?>
 </div>
+<?php if (can('funds.manage')): $nf = old('form_name') === 'fund'; $fv = static fn(string $key, string $default = '') => $nf ? old($key, $default) : $default; ?>
+<div class="modal fade" id="new-fund-modal" tabindex="-1" aria-labelledby="new-fund-title" aria-hidden="true"<?= $nf ? ' data-open-on-load' : '' ?>>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form method="post" action="<?= e(url('funds/create.php')) ?>" class="modal-content">
+            <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="form_name" value="fund">
+            <div class="modal-header"><h2 class="modal-title h5" id="new-fund-title">New fund</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <p class="text-muted-sm">A <strong>fund</strong> is what the money is for (e.g. RAITE Fund 2026). Where it is physically held (a cash box, GCash, a bank account) is a <strong>financial account</strong>, linked to the fund on the next page.</p>
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label required" for="nf-fund_code">Code</label><input class="form-control" id="nf-fund_code" name="fund_code" required maxlength="60" value="<?= e($fv('fund_code')) ?>" placeholder="RAITE26"></div>
+                    <div class="col-md-8"><label class="form-label required" for="nf-fund_name">Name</label><input class="form-control" id="nf-fund_name" name="fund_name" required maxlength="180" value="<?= e($fv('fund_name')) ?>" placeholder="RAITE Fund 2026"></div>
+                    <div class="col-md-6"><label class="form-label" for="nf-fund_category">Classification</label>
+                        <input class="form-control" id="nf-fund_category" name="fund_category" maxlength="100" value="<?= e($fv('fund_category')) ?>" list="nf-fund-categories" placeholder="e.g. Restricted, Event, Class">
+                        <datalist id="nf-fund-categories"><option value="Event fund"><option value="Class fund"><option value="Restricted / Donation"><option value="Dues"><option value="Emergency"><option value="General"></datalist></div>
+                    <div class="col-md-6"><label class="form-label required" for="nf-custodian_membership_id">Accountable custodian</label><select class="form-select" id="nf-custodian_membership_id" name="custodian_membership_id" required><?= options_html(member_options(), $fv('custodian_membership_id'), 'Select…') ?></select></div>
+                    <div class="col-12"><label class="form-label" for="nf-purpose">Purpose and restrictions</label><textarea class="form-control" id="nf-purpose" name="purpose" rows="3" maxlength="2000" placeholder="What this money may and may not be used for"><?= e($fv('purpose')) ?></textarea></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Create Fund</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 <?php require APP_ROOT . '/includes/footer.php'; ?>

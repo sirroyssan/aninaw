@@ -166,10 +166,10 @@ require APP_ROOT . '/includes/header.php';
                 <div class="col-md-3" data-pay-full-only><label class="form-label">Amount received</label><div class="form-control-plaintext fw-semibold" data-pay-full>0.00</div></div>
                 <div class="col-md-3"><label class="form-label" for="payment_method">Method</label><select class="form-select" id="payment_method" name="payment_method"><?= options_html(PAYMENT_METHODS, old('payment_method', 'cash')) ?></select></div>
                 <div class="col-md-3"><label class="form-label required" for="financial_account_id">Received into</label>
-                    <select class="form-select" id="financial_account_id" name="financial_account_id" data-pay-account>
+                    <select class="form-select" id="financial_account_id" name="financial_account_id" data-pay-account data-allowed="<?= e((string) json_encode(PAYMENT_METHOD_ACCOUNT_TYPES)) ?>">
                         <option value="">Select…</option>
                         <?php foreach ($payAccounts as $account): ?>
-                            <option value="<?= (int) $account['id'] ?>" data-funds="<?= e($account['fund_ids']) ?>"<?= (string) old('financial_account_id') === (string) $account['id'] ? ' selected' : '' ?>><?= e(financial_account_label($account)) ?></option>
+                            <option value="<?= (int) $account['id'] ?>" data-type="<?= e($account['account_type']) ?>" data-funds="<?= e($account['fund_ids']) ?>"<?= (string) old('financial_account_id') === (string) $account['id'] ? ' selected' : '' ?>><?= e(financial_account_label($account)) ?></option>
                         <?php endforeach; ?>
                     </select>
                     <div class="form-text text-danger d-none" data-pay-no-account>You have no cash box or account linked to this item's fund. Ask the treasurer to link one (Funds → Financial Accounts).</div></div>

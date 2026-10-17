@@ -92,7 +92,7 @@ $funds = $eventId ? event_funds($eventId) : [];
 $accounts = [];
 foreach ($funds as $fund) {
     foreach (usable_financial_accounts((int) $fund['fund_id']) as $account) {
-        $accounts[$account['id']] = financial_account_label($account);
+        $accounts[$account['id']] = $account;
     }
 }
 $currency = current_currency();
