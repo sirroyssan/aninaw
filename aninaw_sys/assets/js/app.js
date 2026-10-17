@@ -244,6 +244,10 @@
                 return (!value || value.trim().length < 5) ? 'Please enter a reason (at least 5 characters).' : undefined;
             };
         }
+        // Inside a Bootstrap modal (e.g. the Collections "Pay" pop-up), show the dialog within it;
+        // otherwise the modal keeps focus to itself and the reason box cannot be typed in.
+        var openModal = form.closest('.modal.show') || (submitter && submitter.closest('.modal.show')) || document.querySelector('.modal.show');
+        if (openModal) { options.target = openModal; }
         Alert.fire(options).then(function (result) {
             if (!result.isConfirmed) { return; }
             if (reasonLabel) {
