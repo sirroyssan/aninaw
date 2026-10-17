@@ -42,7 +42,7 @@ if ($to) {
     $params[] = $to;
 }
 $whereSql = implode(' AND ', $where);
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM deposits d WHERE {$whereSql}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM deposits d WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT d.*, s.account_name AS source_name, t.account_name AS destination_name, CONCAT(u.first_name, ' ', u.last_name) AS recorded_by_name,
             (SELECT f.fund_name FROM cash_flow_transactions c JOIN fund_accounts f ON f.id = c.fund_id WHERE c.institution_id = d.institution_id AND c.source_type = 'deposit' AND c.source_id = d.id LIMIT 1) AS fund_name

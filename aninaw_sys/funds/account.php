@@ -55,7 +55,7 @@ $mappings = db_all(
      WHERE fm.institution_id = ? AND fm.financial_account_id = ? ORDER BY f.fund_name",
     [$institutionId, $accountId]
 );
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM cash_flow_transactions WHERE institution_id = ? AND financial_account_id = ?", [$institutionId, $accountId]), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM cash_flow_transactions WHERE institution_id = ? AND financial_account_id = ?", [$institutionId, $accountId]));
 $movements = db_all(
     "SELECT c.transaction_number, c.transaction_date, c.transaction_type, c.direction, c.amount, c.status, c.source_type, f.fund_name
      FROM cash_flow_transactions c JOIN fund_accounts f ON f.id = c.fund_id AND f.institution_id = c.institution_id

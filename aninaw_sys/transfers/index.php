@@ -27,7 +27,7 @@ if (in_array($status, ['submitted', 'approved', 'posted', 'rejected', 'reversed'
     $params[] = $status;
 }
 $whereSql = implode(' AND ', $where);
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM fund_transfers t WHERE {$whereSql}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM fund_transfers t WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT t.*, ff.fund_name AS from_name, tf.fund_name AS to_name, CONCAT(u.first_name, ' ', u.last_name) AS requested_by_name
      FROM fund_transfers t

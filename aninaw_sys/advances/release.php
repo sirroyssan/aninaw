@@ -10,7 +10,7 @@ require_once APP_ROOT . '/includes/services/advances.php';
 require_institution_context();
 require_permission('advances.release');
 
-[$rows, $pagination] = advance_queue(["a.status = 'approved'"], [], 25, 'a.request_date, a.id');
+[$rows, $pagination] = advance_queue(["a.status = 'approved'"], [], 'a.request_date, a.id');
 $total = db_one("SELECT COUNT(*) AS n, COALESCE(SUM(approved_amount), 0) AS amount FROM cash_advances WHERE institution_id = ? AND status = 'approved'", [current_institution_id()]);
 
 $pageTitle = 'Advances Awaiting Release';

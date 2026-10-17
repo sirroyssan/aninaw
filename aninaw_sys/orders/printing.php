@@ -52,7 +52,7 @@ $from = "FROM sales_order_items i JOIN sales_orders o ON o.id = i.order_id AND o
          LEFT JOIN institution_memberships am ON am.id = i.assigned_membership_id AND am.institution_id = i.institution_id LEFT JOIN users au ON au.id = am.user_id";
 $counts = db_query("SELECT i.service_status, COUNT(*) FROM sales_order_items i JOIN sales_orders o ON o.id = i.order_id AND o.institution_id = i.institution_id
                     WHERE i.institution_id = ? AND i.fulfillment = 'service' AND o.order_status <> 'cancelled' GROUP BY i.service_status", [$institutionId])->fetchAll(PDO::FETCH_KEY_PAIR);
-$pagination = paginate((int) db_value("SELECT COUNT(*) {$from} WHERE {$whereSql}", $params), 30);
+$pagination = paginate((int) db_value("SELECT COUNT(*) {$from} WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT i.*, o.order_number, o.payment_status, o.order_status, pt.first_name, pt.last_name, pt.participant_number, CONCAT(au.first_name, ' ', au.last_name) AS assigned_name
      {$from} WHERE {$whereSql} ORDER BY FIELD(i.service_status, 'in_progress', 'pending', 'completed', 'released'), i.service_date, i.id

@@ -65,7 +65,7 @@ if (get_str('export', 10) === 'csv') {
 }
 
 $totals = db_one("SELECT COALESCE(SUM(l.debit_amount), 0) AS debits, COALESCE(SUM(l.credit_amount), 0) AS credits {$fromSql} WHERE {$whereSql}", $params);
-$pagination = paginate((int) db_value("SELECT COUNT(*) {$fromSql} WHERE {$whereSql}", $params), 40);
+$pagination = paginate((int) db_value("SELECT COUNT(*) {$fromSql} WHERE {$whereSql}", $params));
 $broughtForward = $opening;
 if ($pagination['offset'] > 0) {
     $broughtForward += $sign * to_cents(db_value("SELECT COALESCE(SUM(x.net), 0) FROM (SELECT l.debit_amount - l.credit_amount AS net {$fromSql} WHERE {$whereSql} {$order} LIMIT {$pagination['offset']}) x", $params));

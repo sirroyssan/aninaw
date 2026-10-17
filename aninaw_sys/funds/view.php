@@ -95,7 +95,7 @@ $baseSql = "FROM journal_lines l
             JOIN journal_entries j ON j.id = l.journal_entry_id AND j.institution_id = l.institution_id AND j.status = 'posted'
             LEFT JOIN financial_accounts fa ON fa.id = l.financial_account_id AND fa.institution_id = l.institution_id
             WHERE {$statementWhere}";
-$pagination = paginate((int) db_value("SELECT COUNT(*) {$baseSql}", $statementParams), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) {$baseSql}", $statementParams));
 if ($pagination['offset'] > 0) {
     $balanceBefore += to_cents(db_value(
         "SELECT COALESCE(SUM(t.amount), 0) FROM (SELECT l.debit_amount - l.credit_amount AS amount {$baseSql}

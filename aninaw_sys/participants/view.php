@@ -26,16 +26,21 @@ $obligations = can('collections.view') ? db_all(
      FROM event_obligations o
      JOIN events e ON e.id = o.event_id AND e.institution_id = o.institution_id
      JOIN collection_rules cr ON cr.id = o.collection_rule_id AND cr.institution_id = o.institution_id
-     WHERE o.institution_id = ? AND o.participant_id = ? ORDER BY o.created_at DESC",
+     WHERE o.institution_id = ? AND o.participant_id = ? ORDER BY o.created_at DESC LIMIT " . (LIST_PAGE_SIZE + 1),
     [current_institution_id(), $participantId]
 ) : [];
 $payments = can('collections.view') ? db_all(
     "SELECT p.id, p.payment_number, p.payment_date, p.payment_method, p.amount, p.status, r.receipt_number, r.receipt_status
      FROM payments p LEFT JOIN receipts r ON r.payment_id = p.id AND r.institution_id = p.institution_id
-     WHERE p.institution_id = ? AND p.payer_participant_id = ? ORDER BY p.payment_date DESC, p.id DESC LIMIT 50",
+     WHERE p.institution_id = ? AND p.payer_participant_id = ? ORDER BY p.payment_date DESC, p.id DESC LIMIT " . (LIST_PAGE_SIZE + 1),
     [current_institution_id(), $participantId]
 ) : [];
 
+// Latest 10 of each here; the full lists are in Collections and Payment History.
+$moreObligations = count($obligations) > LIST_PAGE_SIZE;
+$morePayments = count($payments) > LIST_PAGE_SIZE;
+$obligations = array_slice($obligations, 0, LIST_PAGE_SIZE);
+$payments = array_slice($payments, 0, LIST_PAGE_SIZE);
 $pageTitle = person_name($participant);
 $activeNav = 'participants';
 $breadcrumb = [auth_context()['label'], 'People'];
@@ -81,7 +86,7 @@ require APP_ROOT . '/includes/header.php';
     <div class="col-xl-8">
         <?php if (can('collections.view')): ?>
             <div class="card panel mb-3">
-                <div class="card-header"><h3>Obligations</h3></div>
+                <div class="card-header"><h3>Obligations</h3><?php if ($moreObligations): ?><a class="text-muted-sm" href="<?= e(url('collections/index.php?status=all&q=' . rawurlencode($participant['participant_number']))) ?>">Latest 10 · see all</a><?php endif; ?></div>
                 <?php if (!$obligations): ?>
                     <div class="card-body"><?= empty_state('bi-card-checklist', 'No obligations') ?></div>
                 <?php else: ?>
@@ -106,7 +111,7 @@ require APP_ROOT . '/includes/header.php';
                 <?php endif; ?>
             </div>
             <div class="card panel">
-                <div class="card-header"><h3>Payment History</h3></div>
+                <div class="card-header"><h3>Payment History</h3><?php if ($morePayments): ?><a class="text-muted-sm" href="<?= e(url('collections/payments.php?q=' . rawurlencode($participant['participant_number']))) ?>">Latest 10 · see all</a><?php endif; ?></div>
                 <?php if (!$payments): ?>
                     <div class="card-body"><?= empty_state('bi-receipt', 'No payments recorded') ?></div>
                 <?php else: ?>

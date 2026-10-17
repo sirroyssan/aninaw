@@ -575,12 +575,12 @@ function complete_liquidation_review(int $advanceId): string
  *
  * @return array{0: array, 1: array} rows and pagination
  */
-function advance_queue(array $where, array $params, int $perPage = 25, string $order = 'a.id DESC'): array
+function advance_queue(array $where, array $params, string $order = 'a.id DESC'): array
 {
     array_unshift($where, 'a.institution_id = ?');
     array_unshift($params, current_institution_id());
     $whereSql = implode(' AND ', $where);
-    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM cash_advances a WHERE {$whereSql}", $params), $perPage);
+    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM cash_advances a WHERE {$whereSql}", $params));
     $rows = db_all(
         "SELECT a.*, f.fund_name, CONCAT(u.first_name, ' ', u.last_name) AS recipient_name,
                 (SELECT COALESCE(SUM(x.amount), 0) FROM cash_advance_expenses x WHERE x.institution_id = a.institution_id AND x.cash_advance_id = a.id AND x.verification_status = 'verified') AS verified,

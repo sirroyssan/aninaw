@@ -82,7 +82,7 @@ if (get_str('export', 10) === 'csv') {
     );
 }
 
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM journal_entries j WHERE {$whereSql}", $params), 30);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM journal_entries j WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT j.*, CONCAT(cu.first_name, ' ', cu.last_name) AS created_by_name,
             (SELECT SUM(l.debit_amount) FROM journal_lines l WHERE l.institution_id = j.institution_id AND l.journal_entry_id = j.id) AS total,

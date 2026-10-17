@@ -43,6 +43,8 @@ if ($ready) {
     }
     $whereSql = implode(' AND ', $where);
     $totals = donation_totals($whereSql, $params);
+    $csv = get_str('export', 10) === 'csv';
+    $pagination = paginate($totals['count']);
     $rows = db_all(
         "SELECT d.id, d.donation_number, d.donor_kind, d.purpose, d.pledged_amount, d.expected_date, d.status, d.created_at, dn.first_name, dn.last_name, dn.participant_number,
                 f.fund_name, e.event_name, e.event_code,
@@ -56,11 +58,11 @@ if ($ready) {
          JOIN participants dn ON dn.id = d.donor_participant_id AND dn.institution_id = d.institution_id
          JOIN fund_accounts f ON f.id = d.fund_id AND f.institution_id = d.institution_id
          LEFT JOIN events e ON e.id = d.event_id AND e.institution_id = d.institution_id
-         WHERE {$whereSql} ORDER BY d.created_at DESC, d.id DESC LIMIT 1000",
+         WHERE {$whereSql} ORDER BY d.created_at DESC, d.id DESC" . ($csv ? '' : " LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}"),
         $params
     );
 
-    if (get_str('export', 10) === 'csv') {
+    if ($csv) {
         audit_log('report.exported', 'donation', null, $institutionId, (int) auth_user()['id'], ['report' => 'solicitations', 'rows' => count($rows)]);
         send_csv('solicitations_' . date('Ymd') . '.csv',
             ['Reference', 'Donor', 'Donor type', 'Event', 'Fund', 'Purpose', 'Pledged', 'Received', 'Still pledged', 'Status', 'Last received', 'Receipt'],
@@ -114,6 +116,7 @@ require APP_ROOT . '/includes/header.php';
                 <?php endforeach; ?></tbody>
             </table></div>
         <?php endif; ?>
+        <?= pagination_links($pagination) ?>
     </div>
 <?php endif; ?>
 <?php require APP_ROOT . '/includes/footer.php'; ?>

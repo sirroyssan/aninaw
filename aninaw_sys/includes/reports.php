@@ -456,7 +456,6 @@ function report_definitions(): array
             'columns' => ['created_at' => ['When', 'datetime'], 'actor' => ['User'], 'institution_code' => ['Institution', 'text', false, null, 'platform'], 'action' => ['Action'],
                 'record' => ['Record', 'text', false, static fn($r) => $r['entity_type'] . ($r['entity_id'] ? ' #' . $r['entity_id'] : '')], 'reason' => ['Reason'],
                 'changes' => ['Changes', 'changes', false, static fn($r) => audit_changes_text($r['before_data'], $r['after_data'])], 'request_id' => ['Request ID']],
-            'per_page' => 50,
             'note' => 'Audit records are read-only in the application. Network details (IP, browser) are kept in the log but not exported.',
         ],
     ] + store_report_definitions();
@@ -694,7 +693,7 @@ function render_report(string $key): never
             $preamble);
     }
 
-    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM ({$sql}) r", $params), $definition['per_page'] ?? 30);
+    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM ({$sql}) r", $params));
     $rows = array_map($withComputed, db_all("SELECT * FROM ({$sql}) r ORDER BY {$order} LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}", $params));
 
     // Totals over the whole filtered result (not just this page).

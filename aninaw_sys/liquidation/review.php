@@ -13,7 +13,6 @@ require_permission('liquidation.review');
 [$rows, $pagination] = advance_queue(
     ['a.recipient_membership_id <> ?', "(a.status = 'submitted_for_review' OR EXISTS (SELECT 1 FROM cash_advance_returns r WHERE r.institution_id = a.institution_id AND r.cash_advance_id = a.id AND r.status = 'pending_verification'))"],
     [current_membership_id()],
-    25,
     "a.status = 'submitted_for_review' DESC, a.updated_at, a.id"
 );
 

@@ -34,7 +34,7 @@ if ($search !== '') {
     $params[] = "%{$search}%";
 }
 $whereSql = implode(' AND ', $where);
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM cash_turnovers t WHERE {$whereSql}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM cash_turnovers t WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT t.*, e.event_name, g.group_name, CONCAT(su.first_name, ' ', su.last_name) AS sender, CONCAT(ru.first_name, ' ', ru.last_name) AS receiver,
             (SELECT COUNT(*) FROM cash_turnover_details d WHERE d.institution_id = t.institution_id AND d.turnover_id = t.id) AS payments

@@ -96,7 +96,7 @@ if (get_str('export', 10) === 'csv') {
     );
 }
 
-$pagination = paginate((int) db_value("SELECT COUNT(*) {$fromSql} WHERE {$whereSql}", $params), 30);
+$pagination = paginate((int) db_value("SELECT COUNT(*) {$fromSql} WHERE {$whereSql}", $params));
 $opening = 0;
 if ($showRunning) {
     $paramsNoFrom = array_slice($params, 0, count($params) - ($filters['from'] ? 1 : 0));

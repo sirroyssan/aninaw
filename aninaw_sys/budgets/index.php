@@ -55,7 +55,7 @@ if ($filters['q'] !== '') {
     array_push($params, $like, $like);
 }
 $whereSql = implode(' AND ', $where);
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM budgets b WHERE {$whereSql}", $params), 20);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM budgets b WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT b.id FROM budgets b WHERE {$whereSql} ORDER BY FIELD(b.status, 'pending', 'draft', 'approved', 'active', 'closed', 'cancelled'), b.start_date DESC, b.id DESC
      LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}",

@@ -68,7 +68,7 @@ if (!$participant) {
                 (SELECT COUNT(*) FROM event_obligations o JOIN events e ON e.id = o.event_id AND e.status = 'collecting'
                   WHERE o.institution_id = p.institution_id AND o.participant_id = p.id AND o.status IN ('unpaid', 'partially_paid')) AS open_count
          FROM participants p WHERE {$where}
-         HAVING open_count > 0 ORDER BY p.last_name, p.first_name LIMIT 30",
+         HAVING open_count > 0 ORDER BY p.last_name, p.first_name LIMIT " . LIST_PAGE_SIZE,
         $params
     );
 }

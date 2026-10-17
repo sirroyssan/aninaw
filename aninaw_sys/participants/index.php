@@ -41,7 +41,7 @@ if ($status !== 'all') {
 $whereSql = implode(' AND ', $where);
 [$orderBy, $sortKey, $sortDir] = sort_clause(['name' => 'p.last_name', 'number' => 'p.participant_number', 'type' => 'p.participant_type', 'created' => 'p.created_at'], 'name');
 
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM participants p WHERE {$whereSql}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM participants p WHERE {$whereSql}", $params));
 $participants = db_all(
     "SELECT p.id, p.participant_number, p.first_name, p.middle_name, p.last_name, p.email, p.participant_type, p.status, p.user_id,
             (SELECT pr.program_code FROM programs pr WHERE pr.institution_id = p.institution_id AND pr.id = p.program_id) AS program_code,

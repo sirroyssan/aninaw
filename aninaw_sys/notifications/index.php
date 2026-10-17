@@ -28,7 +28,7 @@ generate_due_reminders($institutionId);
 $unreadOnly = get_str('show', 10) === 'unread';
 $where = 'institution_id = ? AND recipient_user_id = ?' . ($unreadOnly ? ' AND read_at IS NULL' : '');
 $params = [$institutionId, $userId];
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM notifications WHERE {$where}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM notifications WHERE {$where}", $params));
 $rows = db_all("SELECT * FROM notifications WHERE {$where} ORDER BY created_at DESC, id DESC LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}", $params);
 $unread = (int) db_value('SELECT COUNT(*) FROM notifications WHERE institution_id = ? AND recipient_user_id = ? AND read_at IS NULL', $params);
 $icons = [

@@ -52,7 +52,7 @@ $fromSql = "FROM payments p
             WHERE {$whereSql}";
 $totals = db_one("SELECT COALESCE(SUM(CASE WHEN p.status = 'posted' THEN p.amount END), 0) AS posted, COALESCE(SUM(CASE WHEN p.status = 'reversed' THEN p.amount END), 0) AS reversed {$fromSql}", $params);
 [$orderBy, $sortKey, $sortDir] = sort_clause(['date' => 'p.payment_date', 'amount' => 'p.amount', 'payer' => 'pt.last_name', 'number' => 'p.payment_number'], 'date', 'desc');
-$pagination = paginate((int) db_value("SELECT COUNT(*) {$fromSql}", $params), 30);
+$pagination = paginate((int) db_value("SELECT COUNT(*) {$fromSql}", $params));
 $rows = db_all(
     "SELECT p.id, p.payment_number, p.payment_date, p.payment_method, p.amount, p.status, r.receipt_number, r.receipt_status,
             pt.participant_number, pt.first_name, pt.last_name, CONCAT(u.first_name, ' ', u.last_name) AS received_by

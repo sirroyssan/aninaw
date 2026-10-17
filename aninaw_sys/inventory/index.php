@@ -21,7 +21,7 @@ if (get_str('export', 10) === 'csv') {
             cents_to_decimal(to_cents($r['effective_cost'])), cents_to_decimal(max(0, (int) $r['on_hand']) * to_cents($r['effective_cost']))], $rows),
         [['Inventory', auth_context()['label']], ['Filter', $filters['low'] ? 'Low stock only' : 'All items'], ['Generated', date('Y-m-d H:i') . ' by ' . auth_user()['username']]]);
 }
-$pagination = paginate(count($rows), 40);
+$pagination = paginate(count($rows));
 $pageRows = array_slice($rows, $pagination['offset'], $pagination['per_page']);
 
 $pageTitle = 'Inventory';

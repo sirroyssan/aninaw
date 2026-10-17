@@ -59,7 +59,7 @@ $totals = db_one(
     $params
 );
 [$orderBy, $sortKey, $sortDir] = sort_clause(['date' => 'x.expense_date', 'amount' => 'x.amount', 'payee' => 'x.payee', 'status' => 'x.status'], 'date', 'desc');
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM expenses x WHERE {$whereSql}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM expenses x WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT x.*, f.fund_name, e.event_name, CONCAT(u.first_name, ' ', u.last_name) AS created_by_name
      FROM expenses x JOIN fund_accounts f ON f.id = x.fund_id LEFT JOIN events e ON e.id = x.event_id JOIN users u ON u.id = x.created_by

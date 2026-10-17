@@ -269,7 +269,10 @@ function query_url(array $changes = []): string
 }
 
 /** @return array{page:int, per_page:int, offset:int, total:int, pages:int} */
-function paginate(int $total, int $perPage = 20): array
+/** Every on-screen list shows this many records per page (printouts and CSV exports list everything). */
+const LIST_PAGE_SIZE = 10;
+
+function paginate(int $total, int $perPage = LIST_PAGE_SIZE): array
 {
     $page = max(1, (int) (get_int('page') ?? 1));
     $pages = max(1, (int) ceil($total / $perPage));

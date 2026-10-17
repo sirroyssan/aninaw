@@ -48,7 +48,7 @@ $paidSql = "(SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocatio
 $totals = db_one("SELECT COALESCE(SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount ELSE 0 END), 0) AS due, COALESCE(SUM({$paidSql}), 0) AS paid {$fromSql}", $params);
 $obligationCount = (int) db_value("SELECT COUNT(*) {$fromSql}", $params);
 [$orderBy, $sortKey, $sortDir] = sort_clause(['name' => 'MIN(p.last_name)', 'event' => 'MIN(e.event_name)', 'due' => 'MIN(o.due_date)', 'balance' => 'balance'], 'name');
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM (SELECT 1 {$fromSql} GROUP BY o.participant_id, o.event_id) people", $params), 30);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM (SELECT 1 {$fromSql} GROUP BY o.participant_id, o.event_id) people", $params));
 $rows = db_all(
     "SELECT o.participant_id, MIN(p.participant_number) AS participant_number, MIN(p.first_name) AS first_name, MIN(p.last_name) AS last_name,
             o.event_id, MIN(e.event_name) AS event_name, MIN(e.status) AS event_status, MIN(o.due_date) AS due_date,

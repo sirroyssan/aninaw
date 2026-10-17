@@ -29,7 +29,7 @@ if ($isPlatform) {
     }
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     [$orderBy, $sortKey, $sortDir] = sort_clause(['name' => 'u.last_name', 'email' => 'u.email', 'status' => 'u.status', 'login' => 'u.last_login_at'], 'name');
-    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM users u {$whereSql}", $params), 25);
+    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM users u {$whereSql}", $params));
     $rows = db_all(
         "SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.status, u.last_login_at,
                 (SELECT COUNT(*) FROM institution_memberships m WHERE m.user_id = u.id AND m.membership_status = 'active') AS memberships,
@@ -51,7 +51,7 @@ if ($isPlatform) {
     }
     $whereSql = 'WHERE ' . implode(' AND ', $where);
     [$orderBy, $sortKey, $sortDir] = sort_clause(['name' => 'u.last_name', 'email' => 'u.email', 'status' => 'm.membership_status', 'login' => 'u.last_login_at', 'joined' => 'm.joined_at'], 'name');
-    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM institution_memberships m JOIN users u ON u.id = m.user_id {$whereSql}", $params), 25);
+    $pagination = paginate((int) db_value("SELECT COUNT(*) FROM institution_memberships m JOIN users u ON u.id = m.user_id {$whereSql}", $params));
     $rows = db_all(
         "SELECT m.id AS membership_id, m.membership_status, m.joined_at, u.id AS user_id, u.username, u.email, u.first_name, u.last_name,
                 u.status AS account_status, u.last_login_at,

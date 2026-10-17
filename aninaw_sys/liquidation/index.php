@@ -24,7 +24,7 @@ if ($status === 'open') {
     $where[] = 'a.status = ?';
     $params[] = $status;
 }
-[$rows, $pagination] = advance_queue($where, $params, 25, "a.status = 'liquidated', a.liquidation_deadline, a.id DESC");
+[$rows, $pagination] = advance_queue($where, $params, "a.status = 'liquidated', a.liquidation_deadline, a.id DESC");
 
 $scope = $seeAll ? '' : ' AND a.recipient_membership_id = ' . (int) current_membership_id();
 $summary = db_one(

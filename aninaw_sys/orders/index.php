@@ -57,7 +57,7 @@ $whereSql = implode(' AND ', $where);
 $from = 'FROM sales_orders o JOIN participants pt ON pt.id = o.customer_participant_id AND pt.institution_id = o.institution_id';
 $paidSql = "(SELECT COALESCE(SUM(sop.amount), 0) FROM sales_order_payments sop JOIN payments p ON p.id = sop.payment_id AND p.institution_id = sop.institution_id AND p.status = 'posted' WHERE sop.institution_id = o.institution_id AND sop.order_id = o.id)";
 $totals = db_one("SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN o.order_status <> 'cancelled' THEN o.total_amount END), 0) AS value, COALESCE(SUM({$paidSql}), 0) AS paid {$from} WHERE {$whereSql}", $params);
-$pagination = paginate((int) $totals['n'], 25);
+$pagination = paginate((int) $totals['n']);
 $rows = db_all(
     "SELECT o.*, pt.participant_number, pt.first_name, pt.last_name, {$paidSql} AS paid,
             (SELECT GROUP_CONCAT(CONCAT(i.description, ' ×', i.quantity) ORDER BY i.id SEPARATOR ', ') FROM sales_order_items i WHERE i.institution_id = o.institution_id AND i.order_id = o.id) AS items

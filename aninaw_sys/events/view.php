@@ -424,7 +424,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         }
         return $needle === '' || str_contains(mb_strtolower($row['participant_number'] . ' ' . $row['last_name'] . ', ' . $row['first_name'] . ' ' . $row['first_name'] . ' ' . $row['last_name']), $needle);
     }));
-    $peoplePages = paginate(count($listed), 10);
+    $peoplePages = paginate(count($listed));
     $listed = array_slice($listed, $peoplePages['offset'], $peoplePages['per_page']);
     ?>
     <?php if (can_check_event_documents($event) || can('organization.manage')): ?>
@@ -546,7 +546,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                                COUNT(DISTINCT o.participant_id) AS people {$obFrom}", $params);
     $canPay = can('collections.record') && $event['status'] === 'collecting';
     if ($obView === 'people') {
-        $obPagination = paginate((int) db_value("SELECT COUNT(*) FROM (SELECT 1 {$obFrom} GROUP BY o.participant_id) people", $params), 20);
+        $obPagination = paginate((int) db_value("SELECT COUNT(*) FROM (SELECT 1 {$obFrom} GROUP BY o.participant_id) people", $params));
         $personRows = db_all(
             "SELECT o.participant_id, MIN(p.participant_number) AS participant_number, MIN(p.first_name) AS first_name, MIN(p.last_name) AS last_name, MIN(o.due_date) AS due_date,
                     SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount ELSE 0 END) AS due, SUM(o.waived_amount) AS waived, SUM({$obPaidSql}) AS paid,
@@ -557,7 +557,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
             $params
         );
     }
-    $obPagination ??= paginate((int) db_value("SELECT COUNT(*) FROM event_obligations o JOIN participants p ON p.id = o.participant_id AND p.institution_id = o.institution_id WHERE {$whereSql}", $params), 30);
+    $obPagination ??= paginate((int) db_value("SELECT COUNT(*) FROM event_obligations o JOIN participants p ON p.id = o.participant_id AND p.institution_id = o.institution_id WHERE {$whereSql}", $params));
     $obligations = $obView === 'people' ? [] : db_all(
         "SELECT o.*, p.participant_number, p.first_name, p.last_name, r.rule_name,
                 (SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocations pa JOIN payments pp ON pp.id = pa.payment_id AND pp.institution_id = pa.institution_id AND pp.status = 'posted'

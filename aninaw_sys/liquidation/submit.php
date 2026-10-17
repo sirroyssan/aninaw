@@ -12,7 +12,6 @@ require_permission('liquidation.submit');
 [$rows, $pagination] = advance_queue(
     ['a.recipient_membership_id = ?', "a.status IN ('" . implode("','", ADVANCE_OPEN_STATUSES) . "')"],
     [current_membership_id()],
-    25,
     "FIELD(a.status, 'returned_for_correction', 'overdue') DESC, a.liquidation_deadline, a.id"
 );
 

@@ -65,6 +65,8 @@ $members = db_all(
      WHERE gm.institution_id = ? AND gm.group_id = ? AND gm.status = 'active' ORDER BY p.last_name, p.first_name",
     [current_institution_id(), $groupId]
 );
+$memberPages = paginate(count($members));
+$membersShown = array_slice($members, $memberPages['offset'], $memberPages['per_page']);
 $officers = db_all(
     "SELECT go.*, u.first_name, u.last_name, u.email FROM group_officers go
      JOIN institution_memberships m ON m.id = go.membership_id AND m.institution_id = go.institution_id JOIN users u ON u.id = m.user_id
@@ -84,7 +86,7 @@ if ($canManage && mb_strlen($find) >= 2) {
          WHERE p.institution_id = ? AND p.status = 'active'
            AND NOT EXISTS (SELECT 1 FROM group_memberships gm WHERE gm.institution_id = p.institution_id AND gm.group_id = ? AND gm.participant_id = p.id AND gm.status = 'active')
            AND (p.participant_number LIKE ? OR p.first_name LIKE ? OR p.last_name LIKE ? OR CONCAT(p.first_name, ' ', p.last_name) LIKE ?)
-         ORDER BY p.last_name, p.first_name LIMIT 20",
+         ORDER BY p.last_name, p.first_name LIMIT " . LIST_PAGE_SIZE,
         array_merge([current_institution_id(), $groupId], array_fill(0, 4, $like))
     );
 }
@@ -117,7 +119,7 @@ require APP_ROOT . '/includes/header.php';
                     <table class="table table-clean align-middle mb-0">
                         <thead><tr><th>ID No.</th><th>Name</th><th>Type</th><th>Year / Term</th><th>Since</th><?php if ($canManage): ?><th></th><?php endif; ?></tr></thead>
                         <tbody>
-                        <?php foreach ($members as $row): ?>
+                        <?php foreach ($membersShown as $row): ?>
                             <tr>
                                 <td class="fw-semibold"><?= e($row['participant_number']) ?></td>
                                 <td><a href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>"><?= e(person_name($row)) ?></a></td>
@@ -139,6 +141,7 @@ require APP_ROOT . '/includes/header.php';
                         </tbody>
                     </table>
                 </div>
+                <?= pagination_links($memberPages) ?>
             <?php endif; ?>
         </div>
 

@@ -37,7 +37,7 @@ if ($filters['q'] !== '') {
 }
 $whereSql = implode(' AND ', $where);
 [$sortSql, $sortKey, $sortDir] = sort_clause(['name' => 'p.product_name', 'sku' => 'p.sku', 'price' => 'p.retail_price', 'updated' => 'p.updated_at'], 'name');
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM products p WHERE {$whereSql}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM products p WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT p.*, c.category_name,
             (SELECT COUNT(*) FROM product_variants v WHERE v.institution_id = p.institution_id AND v.product_id = p.id AND v.status = 'active') AS variant_count,

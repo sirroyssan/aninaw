@@ -24,7 +24,7 @@ if ($filters['status'] === 'open') {
     $params[] = $filters['status'];
 }
 $whereSql = implode(' AND ', $where);
-$pagination = paginate((int) db_value("SELECT COUNT(*) FROM stock_batches b WHERE {$whereSql}", $params), 25);
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM stock_batches b WHERE {$whereSql}", $params));
 $rows = db_all(
     "SELECT b.*, p.product_name, p.fulfillment,
             (SELECT COALESCE(SUM(quantity_ordered), 0) FROM stock_batch_items i WHERE i.institution_id = b.institution_id AND i.batch_id = b.id) AS ordered,
