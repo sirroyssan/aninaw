@@ -51,6 +51,7 @@ $sections = navigation_sections();
             </div>
         <?php endforeach; ?>
     </nav>
+    <script src="<?= e(asset('js/sidebar.js')) ?>"></script>
 
     <div class="sidebar-user">
         <span class="avatar avatar-sidebar"><?= e(initials($user['full_name'])) ?></span>
