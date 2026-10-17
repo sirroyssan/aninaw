@@ -279,6 +279,58 @@ function end_fund_mapping(int $mappingId): void
 }
 
 /**
+ * Changes the period of a fund-account mapping (start date, and end date or none).
+ * Every journal line of this fund in this account that the period covered must stay
+ * covered (by the new period or another mapping of the same account), periods of the
+ * same account may not overlap, and the change is audited with the old dates.
+ */
+function update_fund_mapping_dates(int $mappingId, array $input): void
+{
+    $institutionId = (int) current_institution_id();
+    if (!can('funds.manage')) {
+        fail_user('You do not have permission to change fund mappings.');
+    }
+    $row = db_one('SELECT * FROM fund_account_mappings WHERE institution_id = ? AND id = ?', [$institutionId, $mappingId]) ?? fail_user('Mapping not found.');
+    find_fund((int) $row['fund_id'], ['draft', 'pending', 'active']);
+    $from = input_date($input, 'valid_from') ?? fail_user('Enter the start date.');
+    $until = input_date($input, 'valid_until');
+    if ($until !== null && $until < $from) {
+        fail_user('The end date cannot be before the start date.');
+    }
+    if ($from === $row['valid_from'] && $until === $row['valid_until']) {
+        fail_user('The dates were not changed.');
+    }
+    if (db_value(
+        'SELECT 1 FROM fund_account_mappings WHERE institution_id = ? AND fund_id = ? AND financial_account_id = ? AND id <> ?
+           AND valid_from <= COALESCE(?, "9999-12-31") AND (valid_until IS NULL OR valid_until >= ?)',
+        [$institutionId, $row['fund_id'], $row['financial_account_id'], $mappingId, $until, $from]
+    )) {
+        fail_user('Those dates overlap another period of this account for the fund. Change or end that one first.');
+    }
+    // Money already recorded under the old period must still be authorised afterwards.
+    $outside = db_one(
+        "SELECT MIN(j.journal_date) AS first_date, MAX(j.journal_date) AS last_date, COUNT(*) AS line_count
+         FROM journal_lines l JOIN journal_entries j ON j.id = l.journal_entry_id AND j.institution_id = l.institution_id AND j.status IN ('posted', 'reversed')
+         WHERE l.institution_id = ? AND l.fund_id = ? AND l.financial_account_id = ?
+           AND j.journal_date >= ? AND (? IS NULL OR j.journal_date <= ?)
+           AND NOT (j.journal_date >= ? AND (? IS NULL OR j.journal_date <= ?))
+           AND NOT EXISTS (SELECT 1 FROM fund_account_mappings o WHERE o.institution_id = l.institution_id AND o.fund_id = l.fund_id AND o.financial_account_id = l.financial_account_id
+                             AND o.id <> ? AND o.valid_from <= j.journal_date AND (o.valid_until IS NULL OR o.valid_until >= j.journal_date))",
+        [$institutionId, $row['fund_id'], $row['financial_account_id'], $row['valid_from'], $row['valid_until'], $row['valid_until'],
+         $from, $until, $until, $mappingId]
+    );
+    if ((int) $outside['line_count'] > 0) {
+        fail_user('Transactions of this fund were recorded in this account on ' . format_date($outside['first_date'])
+            . ($outside['last_date'] !== $outside['first_date'] ? ' to ' . format_date($outside['last_date']) : '')
+            . '. The period must still include ' . ($outside['last_date'] !== $outside['first_date'] ? 'those dates.' : 'that date.'));
+    }
+    db_query('UPDATE fund_account_mappings SET valid_from = ?, valid_until = ? WHERE id = ?', [$from, $until, $mappingId]);
+    audit_log('fund.mapping_dates_changed', 'fund_account', (int) $row['fund_id'], $institutionId, (int) auth_user()['id'],
+        ['financial_account_id' => (int) $row['financial_account_id'], 'valid_from' => $from, 'valid_until' => $until],
+        ['valid_from' => $row['valid_from'], 'valid_until' => $row['valid_until']]);
+}
+
+/**
  * Lets an account hold the fund's money again, with no end date. A mapping that is still
  * running or ended no earlier than yesterday is extended; one that ended earlier gets a new
  * period from today, so the days it was ended stay closed to back-dated postings.

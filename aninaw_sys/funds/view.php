@@ -33,6 +33,14 @@ if (is_post()) {
                 end_fund_mapping(post_int('mapping_id') ?? 0);
                 flash('success', 'Mapping ended');
                 break;
+            case 'mapping_dates':
+                $mappingId = post_int('mapping_id') ?? 0;
+                if (!db_value('SELECT 1 FROM fund_account_mappings WHERE institution_id = ? AND id = ? AND fund_id = ?', [current_institution_id(), $mappingId, $fundId])) {
+                    fail_user('Mapping not found.');
+                }
+                update_fund_mapping_dates($mappingId, $_POST);
+                flash('success', 'Authorised period updated');
+                break;
             case 'reopen_mapping':
                 $how = reopen_fund_mapping(post_int('mapping_id') ?? 0);
                 flash('success', 'Account can be used again', $how === 'extended' ? 'The end date was removed.' : 'A new period starts today; the days it was ended stay closed.');
@@ -246,6 +254,18 @@ require APP_ROOT . '/includes/header.php';
                                 <div class="fw-semibold"><?= e($row['account_name']) ?></div>
                                 <div class="text-muted-sm"><?= e(($row['custodian_name'] ?: 'No custodian') . ' · ' . format_date($row['valid_from']) . ' – ' . ($row['valid_until'] ? format_date($row['valid_until']) : 'open')) ?></div>
                                 <?php if ($row['opening_entry']): ?><span class="badge badge-soft-success">Opening balance posted</span><?php endif; ?>
+                                <?php if ($canManage && $fund['status'] !== 'closed'): ?>
+                                <details class="mapping-dates mt-1"><summary class="text-muted-sm">Change dates</summary>
+                                <form method="post" class="mt-2" data-confirm="Change the authorised period?" data-confirm-text="Money already recorded in this account for the fund must stay inside the period.">
+                                    <?= csrf_field() ?><input type="hidden" name="action" value="mapping_dates"><input type="hidden" name="mapping_id" value="<?= (int) $row['id'] ?>">
+                                    <div class="row g-2">
+                                        <div class="col-6"><label class="form-label small mb-0" for="md-from-<?= (int) $row['id'] ?>">From</label><input class="form-control form-control-sm" type="date" id="md-from-<?= (int) $row['id'] ?>" name="valid_from" required value="<?= e($row['valid_from']) ?>"></div>
+                                        <div class="col-6"><label class="form-label small mb-0" for="md-until-<?= (int) $row['id'] ?>">Until <span class="text-muted-sm">(empty = no end)</span></label><input class="form-control form-control-sm" type="date" id="md-until-<?= (int) $row['id'] ?>" name="valid_until" value="<?= e((string) $row['valid_until']) ?>"></div>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-xs mt-2" type="submit">Save dates</button>
+                                </form>
+                            </details>
+                                <?php endif; ?>
                             </div>
                             <?php if ($canManage): ?>
                                 <div class="d-flex flex-column gap-1">

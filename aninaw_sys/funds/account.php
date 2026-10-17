@@ -25,6 +25,15 @@ if (!$isCustodian) {
 if (is_post()) {
     require_permission('funds.manage');
     handle_post(function () use ($accountId) {
+        if (post_str('action', 20) === 'mapping_dates') {
+            $mappingId = post_int('mapping_id') ?? 0;
+            if (!db_value('SELECT 1 FROM fund_account_mappings WHERE institution_id = ? AND id = ? AND financial_account_id = ?', [current_institution_id(), $mappingId, $accountId])) {
+                fail_user('Mapping not found.');
+            }
+            update_fund_mapping_dates($mappingId, $_POST);
+            flash('success', 'Authorised period updated');
+            return 'funds/account.php?id=' . $accountId;
+        }
         set_financial_account_status($accountId, post_str('status', 20), post_str('reason', 1000));
         flash('success', 'Account status updated');
         return 'funds/account.php?id=' . $accountId;
@@ -41,7 +50,7 @@ $byFund = db_all(
     [$institutionId, $accountId]
 );
 $mappings = db_all(
-    "SELECT fm.valid_from, fm.valid_until, f.id AS fund_id, f.fund_name FROM fund_account_mappings fm
+    "SELECT fm.id, fm.valid_from, fm.valid_until, f.id AS fund_id, f.fund_name, f.status AS fund_status FROM fund_account_mappings fm
      JOIN fund_accounts f ON f.id = fm.fund_id AND f.institution_id = fm.institution_id
      WHERE fm.institution_id = ? AND fm.financial_account_id = ? ORDER BY f.fund_name",
     [$institutionId, $accountId]
@@ -91,7 +100,20 @@ require APP_ROOT . '/includes/header.php';
             <?php else: ?>
                 <ul class="list-clean">
                     <?php foreach ($mappings as $row): ?>
-                        <li><span><?= e($row['fund_name']) ?></span><span class="text-muted-sm"><?= e(format_date($row['valid_from']) . ' – ' . ($row['valid_until'] ? format_date($row['valid_until']) : 'open')) ?></span></li>
+                        <li class="d-block"><div class="d-flex justify-content-between gap-2"><span><?= e($row['fund_name']) ?></span><span class="text-muted-sm"><?= e(format_date($row['valid_from']) . ' – ' . ($row['valid_until'] ? format_date($row['valid_until']) : 'open')) ?></span></div>
+                            <?php if (can('funds.manage') && $row['fund_status'] !== 'closed'): ?>
+                            <details class="mapping-dates mt-1"><summary class="text-muted-sm">Change dates</summary>
+                                <form method="post" class="mt-2" data-confirm="Change the authorised period?" data-confirm-text="Money already recorded in this account for the fund must stay inside the period.">
+                                    <?= csrf_field() ?><input type="hidden" name="action" value="mapping_dates"><input type="hidden" name="mapping_id" value="<?= (int) $row['id'] ?>">
+                                    <div class="row g-2">
+                                        <div class="col-6"><label class="form-label small mb-0" for="md-from-<?= (int) $row['id'] ?>">From</label><input class="form-control form-control-sm" type="date" id="md-from-<?= (int) $row['id'] ?>" name="valid_from" required value="<?= e($row['valid_from']) ?>"></div>
+                                        <div class="col-6"><label class="form-label small mb-0" for="md-until-<?= (int) $row['id'] ?>">Until <span class="text-muted-sm">(empty = no end)</span></label><input class="form-control form-control-sm" type="date" id="md-until-<?= (int) $row['id'] ?>" name="valid_until" value="<?= e((string) $row['valid_until']) ?>"></div>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-xs mt-2" type="submit">Save dates</button>
+                                </form>
+                            </details>
+                            <?php endif; ?>
+                        </li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
