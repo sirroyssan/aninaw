@@ -53,7 +53,7 @@ require APP_ROOT . '/includes/header.php';
 <?php if (!$ready): ?>
     <div class="notice notice-danger"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i><div>Import <code>database/migration_010_solicitations.sql</code> once (phpMyAdmin → Import) to start recording solicitations.</div></div>
 <?php endif; ?>
-<form method="post" enctype="multipart/form-data" class="card panel form-card" style="max-width: 920px" data-donation-form data-confirm="Record this solicitation?" data-confirm-text="Money received is posted to the fund and an official receipt is issued. Corrections need an authorised reversal.">
+<form method="post" enctype="multipart/form-data" class="card panel form-card" data-donation-form data-confirm="Record this solicitation?" data-confirm-text="Money received is posted to the fund and an official receipt is issued. Corrections need an authorised reversal.">
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="form-section">
