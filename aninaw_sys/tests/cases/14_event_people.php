@@ -63,3 +63,10 @@ test('faculty and customers join an event without a group and are charged at onc
     act_as('organizer', 'TST');
     assert_rejected(fn() => add_event_people($eventId, ['participant_id' => (string) $foreign]), 'Only active people');
 });
+
+test('a new person registered from the event modal cannot set a linked account or status', function () {
+    $input = new_person_input(['participant_number' => 'N-1', 'first_name' => 'Ana', 'last_name' => 'Bo', 'status' => 'inactive', 'link_membership_id' => '1', 'institution_id' => '99']);
+    assert_same('active', $input['status']);
+    assert_true(!isset($input['link_membership_id']) && !isset($input['institution_id']), 'only person fields pass through');
+    assert_same('Ana', $input['first_name']);
+});

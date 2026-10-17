@@ -48,6 +48,16 @@ if (is_post()) {
                 flash($result['added'] ? 'success' : 'info', $result['added'] ? $result['added'] . ' added to the event' : 'Already in the event',
                     $result['obligations'] ? $result['obligations'] . ' charge(s) created from the collection rules.' : ($result['added'] ? 'Add a collection rule to charge them.' : 'Everyone chosen was already in the event.'));
                 break;
+            case 'add_new_person':
+                // Someone not yet in People: register them and add them to this event together.
+                $result = db_transaction(function () use ($eventId) {
+                    require_event_manager($eventId);
+                    $participantId = save_participant(null, new_person_input($_POST), true);
+                    return add_event_people($eventId, ['participant_id' => (string) $participantId]);
+                });
+                flash('success', 'Person added', person_name_case(post_str('first_name', 100) . ' ' . post_str('last_name', 100)) . ' was added to People and to this event'
+                    . ($result['obligations'] ? ' and charged ' . $result['obligations'] . ' collection(s).' : '.'));
+                break;
             case 'remove_person':
                 remove_event_person($eventId, post_int('participant_id') ?? 0, post_str('reason', 1000));
                 flash('success', 'Removed from the event', 'Their unpaid charges for this event were cancelled.');
@@ -138,6 +148,7 @@ if ($tab === 'requirements' && get_str('export', 10) === 'csv' && can_check_even
 $pageTitle = $event['event_name'];
 $activeNav = 'events';
 $breadcrumb = [auth_context()['label'], 'Events'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/member_picker.js']);
 require APP_ROOT . '/includes/header.php';
 $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&tab=' . $name);
 ?>
@@ -449,7 +460,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                             <?php endforeach; ?>
                         </select>
                         <button class="btn btn-primary w-100" type="submit"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Add to Event</button>
-                        <div class="form-text">Not in the list? <a href="<?= e(url('participants/form.php')) ?>">Register them</a> first.</div>
+                        <div class="form-text">Not in the list? <button class="btn btn-link btn-sm p-0 align-baseline" type="button" data-bs-toggle="modal" data-bs-target="#new-member-modal"><i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i>Add a new person</button></div>
                     </form>
                 </div>
                 <div class="card panel form-card mb-3">
@@ -657,5 +668,9 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
             </div>
         </div>
     </div>
+<?php endif; ?>
+<?php if ($tab === 'people' && $canAddPeople): ?>
+    <?php $newPerson = ['action' => 'add_new_person', 'title' => 'Add a new person to ' . $event['event_name'], 'intro' => 'They are added to the People list and to this event at once, and charged its collections for everyone.',
+        'submit' => 'Add to Event', 'type' => 'student', 'hidden' => '<input type="hidden" name="tab" value="people">']; require APP_ROOT . '/includes/new_person_modal.php'; ?>
 <?php endif; ?>
 <?php require APP_ROOT . '/includes/footer.php'; ?>

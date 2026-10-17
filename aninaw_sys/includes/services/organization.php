@@ -322,6 +322,14 @@ function validate_participant(array $input, ?int $participantId, bool $strict = 
 }
 
 /** Creates or updates a participant. A linked login lets the person see their own obligations. */
+/** Fields a "new person" modal may set: never a linked user account or a status other than active. */
+function new_person_input(array $post): array
+{
+    $fields = ['participant_number', 'participant_type', 'first_name', 'last_name', 'middle_name', 'no_middle_name', 'program_id',
+        'birth_date', 'phone', 'address', 'guardian_name', 'guardian_relationship', 'guardian_phone', 'email'];
+    return ['status' => 'active'] + array_intersect_key($post, array_flip($fields));
+}
+
 function save_participant(?int $participantId, array $input, bool $strict = false): int
 {
     $institutionId = (int) current_institution_id();
