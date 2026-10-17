@@ -24,7 +24,7 @@ $activeNav = 'advances';
 $breadcrumb = [auth_context()['label'], 'Cash Advances'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<form method="post" class="card panel form-card" style="max-width: 880px">
+<form method="post" class="card panel form-card" style="max-width: 880px" data-modal-body>
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="notice notice-info"><i class="bi bi-info-circle" aria-hidden="true"></i><div>After release you must liquidate the advance by the deadline: submit receipts for what you spend and return any unused cash.</div></div>

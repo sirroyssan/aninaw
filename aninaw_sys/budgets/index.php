@@ -74,13 +74,14 @@ $currency = current_currency();
 $pageTitle = 'Budgets';
 $activeNav = 'budgets';
 $breadcrumb = [auth_context()['label'], 'Finance'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <div class="report-header"><h2>Budgets</h2><p><?= e(auth_context()['label']) ?> · Generated <?= e(format_datetime(date('Y-m-d H:i:s'))) ?></p></div>
 <?= page_actions('Approved budgets against posted spending. Pending expenses are shown separately and never counted as spent.',
     '<button class="btn btn-outline-primary" type="button" data-print><i class="bi bi-printer me-1" aria-hidden="true"></i>Print</button>'
     . (can('reports.view') ? button_link('reports/view.php?r=budget_vs_actual', 'Budget vs Actual Report', 'bi-bar-chart', 'btn-outline-primary') : '')
-    . (can('budgets.manage') ? button_link('budgets/form.php', 'New Budget', 'bi-plus-lg') : '')) ?>
+    . (can('budgets.manage') ? button_link('budgets/form.php', 'New Budget', 'bi-plus-lg', 'btn-primary', 'xl') : '')) ?>
 <div class="card panel">
     <form class="filter-bar" method="get">
         <div class="filter-field"><label for="q">Search</label><input class="form-control" type="search" id="q" name="q" value="<?= e($filters['q']) ?>" placeholder="Number or name"></div>

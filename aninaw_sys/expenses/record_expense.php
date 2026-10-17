@@ -18,7 +18,7 @@ if ($expense && !in_array($expense['status'], ['draft', 'rejected'], true)) {
 if (is_post()) {
     handle_post(function () use ($expenseId, $expense) {
         if (post_str('submit_now', 1) === '1' && !has_upload('receipt') && empty($expense['receipt_attachment_id'])) {
-            fail_user('Attach the official receipt or invoice before submitting, or save as draft.');
+            fail_user('Attach the official receipt or invoice before submitting, or save as draft.', 'receipt');
         }
         $id = save_expense($expenseId, $_POST);
         if (post_str('submit_now', 1) === '1') {
@@ -47,7 +47,7 @@ $activeNav = 'expenses';
 $breadcrumb = [auth_context()['label'], 'Expenses'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<form method="post" enctype="multipart/form-data" class="card panel form-card" style="max-width: 960px">
+<form method="post" enctype="multipart/form-data" class="card panel form-card" style="max-width: 960px" data-modal-body>
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="form-section">

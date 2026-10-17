@@ -195,10 +195,15 @@ function redirect_back(string $fallback = 'dashboard/index.php'): never
  * Runs a state-changing action: CSRF + duplicate-submission check, then the callback.
  * UserFacingException messages are shown to the user; anything else is logged.
  * The callback returns the path to redirect to (PRG pattern).
+ * Sent from a pop-up (fetch asking for JSON), the answer is JSON instead: where to go on
+ * success, or the message (and the field it is about) so the pop-up stays open.
  */
 function handle_post(callable $action, bool $idempotent = true): never
 {
     require_csrf();
+    if (wants_json()) {
+        handle_post_json($action, $idempotent);
+    }
     if ($idempotent) {
         require_idempotency();
     }
@@ -223,6 +228,36 @@ function handle_post(callable $action, bool $idempotent = true): never
         remember_input();
         flash('error', 'Something went wrong', 'The action could not be completed and nothing was saved. Reference: ' . request_id());
         redirect_back();
+    }
+}
+
+function handle_post_json(callable $action, bool $idempotent): never
+{
+    $token = $_POST['_idem'] ?? '';
+    if ($idempotent) {
+        if (!is_string($token) || !isset($_SESSION['idem_tokens'][$token])) {
+            json_response(['ok' => false, 'message' => 'This form was already processed. Check the record list before trying again.'], 409);
+        }
+        unset($_SESSION['idem_tokens'][$token]);
+    }
+    try {
+        $destination = $action();
+        unset($_SESSION['old_input']);
+        json_response(['ok' => true, 'redirect' => url(is_string($destination) ? $destination : 'dashboard/index.php')]);
+    } catch (DatabaseUnavailableException $exception) {
+        throw $exception;
+    } catch (Throwable $exception) {
+        if (db_in_transaction()) {
+            db()->rollBack();
+        }
+        if ($idempotent && is_string($token) && $token !== '') {
+            $_SESSION['idem_tokens'][$token] = time(); // nothing was saved: the same form may be sent again
+        }
+        if ($exception instanceof UserFacingException) {
+            json_response(['ok' => false, 'message' => $exception->getMessage(), 'field' => $exception->field], 422);
+        }
+        log_error('Action failed', ['type' => $exception::class, 'message' => $exception->getMessage(), 'file' => $exception->getFile() . ':' . $exception->getLine()]);
+        json_response(['ok' => false, 'message' => 'The action could not be completed and nothing was saved. Reference: ' . request_id()], 500);
     }
 }
 
@@ -357,9 +392,10 @@ function page_actions(string $subtitle = '', string $actionsHtml = ''): string
         . ($actionsHtml !== '' ? '<div class="page-toolbar-actions">' . $actionsHtml . '</div>' : '') . '</div>';
 }
 
-function button_link(string $path, string $label, string $icon = '', string $class = 'btn-primary'): string
+/** $modal: open the page's form or list in a pop-up (assets/js/page_modal.js), e.g. 'lg' or 'xl'. */
+function button_link(string $path, string $label, string $icon = '', string $class = 'btn-primary', ?string $modal = null): string
 {
-    return '<a class="btn ' . e($class) . '" href="' . e(url($path)) . '">' . ($icon ? '<i class="bi ' . e($icon) . ' me-1" aria-hidden="true"></i>' : '') . e($label) . '</a>';
+    return '<a class="btn ' . e($class) . '" href="' . e(url($path)) . '"' . ($modal ? ' data-page-modal="' . e($modal) . '"' : '') . '>' . ($icon ? '<i class="bi ' . e($icon) . ' me-1" aria-hidden="true"></i>' : '') . e($label) . '</a>';
 }
 
 /** Full name from a row with first_name/last_name (and optional middle_name). */

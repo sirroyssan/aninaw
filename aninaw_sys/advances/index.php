@@ -46,12 +46,13 @@ $currency = current_currency();
 $pageTitle = 'Cash Advances';
 $activeNav = 'advances';
 $breadcrumb = [auth_context()['label'], 'Finance'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions($seeAll ? 'Advances released to members and their liquidation. An advance is money the fund is still owed until it is liquidated.' : 'Your cash advances and their liquidation status.',
     (can('advances.release') ? button_link('advances/release.php', 'Awaiting Release', 'bi-box-arrow-up-right', 'btn-outline-primary') : '')
     . (can('liquidation.review') ? button_link('liquidation/review.php', 'Liquidations to Review', 'bi-journal-check', 'btn-outline-primary') : '')
-    . (can('advances.request') ? button_link('advances/request.php', 'Request Advance', 'bi-plus-lg') : '')) ?>
+    . (can('advances.request') ? button_link('advances/request.php', 'Request Advance', 'bi-plus-lg', 'btn-primary', 'lg') : '')) ?>
 <div class="stat-grid">
     <?= stat_card('bi-wallet2', 'Released, not liquidated', m($totals['released_open']), 'Gross released on open advances') ?>
     <?= stat_card('bi-alarm', 'Overdue', number_format((int) $totals['overdue']), 'Past liquidation deadline', (int) $totals['overdue'] ? 'danger' : 'success') ?>

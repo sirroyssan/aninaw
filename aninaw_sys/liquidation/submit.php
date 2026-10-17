@@ -24,7 +24,7 @@ require APP_ROOT . '/includes/header.php';
 <?php if (array_filter($rows, static fn($row) => $row['status'] === 'returned_for_correction')): ?>
     <div class="notice notice-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>A reviewer returned at least one liquidation for correction. Open it to see the remarks.</div></div>
 <?php endif; ?>
-<div class="card panel">
+<div class="card panel" data-modal-body>
     <?php if (!$rows): ?>
         <div class="card-body"><?= empty_state('bi-check2-circle', 'Nothing to liquidate', 'Advances released to you will appear here until they are fully liquidated.') ?></div>
     <?php else: ?>

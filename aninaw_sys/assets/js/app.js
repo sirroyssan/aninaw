@@ -216,6 +216,11 @@
         var needsConfirm = form.hasAttribute('data-confirm') || form.hasAttribute('data-reason');
         if (form.dataset.confirmed === '1' || !needsConfirm || !Alert) {
             if (window.AninawValidation && !window.AninawValidation.validateRequired(form)) { event.preventDefault(); return; }
+            if (form.hasAttribute('data-ajax')) {
+                event.preventDefault();
+                form.dispatchEvent(new CustomEvent('aninaw:confirmed', { bubbles: true, detail: { submitter: event.submitter || null } }));
+                return;
+            }
             form.dataset.submitting = '1';
             lockForm(form, event.submitter);
             return;
@@ -262,7 +267,7 @@
             }
             // data-ajax forms (e.g. Waive inside the Pay pop-up) are sent in the background by their page script.
             if (form.hasAttribute('data-ajax')) {
-                form.dispatchEvent(new CustomEvent('aninaw:confirmed', { bubbles: true }));
+                form.dispatchEvent(new CustomEvent('aninaw:confirmed', { bubbles: true, detail: { submitter: submitter || null } }));
                 return;
             }
             form.dataset.confirmed = '1';

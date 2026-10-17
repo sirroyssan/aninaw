@@ -22,7 +22,7 @@ $breadcrumb = [auth_context()['label'], 'Liquidation'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Verify each receipt against the advance purpose, confirm returned cash against the account, then complete the review. Verified expenses are posted to the ledger.', button_link('liquidation/index.php', 'Summary', 'bi-arrow-left', 'btn-outline-secondary')) ?>
-<div class="card panel">
+<div class="card panel" data-modal-body>
     <?php if (!$rows): ?>
         <div class="card-body"><?= empty_state('bi-check2-circle', 'Nothing to review', 'Submitted liquidations will appear here.') ?></div>
     <?php else: ?>

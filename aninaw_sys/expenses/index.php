@@ -70,10 +70,11 @@ $rows = db_all(
 $pageTitle = 'Expenses';
 $activeNav = 'expenses';
 $breadcrumb = [auth_context()['label'], 'Finance'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Direct expenses. Only paid expenses are posted; pending and rejected ones never count toward spending.',
-    can('expenses.record') ? button_link('expenses/record_expense.php', 'Record Expense', 'bi-receipt') : '') ?>
+    can('expenses.record') ? button_link('expenses/record_expense.php', 'Record Expense', 'bi-receipt', 'btn-primary', 'lg') : '') ?>
 <div class="stat-grid">
     <?= stat_card('bi-check2-circle', 'Posted (paid)', m($totals['posted']), 'Counts as spending') ?>
     <?= stat_card('bi-hourglass-split', 'Pending', m($totals['pending']), 'Submitted or approved, not paid', 'warning') ?>

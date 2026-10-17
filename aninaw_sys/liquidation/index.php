@@ -48,11 +48,12 @@ $outstanding = to_cents($summary['released']) - to_cents($settled['verified']) -
 $pageTitle = 'Liquidation';
 $activeNav = 'liquidation';
 $breadcrumb = [auth_context()['label'], 'Finance'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Released advances and how much of each has been accounted for. Only verified receipts and confirmed returns reduce the outstanding balance.',
-    (can('liquidation.submit') ? button_link('liquidation/submit.php', 'My Liquidations', 'bi-upload', 'btn-outline-primary') : '')
-    . (can('liquidation.review') ? button_link('liquidation/review.php', 'Review Queue', 'bi-journal-check') : '')) ?>
+    (can('liquidation.submit') ? button_link('liquidation/submit.php', 'My Liquidations', 'bi-upload', 'btn-outline-primary', 'xl') : '')
+    . (can('liquidation.review') ? button_link('liquidation/review.php', 'Review Queue', 'bi-journal-check', 'btn-primary', 'xl') : '')) ?>
 <div class="stat-grid">
     <?= stat_card('bi-wallet2', 'Open Advances', number_format((int) $summary['open_count']), m($summary['released']) . ' released') ?>
     <?= stat_card('bi-hourglass-split', 'Unliquidated Balance', money(max(0, $outstanding), current_currency()), 'Released − verified − returned', $outstanding > 0 ? 'warning' : 'success') ?>

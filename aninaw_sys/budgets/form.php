@@ -46,7 +46,7 @@ $breadcrumb = [auth_context()['label'], 'Budgets'];
 $pageScripts = ['js/finance.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<form method="post" class="card panel form-card" style="max-width: 960px" data-row-editor>
+<form method="post" class="card panel form-card" style="max-width: 960px" data-row-editor data-modal-body>
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="row g-3 mb-3">
