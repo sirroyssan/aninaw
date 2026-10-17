@@ -17,7 +17,7 @@ if (is_post()) {
         $id = post_int('account_id');
         $savedId = save_financial_account($id ?: null, $_POST);
         flash('success', $id ? 'Account updated' : 'Account created', $id ? '' : 'Map it to the funds whose money it may hold.');
-        return 'funds/account.php?id=' . $savedId;
+        return $id ? 'funds/accounts.php' : 'funds/account.php?id=' . $savedId; // a new account goes on to its funds
     });
 }
 
@@ -43,21 +43,25 @@ $accounts = db_all(
     $params
 );
 $editing = null;
-if ($editId = get_int('edit')) {
+$failedId = old('form_name') === 'account' ? (int) old('account_id') : 0; // a failed save reopens its pop-up
+if ($editId = (get_int('edit') ?? ($failedId ?: null))) {
     $editing = require_found(db_one('SELECT * FROM financial_accounts WHERE institution_id = ? AND id = ?', [$institutionId, $editId]));
 }
 $total = array_sum(array_map(static fn($row) => to_cents($row['balance']), $accounts));
 
+$newFailed = old('form_name') === 'account' && !$failedId;
+$pageScripts = ['js/modal_from.js'];
 $pageTitle = 'Financial Accounts';
 $activeNav = 'accounts';
 $breadcrumb = [auth_context()['label'], 'Finance'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Where money is physically held. Every account has an accountable custodian and may hold only the funds mapped to it.',
-    button_link('funds/index.php', 'Funds', 'bi-wallet', 'btn-outline-secondary')) ?>
+    button_link('funds/index.php', 'Funds', 'bi-wallet', 'btn-outline-secondary')
+    . ($canManage ? '<button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#new-account-modal"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New Account</button>' : '')) ?>
 
 <div class="row g-3">
-    <div class="<?= $canManage ? 'col-xl-8' : 'col-12' ?>">
+    <div class="col-12">
         <div class="card panel">
             <form class="filter-bar" method="get">
                 <div class="filter-field"><label for="type">Type</label><select class="form-select" id="type" name="type" data-autosubmit><?= options_html(FINANCIAL_ACCOUNT_TYPES, $type, 'All types') ?></select></div>
@@ -79,7 +83,7 @@ require APP_ROOT . '/includes/header.php';
                                 <td><?= status_badge($row['status']) ?></td>
                                 <td class="actions">
                                     <a class="btn btn-outline-primary btn-xs" href="<?= e(url('funds/account.php?id=' . $row['id'])) ?>">Open</a>
-                                    <?php if ($canManage && $row['status'] !== 'closed'): ?><a class="btn btn-outline-secondary btn-xs" href="<?= e(url('funds/accounts.php?edit=' . $row['id'])) ?>">Edit</a><?php endif; ?>
+                                    <?php if ($canManage && $row['status'] !== 'closed'): ?><a class="btn btn-outline-secondary btn-xs" href="<?= e(url('funds/accounts.php?edit=' . $row['id'])) ?>" data-modal-from="account-modal">Edit</a><?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -89,24 +93,34 @@ require APP_ROOT . '/includes/header.php';
             <?php endif; ?>
         </div>
     </div>
-    <?php if ($canManage): ?>
-        <div class="col-xl-4">
-            <form method="post" class="card panel form-card">
-                <?= csrf_field() ?><?= idempotency_field() ?>
-                <input type="hidden" name="account_id" value="<?= e($editing['id'] ?? '') ?>">
-                <div class="card-header"><h3><?= $editing ? 'Edit Account' : 'New Account' ?></h3></div>
-                <div class="card-body">
-                    <div class="mb-3"><label class="form-label required" for="account_name">Name</label><input class="form-control" id="account_name" name="account_name" required maxlength="180" value="<?= e($editing['account_name'] ?? old('account_name')) ?>" placeholder="e.g. Treasurer Cash Box, BPI Savings"></div>
-                    <div class="mb-3"><label class="form-label required" for="account_type">Type</label><select class="form-select" id="account_type" name="account_type" required><?= options_html(FINANCIAL_ACCOUNT_TYPES, $editing['account_type'] ?? old('account_type', 'cash_custody')) ?></select></div>
-                    <div class="mb-3"><label class="form-label" for="account_reference">Reference</label><input class="form-control" id="account_reference" name="account_reference" maxlength="255" value="<?= e($editing['account_reference'] ?? old('account_reference')) ?>" placeholder="Bank / account no. (last digits), wallet number"><div class="form-text">Avoid full account numbers.</div></div>
-                    <div class="mb-3"><label class="form-label" for="custodian_membership_id">Custodian</label><select class="form-select" id="custodian_membership_id" name="custodian_membership_id"><?= options_html(member_options(), $editing['custodian_membership_id'] ?? old('custodian_membership_id'), 'None') ?></select><div class="form-text">Required for cash custody: the person physically holding the cash.</div></div>
-                    <div class="form-actions">
-                        <?php if ($editing): ?><a class="btn btn-outline-secondary" href="<?= e(url('funds/accounts.php')) ?>">Cancel</a><?php endif; ?>
-                        <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save</button>
-                    </div>
-                </div>
-            </form>
+</div>
+<?php
+// Add / Edit account pop-ups: $acc = the account being edited (null for a new one), $af = id prefix, $ao = value for a field.
+$renderAccountForm = static function (?array $acc, string $af, callable $ao): void { ?>
+    <form method="post" class="modal-content">
+        <?= csrf_field() ?><?= idempotency_field() ?>
+        <input type="hidden" name="form_name" value="account"><input type="hidden" name="account_id" value="<?= e($acc['id'] ?? '') ?>">
+        <div class="modal-header"><h2 class="modal-title h5" id="<?= $af ?>title"><?= $acc ? 'Edit ' . e($acc['account_name']) : 'New account' ?></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <div class="mb-3"><label class="form-label required" for="<?= $af ?>account_name">Name</label><input class="form-control" id="<?= $af ?>account_name" name="account_name" required maxlength="180" value="<?= e($ao('account_name')) ?>" placeholder="e.g. Treasurer Cash Box, BPI Savings, RAITE GCash"></div>
+            <div class="mb-3"><label class="form-label required" for="<?= $af ?>account_type">Type</label><select class="form-select" id="<?= $af ?>account_type" name="account_type" required><?= options_html(FINANCIAL_ACCOUNT_TYPES, $ao('account_type', 'cash_custody')) ?></select><div class="form-text">Cash payments go into Cash custody, GCash into E-wallet, bank transfers into Bank.</div></div>
+            <div class="mb-3"><label class="form-label" for="<?= $af ?>account_reference">Reference</label><input class="form-control" id="<?= $af ?>account_reference" name="account_reference" maxlength="255" value="<?= e($ao('account_reference')) ?>" placeholder="Bank / account no. (last digits), wallet number"><div class="form-text">Avoid full account numbers.</div></div>
+            <div class="mb-0"><label class="form-label" for="<?= $af ?>custodian_membership_id">Custodian</label><select class="form-select" id="<?= $af ?>custodian_membership_id" name="custodian_membership_id"><?= options_html(member_options(), $ao('custodian_membership_id'), 'None') ?></select><div class="form-text">Required for cash custody: the person physically holding the cash. For GCash: whoever holds the phone / app.</div></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save</button>
+        </div>
+    </form>
+<?php }; ?>
+<?php if ($canManage): ?>
+    <div class="modal fade" id="new-account-modal" tabindex="-1" aria-labelledby="na-title" aria-hidden="true"<?= $newFailed ? ' data-open-on-load' : '' ?>>
+        <div class="modal-dialog modal-dialog-centered"><?php $renderAccountForm(null, 'na-', static fn(string $key, $default = '') => $newFailed ? old($key, $default) : $default); ?></div>
+    </div>
+    <?php if ($editing): ?>
+        <div class="modal fade" id="account-modal" tabindex="-1" aria-labelledby="ea-title" aria-hidden="true" data-open-on-load>
+            <div class="modal-dialog modal-dialog-centered"><?php $renderAccountForm($editing, 'ea-', static fn(string $key, $default = '') => $failedId ? old($key, $default) : ($editing[$key] ?? $default)); ?></div>
         </div>
     <?php endif; ?>
-</div>
+<?php endif; ?>
 <?php require APP_ROOT . '/includes/footer.php'; ?>

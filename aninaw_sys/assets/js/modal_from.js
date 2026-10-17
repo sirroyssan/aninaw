@@ -19,10 +19,11 @@
         if (window.enhanceSearchableSelects) { window.enhanceSearchableSelects(modalEl); }
         modalEl.addEventListener('hidden.bs.modal', function () {
             if (changed) { window.location.reload(); return; }
-            // Opened from a ?rule=… address: drop it so a refresh does not reopen the pop-up.
-            if (window.history.replaceState && new URL(window.location.href).searchParams.has('rule')) {
-                var url = new URL(window.location.href);
+            // Opened from a ?rule=… / ?edit=… address: drop it so a refresh does not reopen the pop-up.
+            var url = new URL(window.location.href);
+            if (window.history.replaceState && (url.searchParams.has('rule') || url.searchParams.has('edit'))) {
                 url.searchParams.delete('rule');
+                url.searchParams.delete('edit');
                 window.history.replaceState(null, '', url.toString());
             }
         });
@@ -43,7 +44,7 @@
             });
     }
 
-    document.querySelectorAll('.modal[data-open-on-load]#rule-modal, .modal[data-open-on-load]#new-rule-modal').forEach(function (modalEl) {
+    document.querySelectorAll('.modal[data-open-on-load]:not(#new-member-modal)').forEach(function (modalEl) {
         show(modalEl, window.location.href);
     });
 
