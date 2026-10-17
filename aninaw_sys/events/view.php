@@ -9,6 +9,7 @@ require_once dirname(__DIR__) . '/includes/auth_check.php';
 require_once APP_ROOT . '/includes/services/events.php';
 require_once APP_ROOT . '/includes/services/event_requirements.php';
 require_once APP_ROOT . '/includes/services/funds.php';
+require_once APP_ROOT . '/includes/services/payments.php';
 require_institution_context();
 require_permission(['events.view', 'events.manage', 'collections.view']);
 
@@ -154,6 +155,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
 ?>
 <?= page_actions($event['event_code'] . ' · ' . humanize($event['status']) . ($event['collection_deadline'] ? ' · collection deadline ' . format_date($event['collection_deadline']) : '') . ' · created by ' . $event['created_by_name'],
     button_link('events/index.php', 'All Events', 'bi-arrow-left', 'btn-outline-secondary')
+    . (can('collections.record') && donations_ready() && !in_array($event['status'], ['closed', 'cancelled'], true) ? button_link('donations/create.php?event=' . $eventId, 'Record Solicitation', 'bi-gift', 'btn-outline-primary') : '')
     . (can('collections.record') && $event['status'] === 'collecting' ? button_link('collections/record_payment.php?event=' . $eventId, 'Record Payment', 'bi-cash-coin') : '')
     . ($canManage && !in_array($event['status'], ['closed', 'cancelled'], true) ? button_link('events/create.php?id=' . $eventId, 'Edit', 'bi-pencil', 'btn-outline-primary') : '')) ?>
 
@@ -173,6 +175,9 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         <?= stat_card('bi-check2-circle', 'Fully Paid', number_format($stats['paid_count']), 'people', 'success') ?>
         <?= stat_card('bi-circle-half', 'Partially Paid', number_format($stats['partial_count']), 'people', 'info') ?>
         <?= stat_card('bi-x-circle', 'Unpaid', number_format($stats['unpaid_count']), 'people', $stats['unpaid_count'] ? 'danger' : 'success') ?>
+        <?php if (donations_ready() && can_any(['collections.view', 'collections.record'])): $sol = donation_totals('d.institution_id = ? AND d.event_id = ?', [$institutionId, $eventId]); ?>
+            <a class="stat-link" href="<?= e(url('donations/index.php?event=' . $eventId)) ?>"><?= stat_card('bi-gift', 'Solicitations', money($sol['received'], $currency), $sol['outstanding'] > 0 ? money($sol['outstanding'], $currency) . ' still pledged' : number_format($sol['count']) . ' donor(s) · not in Expected', 'success') ?></a>
+        <?php endif; ?>
     </div>
     <div class="card panel mb-3"><div class="card-body"><div class="d-flex justify-content-between mb-1"><span class="fw-semibold">Collection progress</span><span><?= e((string) $stats['percent']) ?>%</span></div><?= progress_bar($stats['percent']) ?></div></div>
 

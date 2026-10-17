@@ -85,6 +85,13 @@ character (e.g. `Delacruz2026!`), shown to the administrator once and never stor
 The person must choose their own password at first sign-in before anything else opens. Users →
 **Reset to Default Password** issues a new one. Safe to run again.
 
+**Then** import `database/migration_010_solicitations.sql` once. It adds **Solicitations**
+(Collections → Solicitations, or **Record Solicitation** on an event): donations and sponsorships
+received for a fund (optionally an event), or pledges received later in one or more payments. Each
+amount received is an ordinary payment with an official receipt, booked as Donations &
+Solicitations income (4300) in the chosen fund; reversals re-open the pledge. Donors are kept in
+People as Customer / Other (DON- numbers). Printable list and CSV. Safe to run again.
+
 **Optional, once:** `database/migration_007_uppercase_names.sql` converts names already saved to
 capital letters. New and edited names are saved in capitals automatically.
 
@@ -312,7 +319,8 @@ aninaw_sys/
 │                     migration_005_advance_roles_event_requirements.sql
 │                     migration_006_people_details.sql migration_007_uppercase_names.sql
 │                     migration_008_rule_inclusions.sql
-│                     migration_009_default_passwords.sql create_admin.php
+│                     migration_009_default_passwords.sql
+│                     migration_010_solicitations.sql create_admin.php
 ├── tests/            run_tests.php bootstrap.php fixtures.php cases/
 ├── uploads/          receipts/ attachments/        Blocked from direct access
 └── logs/                                           Private application log

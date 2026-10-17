@@ -141,6 +141,7 @@ const LEDGER_ACCOUNTS = [
     'collections'   => ['4000', 'Collections and Contributions', 'income'],
     'sales'         => ['4100', 'Sales Revenue', 'income'],
     'service_revenue' => ['4200', 'Service Revenue', 'income'],
+    'donations'     => ['4300', 'Donations & Solicitations', 'income'],
     'other_income'  => ['4900', 'Other Income (Cash Overages)', 'income'],
     'expenses'      => ['5000', 'Expenses', 'expense'],
     'cash_shortage' => ['5900', 'Cash Shortages', 'expense'],

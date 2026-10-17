@@ -262,7 +262,7 @@ function status_badge_class(?string $status): string
         'active', 'posted', 'paid', 'verified', 'confirmed', 'liquidated', 'approved', 'resolved', 'issued', 'completed', 'collecting',
         'fully_paid', 'ready_for_release', 'released', 'received' => 'badge-soft-success',
         'in_production', 'in_progress', 'ordered', 'partially_received', 'partially_released' => 'badge-soft-info',
-        'pending', 'submitted', 'received_pending_verification', 'pending_approval', 'submitted_for_review', 'partially_paid', 'partially_liquidated', 'under_review', 'draft', 'recorded', 'pending_confirmation', 'pending_verification' => 'badge-soft-warning',
+        'pending', 'pledged', 'submitted', 'received_pending_verification', 'pending_approval', 'submitted_for_review', 'partially_paid', 'partially_liquidated', 'under_review', 'draft', 'recorded', 'pending_confirmation', 'pending_verification' => 'badge-soft-warning',
         'discrepancy', 'overdue', 'rejected', 'returned_for_correction', 'open', 'unpaid', 'suspended', 'locked', 'needs_correction' => 'badge-soft-danger',
         default => 'badge-soft-neutral',
     };

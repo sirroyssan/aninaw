@@ -67,6 +67,14 @@ require APP_ROOT . '/includes/header.php';
                             <td><?= status_badge($row['obligation_status']) ?></td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php if ($payment['donation']): $d = $payment['donation']; ?>
+                        <tr>
+                            <td><a href="<?= e(url('donations/view.php?id=' . $d['id'])) ?>">Solicitation <?= e($d['donation_number']) ?></a>
+                                <div class="text-muted-sm"><?= e(trim(($d['event_name'] ?: $d['fund_name']) . ($d['purpose'] ? ' · ' . $d['purpose'] : ''))) ?></div></td>
+                            <td class="text-end fw-semibold"><?= e(m($payment['amount'])) ?></td>
+                            <td class="text-muted-sm"><?= $d['pledged_amount'] !== null ? 'Pledge of ' . e(m($d['pledged_amount'])) : 'Donation' ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <?php if ($payment['order']): ?>
                         <tr>
                             <td><?= can_any(['orders.view', 'orders.manage']) ? '<a href="' . e(url('orders/view.php?id=' . $payment['order']['id'])) . '">Order ' . e($payment['order']['order_number']) . '</a>' : 'Order ' . e($payment['order']['order_number']) ?>
