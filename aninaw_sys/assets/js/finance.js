@@ -2,6 +2,7 @@
  * ANINAW — helpers for financial forms.
  *   data-money-sum="#target"  sums the amount inputs inside the element into #target
  *   data-fill-max             button that fills the sibling input with its data-max value
+ *   data-fill-all             button that fills every data-max input in its form
  *   data-row-editor           add/remove repeatable rows from a <template>
  *   data-journal-lines        adjusting-entry lines (cash-account select, debit/credit totals)
  *   data-order-form           order lines, subtotal, discount and total due
@@ -36,12 +37,24 @@
         target.textContent = (target.getAttribute('data-currency') || '') + formatCents(total);
     }
 
-    document.querySelectorAll('[data-money-sum]').forEach(function (container) {
-        container.addEventListener('input', function () { refresh(container); });
-        refresh(container);
+    // Delegated so forms loaded later (the Collections payment modal) work too.
+    document.addEventListener('input', function (event) {
+        var container = event.target.closest && event.target.closest('[data-money-sum]');
+        if (container) { refresh(container); }
     });
+    function refreshAll(root) {
+        (root || document).querySelectorAll('[data-money-sum]').forEach(refresh);
+    }
+    refreshAll();
+    window.AninawFinance = { refreshSums: refreshAll };
 
     document.addEventListener('click', function (event) {
+        var all = event.target.closest('[data-fill-all]');
+        if (all && all.form) {
+            all.form.querySelectorAll('input[data-max]').forEach(function (input) { input.value = input.getAttribute('data-max'); });
+            refreshAll(all.form);
+            return;
+        }
         var button = event.target.closest('[data-fill-max]');
         if (!button) { return; }
         var input = button.parentElement.querySelector('input[data-max]');

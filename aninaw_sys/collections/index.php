@@ -1,6 +1,7 @@
 <?php
 /**
- * Participant payment balances across events (obligations, paid, remaining).
+ * Participant payment balances across events: one row per person per event with the
+ * collections and their total due, paid and balance. "Pay" opens the payment form in a modal.
  */
 declare(strict_types=1);
 
@@ -45,14 +46,29 @@ $paidSql = "(SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocatio
               WHERE pa.institution_id = o.institution_id AND pa.obligation_id = o.id)";
 
 $totals = db_one("SELECT COALESCE(SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount ELSE 0 END), 0) AS due, COALESCE(SUM({$paidSql}), 0) AS paid {$fromSql}", $params);
-[$orderBy, $sortKey, $sortDir] = sort_clause(['name' => 'p.last_name', 'event' => 'e.event_name', 'due' => 'o.due_date', 'status' => 'o.status'], 'name');
-$pagination = paginate((int) db_value("SELECT COUNT(*) {$fromSql}", $params), 30);
+$obligationCount = (int) db_value("SELECT COUNT(*) {$fromSql}", $params);
+[$orderBy, $sortKey, $sortDir] = sort_clause(['name' => 'MIN(p.last_name)', 'event' => 'MIN(e.event_name)', 'due' => 'MIN(o.due_date)', 'balance' => 'balance'], 'name');
+$pagination = paginate((int) db_value("SELECT COUNT(*) FROM (SELECT 1 {$fromSql} GROUP BY o.participant_id, o.event_id) people", $params), 30);
 $rows = db_all(
-    "SELECT o.id, o.amount_due, o.waived_amount, o.due_date, o.status, p.id AS participant_id, p.participant_number, p.first_name, p.last_name,
-            e.id AS event_id, e.event_name, e.status AS event_status, r.rule_name, {$paidSql} AS paid
-     {$fromSql} ORDER BY {$orderBy}, p.first_name, o.id LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}",
+    "SELECT o.participant_id, MIN(p.participant_number) AS participant_number, MIN(p.first_name) AS first_name, MIN(p.last_name) AS last_name,
+            o.event_id, MIN(e.event_name) AS event_name, MIN(e.status) AS event_status, MIN(o.due_date) AS due_date,
+            SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount ELSE 0 END) AS due,
+            SUM({$paidSql}) AS paid,
+            SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount - {$paidSql} ELSE 0 END) AS balance,
+            GROUP_CONCAT(o.status ORDER BY o.id) AS statuses,
+            GROUP_CONCAT(CONCAT(r.rule_name, '\t', CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount - {$paidSql} ELSE 0 END) ORDER BY o.id SEPARATOR '\n') AS lines_text
+     {$fromSql} GROUP BY o.participant_id, o.event_id
+     ORDER BY {$orderBy}, MIN(p.first_name), o.event_id LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}",
     $params
 );
+// Overall status of a person's collections in one event.
+$groupStatus = static function (array $row): string {
+    $statuses = array_unique(explode(',', (string) $row['statuses']));
+    if (to_cents($row['balance']) > 0) {
+        return to_cents($row['paid']) > 0 || in_array('partially_paid', $statuses, true) ? 'partially_paid' : 'unpaid';
+    }
+    return count($statuses) === 1 ? $statuses[0] : 'paid';
+};
 $currency = current_currency();
 $dueCents = to_cents($totals['due']);
 $paidCents = to_cents($totals['paid']);
@@ -60,6 +76,7 @@ $paidCents = to_cents($totals['paid']);
 $pageTitle = 'Collections';
 $activeNav = 'collections';
 $breadcrumb = [auth_context()['label'], 'Collections'];
+$pageScripts = ['js/finance.js', 'js/collections.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Payment balances of participants. Paid amounts count posted payments only.',
@@ -70,7 +87,7 @@ require APP_ROOT . '/includes/header.php';
 <div class="stat-grid">
     <?= stat_card('bi-bullseye', 'Due (filtered)', money($dueCents, $currency), 'After waivers') ?>
     <?= stat_card('bi-cash-coin', 'Paid', money($paidCents, $currency), 'Posted payments') ?>
-    <?= stat_card('bi-hourglass-split', 'Outstanding', money(max(0, $dueCents - $paidCents), $currency), number_format($pagination['total']) . ' obligation(s) listed', 'warning') ?>
+    <?= stat_card('bi-hourglass-split', 'Outstanding', money(max(0, $dueCents - $paidCents), $currency), number_format($pagination['total']) . ' payer(s) · ' . number_format($obligationCount) . ' collection(s)', 'warning') ?>
 </div>
 
 <div class="card panel">
@@ -89,23 +106,27 @@ require APP_ROOT . '/includes/header.php';
                 <thead><tr>
                     <th><?= sort_link('Payer', 'name', $sortKey, $sortDir) ?></th>
                     <th><?= sort_link('Event · Collection', 'event', $sortKey, $sortDir) ?></th>
-                    <th class="text-end">Due</th><th class="text-end">Paid</th><th class="text-end">Balance</th>
+                    <th class="text-end">Due</th><th class="text-end">Paid</th><th class="text-end"><?= sort_link('Balance', 'balance', $sortKey, $sortDir) ?></th>
                     <th><?= sort_link('Due date', 'due', $sortKey, $sortDir) ?></th>
-                    <th><?= sort_link('Status', 'status', $sortKey, $sortDir) ?></th><th></th>
+                    <th>Status</th><th></th>
                 </tr></thead>
                 <tbody>
-                <?php foreach ($rows as $row): $balance = max(0, to_cents($row['amount_due']) - to_cents($row['waived_amount']) - to_cents($row['paid'])); ?>
+                <?php foreach ($rows as $row): $balance = max(0, to_cents($row['balance'])); $lines = array_map(static fn($line) => explode("\t", $line, 2), explode("\n", (string) $row['lines_text'])); ?>
                     <tr>
                         <td><a class="fw-semibold" href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a><div class="text-muted-sm"><?= e($row['participant_number']) ?></div></td>
-                        <td><div><?= e($row['event_name']) ?></div><div class="text-muted-sm"><?= e($row['rule_name']) ?></div></td>
-                        <td class="text-end"><?= e(money(to_cents($row['amount_due']) - to_cents($row['waived_amount']), $currency)) ?></td>
+                        <td><div><?= e($row['event_name']) ?></div>
+                            <?php foreach ($lines as [$ruleName, $lineBalance]): ?>
+                                <div class="text-muted-sm d-flex justify-content-between gap-3"><span><?= e($ruleName) ?></span><?php if (count($lines) > 1): ?><span class="text-nowrap"><?= e(money(max(0, to_cents($lineBalance)), $currency)) ?></span><?php endif; ?></div>
+                            <?php endforeach; ?>
+                        </td>
+                        <td class="text-end"><?= e(m($row['due'])) ?></td>
                         <td class="text-end"><?= e(m($row['paid'])) ?></td>
                         <td class="text-end fw-semibold"><?= e(money($balance, $currency)) ?></td>
                         <td class="text-muted-sm<?= $row['due_date'] && $row['due_date'] < date('Y-m-d') && $balance > 0 ? ' text-danger' : '' ?>"><?= e(format_date($row['due_date'])) ?></td>
-                        <td><?= status_badge($row['status']) ?></td>
+                        <td><?= status_badge($groupStatus($row)) ?></td>
                         <td class="actions">
                             <?php if ($balance > 0 && can('collections.record') && $row['event_status'] === 'collecting'): ?>
-                                <a class="btn btn-primary btn-xs" href="<?= e(url('collections/record_payment.php?participant=' . $row['participant_id'] . '&event=' . $row['event_id'])) ?>">Pay</a>
+                                <a class="btn btn-primary btn-xs" data-pay="<?= e($row['last_name'] . ', ' . $row['first_name'] . ' · ' . $row['event_name']) ?>" href="<?= e(url('collections/record_payment.php?participant=' . $row['participant_id'] . '&event=' . $row['event_id'])) ?>">Pay</a>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -116,4 +137,19 @@ require APP_ROOT . '/includes/header.php';
     <?php endif; ?>
     <?= pagination_links($pagination) ?>
 </div>
+
+<?php if (can('collections.record')): ?>
+<div class="modal fade" id="pay-modal" tabindex="-1" aria-labelledby="pay-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="pay-modal-title"><span class="text-muted-sm d-block">Record payment</span><span data-pay-title></span></h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0" data-pay-body></div>
+            <div class="modal-footer justify-content-start py-2"><a class="text-muted-sm" href="#" data-pay-full>Open the full payment page</a></div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 <?php require APP_ROOT . '/includes/footer.php'; ?>
