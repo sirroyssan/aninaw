@@ -62,7 +62,7 @@ $balanceTotal = array_sum(array_column($obligations, 'balance'));
     </div>
 </form>
 <?php if ($canWaive): foreach ($obligations as $row): ?>
-    <form method="post" action="<?= e(url('collections/record_payment.php')) ?>" id="waive-<?= e($row['id']) ?>" class="d-none" data-confirm="Waive <?= e(money($row['balance'], $currency)) ?> of <?= e($row['rule_name']) ?>?" data-confirm-text="Nothing is collected for it and the event's expected total goes down. The reason is recorded." data-reason="Who approved this and why? (e.g. already insured until Dec 2026, policy no.)">
+    <form method="post" action="<?= e(url('collections/record_payment.php')) ?>"<?= $inModal ? ' data-ajax' : '' ?> id="waive-<?= e($row['id']) ?>" class="d-none" data-confirm="Waive <?= e(money($row['balance'], $currency)) ?> of <?= e($row['rule_name']) ?>?" data-confirm-text="Nothing is collected for it and the event's expected total goes down. The reason is recorded." data-reason="Who approved this and why? (e.g. already insured until Dec 2026, policy no.)">
         <?= csrf_field() ?><input type="hidden" name="action" value="waive"><?= $inModal ? '<input type="hidden" name="back" value="referer">' : '' ?><input type="hidden" name="obligation_id" value="<?= e($row['id']) ?>"><input type="hidden" name="amount" value="<?= e(cents_to_decimal($row['balance'])) ?>">
     </form>
 <?php endforeach; endif; ?>

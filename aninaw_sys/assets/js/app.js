@@ -260,6 +260,11 @@
                 }
                 field.value = result.value.trim();
             }
+            // data-ajax forms (e.g. Waive inside the Pay pop-up) are sent in the background by their page script.
+            if (form.hasAttribute('data-ajax')) {
+                form.dispatchEvent(new CustomEvent('aninaw:confirmed', { bubbles: true }));
+                return;
+            }
             form.dataset.confirmed = '1';
             form.dataset.submitting = '1';
             lockForm(form, submitter);

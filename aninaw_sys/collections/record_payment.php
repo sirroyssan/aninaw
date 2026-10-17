@@ -11,6 +11,19 @@ require_once APP_ROOT . '/includes/services/payments.php';
 require_institution_context();
 require_permission('collections.record');
 
+// Waive from inside the Pay pop-up: answered as JSON so the pop-up stays open and reloads.
+if (is_post() && post_str('action', 10) === 'waive' && wants_json()) {
+    require_csrf();
+    try {
+        waive_obligation(post_int('obligation_id') ?? 0, post_str('amount', 20), post_str('reason', 1000));
+        json_response(['ok' => true, 'message' => 'Balance waived. The reason is kept in the audit log.']);
+    } catch (UserFacingException $exception) {
+        if (db_in_transaction()) {
+            db()->rollBack();
+        }
+        json_response(['ok' => false, 'message' => $exception->getMessage()], 422);
+    }
+}
 if (is_post() && post_str('action', 10) === 'waive') {
     handle_post(function () {
         $obligationId = post_int('obligation_id') ?? 0;
