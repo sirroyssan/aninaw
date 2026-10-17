@@ -32,3 +32,31 @@ test('a mapping period can be changed but never so that recorded money falls out
     act_as('other_treasurer', 'OTH');
     assert_rejected(fn() => update_fund_mapping_dates($mapping, ['valid_from' => date('Y-m-d', strtotime('-61 days'))]), 'not found');
 });
+
+test('an order from last month is recorded with its own date once the cash box period covers it', function () {
+    require_once APP_ROOT . '/includes/services/orders.php';
+    $fx = $GLOBALS['fx'];
+    act_as('treasurer', 'TST');
+    $box = save_financial_account(null, ['account_name' => 'Shirt Counter Box', 'account_type' => 'cash_custody', 'custodian_membership_id' => (string) $GLOBALS['members']['counter']]);
+    add_fund_mapping($fx['general'], ['financial_account_id' => (string) $box, 'valid_from' => date('Y-m-d')]);
+    $lastMonth = date('Y-m-d', strtotime('first day of last month +9 days'));
+    $m = (int) db_value("SELECT id FROM product_variants WHERE product_id = ? AND variant_name = 'M'", [$fx['shirt']]);
+    $input = ['customer_participant_id' => (string) $fx['p2'], 'order_date' => $lastMonth, 'lines' => [['variant_id' => (string) $m, 'quantity' => '1']],
+        'pay_mode' => 'full', 'confirm_now' => '1', 'payment_method' => 'cash', 'financial_account_id' => (string) $box];
+
+    act_as('counter', 'TST');
+    $orders = (int) db_value('SELECT COUNT(*) FROM sales_orders');
+    assert_rejected(fn() => create_order_with_payment($input), 'Change dates');
+    assert_same($orders, (int) db_value('SELECT COUNT(*) FROM sales_orders'), 'nothing saved');
+
+    act_as('treasurer', 'TST');
+    $mapping = (int) db_value('SELECT id FROM fund_account_mappings WHERE fund_id = ? AND financial_account_id = ? AND valid_until IS NULL', [$fx['general'], $box]);
+    update_fund_mapping_dates($mapping, ['valid_from' => date('Y-m-01', strtotime('first day of last month')), 'valid_until' => '']);
+
+    act_as('counter', 'TST');
+    $result = create_order_with_payment($input);
+    assert_same($lastMonth, db_value('SELECT order_date FROM sales_orders WHERE id = ?', [$result['order_id']]));
+    assert_same($lastMonth, substr((string) db_value('SELECT payment_date FROM payments WHERE id = ?', [$result['payment_id']]), 0, 10), 'payment dated last month');
+    assert_same($lastMonth, db_value("SELECT journal_date FROM journal_entries WHERE source_type = 'payment' AND source_id = ?", [$result['payment_id']]), 'ledger dated last month');
+    assert_same('fully_paid', db_value('SELECT payment_status FROM sales_orders WHERE id = ?', [$result['order_id']]));
+});

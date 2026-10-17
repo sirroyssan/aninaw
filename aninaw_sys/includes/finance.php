@@ -481,9 +481,19 @@ function fund_account_is_mapped(int $institutionId, int $fundId, int $accountId,
 
 function require_fund_account_mapping(int $fundId, int $accountId, string $date): void
 {
-    if (!fund_account_is_mapped((int) current_institution_id(), $fundId, $accountId, $date)) {
-        fail_user('That financial account is not authorised to hold money for this fund on the selected date. Map it under Funds first.');
+    $institutionId = (int) current_institution_id();
+    if (fund_account_is_mapped($institutionId, $fundId, $accountId, $date)) {
+        return;
     }
+    $account = (string) db_value('SELECT account_name FROM financial_accounts WHERE institution_id = ? AND id = ?', [$institutionId, $accountId]);
+    $fund = (string) db_value('SELECT fund_name FROM fund_accounts WHERE institution_id = ? AND id = ?', [$institutionId, $fundId]);
+    $periods = array_map(
+        static fn($row) => format_date($row['valid_from']) . ' – ' . ($row['valid_until'] ? format_date($row['valid_until']) : 'open'),
+        db_all('SELECT valid_from, valid_until FROM fund_account_mappings WHERE institution_id = ? AND fund_id = ? AND financial_account_id = ? ORDER BY valid_from', [$institutionId, $fundId, $accountId])
+    );
+    fail_user('"' . $account . '" may hold ' . $fund . ' money only ' . ($periods ? 'from ' . implode(', ', $periods) : '(it is not linked to this fund)')
+        . ', so a transaction dated ' . format_date($date) . ' cannot be recorded in it. '
+        . ($periods ? 'To record past transactions, a treasurer can move the start date earlier: Financial Accounts → ' . $account . ' → Change dates.' : 'Link it under Funds → ' . $fund . ' first.'));
 }
 
 /**

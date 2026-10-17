@@ -114,7 +114,8 @@ require APP_ROOT . '/includes/header.php';
             <div class="col-md-4 d-none" data-customer-walkin><label class="form-label" for="walkin_first_name">First name</label><input class="form-control" id="walkin_first_name" name="walkin_first_name" maxlength="100" value="<?= e(old('walkin_first_name')) ?>"></div>
             <div class="col-md-4 d-none" data-customer-walkin><label class="form-label" for="walkin_last_name">Last name</label><input class="form-control" id="walkin_last_name" name="walkin_last_name" maxlength="100" value="<?= e(old('walkin_last_name')) ?>"></div>
             <div class="col-md-4 d-none" data-customer-walkin><label class="form-label" for="walkin_phone">Phone</label><input class="form-control" id="walkin_phone" name="walkin_phone" maxlength="50" value="<?= e(old('walkin_phone')) ?>"></div>
-            <div class="col-md-4"><label class="form-label" for="order_date">Order date</label><input class="form-control" type="date" id="order_date" name="order_date" max="<?= e(date('Y-m-d')) ?>" value="<?= e(old('order_date', date('Y-m-d'))) ?>"></div>
+            <div class="col-md-4"><label class="form-label" for="order_date">Order date</label><input class="form-control" type="date" id="order_date" name="order_date" max="<?= e(date('Y-m-d')) ?>" value="<?= e(old('order_date', date('Y-m-d'))) ?>" data-order-date data-today="<?= e(date('Y-m-d')) ?>">
+                <div class="form-text d-none" data-past-order-note>Recording a past order: a payment entered below is dated on this day (the receipt is issued today; put a paper receipt number already given in Reference no.).</div></div>
         </div>
     </div></div>
 

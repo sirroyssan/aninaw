@@ -218,6 +218,14 @@
             if (!account.value && visible.length === 1) { account.value = visible[0].value; }
             pay.querySelector('[data-pay-no-account]').classList.toggle('d-none', !(mode !== 'later' && fund && visible.length === 0));
         }
+        var orderDate = form.querySelector('[data-order-date]');
+        if (orderDate) {
+            var pastNote = form.querySelector('[data-past-order-note]');
+            var syncPast = function () { pastNote.classList.toggle('d-none', !orderDate.value || orderDate.value >= orderDate.getAttribute('data-today')); };
+            orderDate.addEventListener('input', syncPast);
+            orderDate.addEventListener('change', syncPast);
+            syncPast();
+        }
         if (pay) {
             pay.addEventListener('change', function (event) {
                 // Taking money means the customer has committed: confirm by default (can be unticked).
