@@ -755,20 +755,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
     </div>
 <?php endif; ?>
 <?php if ($tab === 'obligations' && can('collections.record')) { require APP_ROOT . '/includes/pay_modal.php'; } ?>
-<?php if (in_array($tab, ['people', 'obligations'], true)): $reopenPerson = old('action') === 'edit_person' ? (int) old('participant_id') : 0; if ($reopenPerson) { pass_old_input_on(); } ?>
-<div class="modal fade" id="person-modal" tabindex="-1" aria-labelledby="person-modal-title" aria-hidden="true"<?= $reopenPerson ? ' data-reopen-card="' . e(url('participants/card.php?id=' . $reopenPerson . '&event=' . $eventId . '&fragment=1')) . '" data-reopen-profile="' . e(url('participants/view.php?id=' . $reopenPerson)) . '"' : '' ?>>
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title h5" id="person-modal-title" data-person-title>Person</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0" data-person-body></div>
-            <div class="modal-footer justify-content-start py-2"><a class="text-muted-sm" href="#" data-person-full>Open the full profile (payments, receipts, documents)</a></div>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
+<?php if (in_array($tab, ['people', 'obligations'], true)) { $personModalEvent = $eventId; require APP_ROOT . '/includes/person_modal.php'; } ?>
 <?php if ($tab === 'people' && $canAddPeople): ?>
     <?php $newPerson = ['action' => 'add_new_person', 'title' => 'Add a new person to ' . $event['event_name'], 'intro' => 'They are added to the People list and to this event at once, and charged its collections for everyone.',
         'submit' => 'Add to Event', 'type' => 'student', 'hidden' => '<input type="hidden" name="tab" value="people">']; require APP_ROOT . '/includes/new_person_modal.php'; ?>

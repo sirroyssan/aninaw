@@ -76,7 +76,7 @@ $paidCents = to_cents($totals['paid']);
 $pageTitle = 'Collections';
 $activeNav = 'collections';
 $breadcrumb = [auth_context()['label'], 'Collections'];
-$pageScripts = ['js/finance.js', 'js/collections.js'];
+$pageScripts = ['js/finance.js', 'js/collections.js', 'js/person_modal.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= recent_payment_notice() ?>
@@ -115,7 +115,7 @@ require APP_ROOT . '/includes/header.php';
                 <tbody>
                 <?php foreach ($rows as $row): $balance = max(0, to_cents($row['balance'])); $lines = array_map(static fn($line) => explode("\t", $line, 2), explode("\n", (string) $row['lines_text'])); ?>
                     <tr>
-                        <td><a class="fw-semibold" href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a><div class="text-muted-sm"><?= e($row['participant_number']) ?></div></td>
+                        <td><a class="fw-semibold" href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>" data-person-card="<?= e(url('participants/card.php?id=' . $row['participant_id'] . '&event=' . $row['event_id'] . '&fragment=1')) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a><div class="text-muted-sm"><?= e($row['participant_number']) ?></div></td>
                         <td><div><?= e($row['event_name']) ?></div>
                             <?php foreach ($lines as [$ruleName, $lineBalance]): ?>
                                 <div class="text-muted-sm d-flex justify-content-between gap-3"><span><?= e($ruleName) ?></span><?php if (count($lines) > 1): ?><span class="text-nowrap"><?= e(money(max(0, to_cents($lineBalance)), $currency)) ?></span><?php endif; ?></div>
@@ -141,4 +141,5 @@ require APP_ROOT . '/includes/header.php';
 </div>
 
 <?php if (can('collections.record')) { require APP_ROOT . '/includes/pay_modal.php'; } ?>
+<?php require APP_ROOT . '/includes/person_modal.php'; ?>
 <?php require APP_ROOT . '/includes/footer.php'; ?>
