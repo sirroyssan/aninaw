@@ -341,3 +341,15 @@ a.nav-link-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
 .combo-list .combo-option.is-selected { font-weight: 600; color: #146c43; }
 .combo-list .combo-group { padding: 8px 14px 4px; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6c7a72; }
 .combo-list .combo-empty { padding: 8px 14px; font-size: .85rem; color: #6c7a72; }
+
+/* Group "Add Members" search (assets/js/member_picker.js) */
+.member-results { display: grid; gap: 4px; max-height: 300px; overflow-y: auto; margin-bottom: 0.5rem; }
+.member-result { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid rgba(15, 61, 40, 0.12); border-radius: 8px; background: #fff; text-align: left; }
+button.member-result:not(:disabled):hover { background: rgba(25, 135, 84, 0.08); border-color: rgba(25, 135, 84, 0.35); }
+button.member-result:disabled { opacity: 0.75; cursor: default; }
+label.member-result { justify-content: flex-start; cursor: pointer; }
+.member-result-add { font-size: 0.8125rem; font-weight: 600; color: #146c43; white-space: nowrap; }
+.member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0.5rem; }
+.member-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: rgba(25, 135, 84, 0.12); color: #0f5132; font-size: 0.8125rem; }
+.member-chip-remove { border: 0; background: transparent; color: inherit; font-size: 1rem; line-height: 1; padding: 0 4px; border-radius: 50%; }
+.member-chip-remove:hover { background: rgba(15, 81, 50, 0.15); }

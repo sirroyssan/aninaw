@@ -30,6 +30,16 @@ if (is_post()) {
                 $added = add_group_members($groupId, input_ids($_POST, 'participant_ids'), post_str('academic_year', 30), post_str('term', 40));
                 flash('success', $added . ' member(s) added');
                 break;
+            case 'add_new_member':
+                // A person not yet registered: create them and add them to this group together.
+                $name = db_transaction(function () use ($groupId) {
+                    $participantId = save_participant(null, ['status' => 'active'] + $_POST);
+                    add_group_members($groupId, [$participantId], '', '');
+                    return post_str('first_name', 100) . ' ' . post_str('last_name', 100);
+                });
+                flash('success', 'Person added', $name . ' was added to People and to this group.');
+                $action = 'add_members';
+                break;
             case 'remove_member':
                 end_group_membership(post_int('group_membership_id') ?? 0, post_str('status', 20));
                 flash('success', 'Member removed from group');
@@ -62,24 +72,27 @@ $officers = db_all(
     [current_institution_id(), $groupId]
 );
 
-// Candidate participants for adding (searchable, limited list).
+// Search results for adding members when the page is used without JavaScript (the
+// search box normally asks participants/search.php as you type). Nothing is listed until
+// at least 2 characters are entered.
 $find = get_str('find', 100);
 $candidates = [];
-if ($canManage) {
-    $sql = "SELECT p.id, p.participant_number, p.first_name, p.last_name FROM participants p
-            WHERE p.institution_id = ? AND p.status = 'active'
-              AND NOT EXISTS (SELECT 1 FROM group_memberships gm WHERE gm.institution_id = p.institution_id AND gm.group_id = ? AND gm.participant_id = p.id AND gm.status = 'active')";
-    $params = [current_institution_id(), $groupId];
-    if ($find !== '') {
-        $sql .= ' AND (p.participant_number LIKE ? OR p.first_name LIKE ? OR p.last_name LIKE ? OR CONCAT(p.first_name, " ", p.last_name) LIKE ?)';
-        array_push($params, ...array_fill(0, 4, "%{$find}%"));
-    }
-    $candidates = db_all($sql . ' ORDER BY p.last_name, p.first_name LIMIT 200', $params);
+if ($canManage && mb_strlen($find) >= 2) {
+    $like = '%' . addcslashes($find, '%_\\') . '%';
+    $candidates = db_all(
+        "SELECT p.id, p.participant_number, p.first_name, p.last_name FROM participants p
+         WHERE p.institution_id = ? AND p.status = 'active'
+           AND NOT EXISTS (SELECT 1 FROM group_memberships gm WHERE gm.institution_id = p.institution_id AND gm.group_id = ? AND gm.participant_id = p.id AND gm.status = 'active')
+           AND (p.participant_number LIKE ? OR p.first_name LIKE ? OR p.last_name LIKE ? OR CONCAT(p.first_name, ' ', p.last_name) LIKE ?)
+         ORDER BY p.last_name, p.first_name LIMIT 20",
+        array_merge([current_institution_id(), $groupId], array_fill(0, 4, $like))
+    );
 }
 
 $pageTitle = $group['group_name'];
 $activeNav = 'groups';
 $breadcrumb = [auth_context()['label'], 'Groups'];
+$pageScripts = ['js/member_picker.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions($group['group_code'] . ' · ' . (GROUP_TYPES[$group['group_type']] ?? $group['group_type']) . ($group['department_name'] ? ' · ' . $group['department_name'] : ''),
@@ -168,31 +181,40 @@ require APP_ROOT . '/includes/header.php';
         <div class="col-xl-4">
             <div class="card panel mb-3">
                 <div class="card-header"><h3>Add Members</h3></div>
-                <div class="card-body">
-                    <form method="get" class="d-flex gap-2 mb-2">
+                <div class="card-body" data-member-picker data-search-url="<?= e(url('participants/search.php')) ?>" data-group="<?= (int) $groupId ?>">
+                    <form method="get" class="d-flex gap-2 mb-2" data-member-search-form>
                         <input type="hidden" name="id" value="<?= e($groupId) ?>">
-                        <input class="form-control" type="search" name="find" value="<?= e($find) ?>" placeholder="Search participants" aria-label="Search participants">
-                        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search</span></button>
+                        <input class="form-control" type="search" name="find" value="<?= e($find) ?>" placeholder="Search name or ID number" aria-label="Search people to add" autocomplete="off" data-member-search>
+                        <button class="btn btn-outline-primary" type="submit" data-member-search-button><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search</span></button>
                     </form>
-                    <form method="post">
+                    <form method="post" data-member-add-form>
                         <?= csrf_field() ?><?= idempotency_field() ?>
                         <input type="hidden" name="action" value="add_members">
-                        <?php if (!$candidates): ?>
-                            <p class="text-muted-sm">No matching participants outside this group. <a href="<?= e(url('participants/form.php')) ?>">Register a participant</a>.</p>
-                        <?php else: ?>
-                            <select class="form-select mb-2" name="participant_ids[]" multiple size="8" aria-label="People to add" required>
-                                <?php foreach ($candidates as $row): ?>
-                                    <option value="<?= e($row['id']) ?>"><?= e($row['participant_number'] . ' — ' . $row['last_name'] . ', ' . $row['first_name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="form-text mb-2">Hold Ctrl (Windows) or ⌘ (Mac) to select several. Showing up to 200.</div>
+                        <div class="member-results" data-member-results aria-live="polite">
+                            <?php if ($find !== '' && mb_strlen($find) >= 2): ?>
+                                <?php if (!$candidates): ?>
+                                    <p class="text-muted-sm mb-2">No one found for "<?= e($find) ?>".</p>
+                                <?php else: ?>
+                                    <?php foreach ($candidates as $row): ?>
+                                        <label class="member-result"><input class="form-check-input" type="checkbox" name="participant_ids[]" value="<?= e($row['id']) ?>"> <span><span class="fw-semibold"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></span> <span class="text-muted-sm"><?= e($row['participant_number']) ?></span></span></label>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <p class="text-muted-sm mb-2" data-member-hint>Type at least 2 letters of a name or ID number.</p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="member-chips" data-member-chips></div>
+                        <div data-member-add-fields>
                             <div class="row g-2 mb-2">
                                 <div class="col-6"><input class="form-control" name="academic_year" maxlength="30" placeholder="<?= e($group['academic_year'] ?: 'Year') ?>" aria-label="Academic year"></div>
                                 <div class="col-6"><input class="form-control" name="term" maxlength="40" placeholder="<?= e($group['term'] ?: 'Term') ?>" aria-label="Term"></div>
                             </div>
-                            <button class="btn btn-primary w-100" type="submit"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Add Selected</button>
-                        <?php endif; ?>
+                            <button class="btn btn-primary w-100" type="submit" data-member-add-button><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Add Selected</button>
+                        </div>
                     </form>
+                    <div class="text-center mt-2">
+                        <button class="btn btn-link btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#new-member-modal" data-member-new><i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i>Not in the list? Add a new person</button>
+                    </div>
                 </div>
             </div>
 
@@ -232,4 +254,34 @@ require APP_ROOT . '/includes/header.php';
         </div>
     <?php endif; ?>
 </div>
+<?php if ($canManage): $reopen = old('action') === 'add_new_member'; ?>
+<div class="modal fade" id="new-member-modal" tabindex="-1" aria-labelledby="new-member-title" aria-hidden="true"<?= $reopen ? ' data-open-on-load' : '' ?>>
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="post" class="modal-content">
+            <?= csrf_field() ?><?= idempotency_field() ?>
+            <input type="hidden" name="action" value="add_new_member">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="new-member-title">Add a new person to <?= e($group['group_name']) ?></h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted-sm">They are added to the People list and to this group at once.</p>
+                <div class="row g-2">
+                    <div class="col-md-6"><label class="form-label required" for="nm-number">ID number</label><input class="form-control" id="nm-number" name="participant_number" required maxlength="100" value="<?= e($reopen ? old('participant_number') : '') ?>" placeholder="e.g. 26-00123"></div>
+                    <div class="col-md-6"><label class="form-label" for="nm-type">Type</label><select class="form-select" id="nm-type" name="participant_type"><?= options_html(PARTICIPANT_TYPES, $reopen ? old('participant_type', 'student') : ($group['group_type'] === 'other' ? 'employee' : 'student')) ?></select></div>
+                    <div class="col-md-6"><label class="form-label required" for="nm-first">First name</label><input class="form-control" id="nm-first" name="first_name" required maxlength="100" value="<?= e($reopen ? old('first_name') : '') ?>" data-member-new-first></div>
+                    <div class="col-md-6"><label class="form-label required" for="nm-last">Last name</label><input class="form-control" id="nm-last" name="last_name" required maxlength="100" value="<?= e($reopen ? old('last_name') : '') ?>" data-member-new-last></div>
+                    <div class="col-md-6"><label class="form-label" for="nm-middle">Middle name</label><input class="form-control" id="nm-middle" name="middle_name" maxlength="100" value="<?= e($reopen ? old('middle_name') : '') ?>"></div>
+                    <div class="col-md-6"><label class="form-label" for="nm-phone">Phone</label><input class="form-control" id="nm-phone" name="phone" maxlength="50" value="<?= e($reopen ? old('phone') : '') ?>"></div>
+                    <div class="col-12"><label class="form-label" for="nm-email">E-mail</label><input class="form-control" type="email" id="nm-email" name="email" maxlength="190" value="<?= e($reopen ? old('email') : '') ?>"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Add to Group</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 <?php require APP_ROOT . '/includes/footer.php'; ?>
