@@ -39,6 +39,7 @@ if (get_str('export', 10) === 'csv') {
 $pageTitle = 'Shirt Production';
 $activeNav = 'production';
 $breadcrumb = [auth_context()['label'], 'Orders'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <div class="report-header"><h2>Production List</h2><p><?= e(auth_context()['label']) ?> · Generated <?= e(format_datetime(date('Y-m-d H:i:s'))) ?></p></div>
@@ -57,7 +58,7 @@ require APP_ROOT . '/includes/header.php';
     <div class="card panel mb-3">
         <div class="card-header"><h3><?= e($group['name']) ?></h3>
             <div class="d-flex gap-2 d-print-none">
-                <?php if (can('inventory.manage')): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/batch.php?product=' . $id)) ?>">Order from printer</a><?php endif; ?>
+                <?php if (can('inventory.manage')): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/batch.php?product=' . $id)) ?>" data-page-modal="xl">Order from printer</a><?php endif; ?>
                 <?php if (can('orders.manage')): ?><form method="post" data-confirm="Set aside received sizes for waiting orders?" data-confirm-text="Oldest confirmed orders are marked Ready for Release while stock lasts."><?= csrf_field() ?><input type="hidden" name="product_id" value="<?= (int) $id ?>"><button class="btn btn-primary btn-xs" type="submit">Mark orders ready</button></form><?php endif; ?>
             </div>
         </div>

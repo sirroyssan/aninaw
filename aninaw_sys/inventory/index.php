@@ -27,6 +27,7 @@ $pageRows = array_slice($rows, $pagination['offset'], $pagination['per_page']);
 $pageTitle = 'Inventory';
 $activeNav = 'inventory';
 $breadcrumb = [auth_context()['label'], 'Store'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <div class="report-header"><h2>Inventory</h2><p><?= e(auth_context()['label']) ?> · <?= $filters['low'] ? 'Low stock only' : 'All items' ?> · As of <?= e(format_datetime(date('Y-m-d H:i:s'))) ?></p></div>
@@ -67,7 +68,7 @@ require APP_ROOT . '/includes/header.php';
                         <td class="text-end text-muted-sm"><?= e((string) $row['reorder_level']) ?></td>
                         <td class="actions d-print-none">
                             <?php if (can('orders.manage') && $row['fulfillment'] === 'stock' && $row['available'] > 0): ?><a class="btn btn-primary btn-xs" href="<?= e(url('orders/create.php?variant=' . $row['id'])) ?>">Sell</a><?php endif; ?>
-                            <?php if (can_any(['inventory.manage', 'inventory.adjust'])): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/adjust.php?variant=' . $row['id'])) ?>">Record</a><?php endif; ?></td>
+                            <?php if (can_any(['inventory.manage', 'inventory.adjust'])): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/adjust.php?variant=' . $row['id'])) ?>" data-page-modal="md" data-modal-stay data-modal-title="Stock · <?= e($row['product_name'] . ($row['variant_name'] !== 'Standard' ? ' · ' . $row['variant_name'] : '')) ?>">Record</a><?php endif; ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

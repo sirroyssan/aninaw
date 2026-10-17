@@ -63,10 +63,11 @@ $rows = db_all(
 $pageTitle = 'Printing Jobs';
 $activeNav = 'printing';
 $breadcrumb = [auth_context()['label'], 'Orders'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Printing, photocopying, binding and other service jobs. Open the order to start, complete or release a job.',
-    can('orders.manage') ? button_link('orders/create.php', 'New Printing Job', 'bi-plus-lg') : '') ?>
+    can('orders.manage') ? button_link('orders/create.php', 'New Printing Job', 'bi-plus-lg', 'btn-primary', 'xl') : '') ?>
 <div class="stat-grid">
     <?= stat_card('bi-hourglass', 'Pending', number_format((int) ($counts['pending'] ?? 0)), 'Not started', 'warning') ?>
     <?= stat_card('bi-printer', 'In progress', number_format((int) ($counts['in_progress'] ?? 0)), 'Being printed', 'info') ?>

@@ -29,7 +29,7 @@ $activeNav = 'products';
 $breadcrumb = [auth_context()['label'], 'Products & Services'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<form method="post" enctype="multipart/form-data" class="card panel form-card" style="max-width: 920px">
+<form method="post" enctype="multipart/form-data" class="card panel form-card" style="max-width: 920px" data-modal-body>
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="form-section">

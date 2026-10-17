@@ -53,11 +53,12 @@ $low = count(stock_levels(['low' => true]));
 $pageTitle = 'Products & Services';
 $activeNav = 'products';
 $breadcrumb = [auth_context()['label'], 'Store'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Everything the institution sells: merchandise from stock, made-to-order shirts and on-demand services such as printing.',
     (can('products.manage') ? button_link('products/categories.php', 'Categories', 'bi-tags', 'btn-outline-primary') : '')
-    . (can('products.manage') ? button_link('products/form.php', 'New Product or Service', 'bi-plus-lg') : '')) ?>
+    . (can('products.manage') ? button_link('products/form.php', 'New Product or Service', 'bi-plus-lg', 'btn-primary', 'xl') : '')) ?>
 <div class="stat-grid">
     <?= stat_card('bi-box-seam', 'Physical products', number_format((int) $counts['physical']), 'Active') ?>
     <?= stat_card('bi-printer', 'Services', number_format((int) $counts['services']), 'Active', 'info') ?>

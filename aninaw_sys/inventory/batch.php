@@ -73,7 +73,7 @@ require APP_ROOT . '/includes/header.php';
 ?>
 <?php if (!$batch): ?>
     <?= page_actions($product['product_name'] . ' · ' . PRODUCT_FULFILLMENT[$product['fulfillment']], button_link('products/view.php?id=' . $product['id'], 'Product', 'bi-arrow-left', 'btn-outline-secondary')) ?>
-    <form method="post" class="card panel form-card" style="max-width: 860px">
+    <form method="post" class="card panel form-card" style="max-width: 860px" data-modal-body>
         <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="create">
         <div class="card-body">
             <div class="row g-3 mb-3">

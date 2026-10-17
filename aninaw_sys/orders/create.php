@@ -106,7 +106,7 @@ require APP_ROOT . '/includes/header.php';
 <?php if (!$items): ?>
     <div class="card panel"><div class="card-body"><?= empty_state('bi-box-seam', 'No products or services yet', 'Add them under Products & Services first.') ?></div></div>
 <?php else: ?>
-<form method="post" enctype="multipart/form-data" class="form-card" data-row-editor data-order-form data-currency="<?= e(current_currency() === 'PHP' ? '₱' : '') ?>" style="max-width: 1100px">
+<form method="post" enctype="multipart/form-data" class="form-card" data-modal-body data-row-editor data-order-form data-currency="<?= e(current_currency() === 'PHP' ? '₱' : '') ?>" style="max-width: 1100px">
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card panel mb-3"><div class="card-body">
         <h3 class="form-section-title">Customer</h3>

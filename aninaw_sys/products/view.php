@@ -65,13 +65,14 @@ $totals = ['on_hand' => array_sum(array_column($product['variants'], 'on_hand'))
 $pageTitle = $product['product_name'];
 $activeNav = 'products';
 $breadcrumb = [auth_context()['label'], 'Products & Services'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions($product['sku'] . ' · ' . ($product['category_name'] ?: 'No category') . ' · ' . PRODUCT_FULFILLMENT[$product['fulfillment']] . ' · sales to ' . $product['fund_name'],
     button_link('products/index.php', 'All Products', 'bi-arrow-left', 'btn-outline-secondary')
-    . (can('products.manage') ? button_link('products/form.php?id=' . $productId, 'Edit', 'bi-pencil', 'btn-outline-primary') : '')
-    . (!$isService && can('inventory.manage') ? button_link('inventory/batch.php?product=' . $productId, $product['fulfillment'] === 'made_to_order' ? 'New Production Order' : 'New Supplier Order', 'bi-truck', 'btn-outline-primary') : '')
-    . ($product['status'] === 'active' && can('orders.manage') ? button_link('orders/create.php?product=' . $productId, 'New Order', 'bi-cart-plus') : '')) ?>
+    . (can('products.manage') ? button_link('products/form.php?id=' . $productId, 'Edit', 'bi-pencil', 'btn-outline-primary', 'xl') : '')
+    . (!$isService && can('inventory.manage') ? button_link('inventory/batch.php?product=' . $productId, $product['fulfillment'] === 'made_to_order' ? 'New Production Order' : 'New Supplier Order', 'bi-truck', 'btn-outline-primary', 'xl') : '')
+    . ($product['status'] === 'active' && can('orders.manage') ? button_link('orders/create.php?product=' . $productId, 'New Order', 'bi-cart-plus', 'btn-primary', 'xl') : '')) ?>
 
 <?php if ($product['status'] !== 'active'): ?><div class="notice notice-warning"><i class="bi bi-pause-circle" aria-hidden="true"></i><div>This item is inactive and cannot be added to new orders.</div></div><?php endif; ?>
 <div class="stat-grid">
@@ -105,7 +106,7 @@ require APP_ROOT . '/includes/header.php';
                             <td><?= status_badge($variant['status']) ?></td>
                             <td class="actions">
                                 <?php if (can('products.manage')): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('products/view.php?id=' . $productId . '&variant=' . $variant['id'] . '#variant-form')) ?>">Edit</a><?php endif; ?>
-                                <?php if (!$isService && can_any(['inventory.manage', 'inventory.adjust'])): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/adjust.php?variant=' . $variant['id'])) ?>">Stock</a><?php endif; ?>
+                                <?php if (!$isService && can_any(['inventory.manage', 'inventory.adjust'])): ?><a class="btn btn-outline-primary btn-xs" href="<?= e(url('inventory/adjust.php?variant=' . $variant['id'])) ?>" data-page-modal="md" data-modal-stay data-modal-title="Stock · <?= e($variant['variant_name']) ?>">Stock</a><?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

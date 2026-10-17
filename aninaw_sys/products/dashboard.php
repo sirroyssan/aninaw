@@ -67,11 +67,12 @@ $count = static fn(array $map, string ...$keys) => array_sum(array_map(static fn
 $pageTitle = 'Store Dashboard';
 $activeNav = 'store-dashboard';
 $breadcrumb = [auth_context()['label'], 'Store'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Products, stock, college shirt orders and printing jobs at a glance. Collections count posted payments only.',
     button_link('products/reports.php', 'Store Reports', 'bi-bar-chart', 'btn-outline-primary')
-    . (can('orders.manage') ? button_link('orders/create.php', 'New Order', 'bi-cart-plus') : '')) ?>
+    . (can('orders.manage') ? button_link('orders/create.php', 'New Order', 'bi-cart-plus', 'btn-primary', 'xl') : '')) ?>
 
 <div class="stat-grid">
     <?= stat_card('bi-box-seam', 'Products & services', number_format((int) $catalogue['total']), (int) $catalogue['stock'] . ' stock · ' . (int) $catalogue['made_to_order'] . ' made to order · ' . (int) $catalogue['services'] . ' services') ?>

@@ -2,7 +2,9 @@
  * ANINAW — links with data-page-modal open another page's form or list in a pop-up instead of
  * leaving the current page (e.g. Record Expense, New Budget, My Liquidations). The page is fetched
  * and its [data-modal-body] element is shown in the pop-up; its scripts are loaded once.
- * Paging links inside the pop-up reload it in place.
+ * Paging links inside the pop-up reload it in place. Each page gets its own pop-up, kept while
+ * the list is open, so reopening it shows what was typed. data-modal-stay on the link: after
+ * saving, stay on (and refresh) the current page instead of opening the saved record.
  *
  * Forms marked data-modal-ajax (all forms taken from a page, and pop-up forms such as Record
  * Deposit) are sent in the background: on success the browser goes where the server says
@@ -13,21 +15,22 @@
     'use strict';
     if (!window.bootstrap) { return; }
 
-    var shell = null;
+    var shells = {};
     var loaded = {};
 
-    function getShell() {
-        if (shell) { return shell; }
-        shell = document.createElement('div');
-        shell.className = 'modal fade';
-        shell.id = 'page-modal';
+    function getShell(href) {
+        if (shells[href]) { return shells[href]; }
+        var shell = document.createElement('div');
+        shell.className = 'modal fade page-modal';
+        shell.id = 'page-modal-' + Object.keys(shells).length;
         shell.tabIndex = -1;
-        shell.setAttribute('aria-labelledby', 'page-modal-title');
+        shell.setAttribute('aria-labelledby', shell.id + '-title');
         shell.setAttribute('aria-hidden', 'true');
         shell.innerHTML = '<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">'
-            + '<div class="modal-header"><h2 class="modal-title h5" id="page-modal-title"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>'
+            + '<div class="modal-header"><h2 class="modal-title h5" id="' + shell.id + '-title" data-page-modal-title></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>'
             + '<div class="modal-body p-0" data-page-modal-body></div></div></div>';
         document.body.appendChild(shell);
+        shells[href] = shell;
         return shell;
     }
 
@@ -56,6 +59,12 @@
         content.classList.add('border-0', 'rounded-0', 'shadow-none', 'mb-0');
         content.style.maxWidth = '';
         content.removeAttribute('data-modal-body');
+        // A page column (e.g. the stock forms beside the movement list) gets the pop-up's padding instead.
+        Array.prototype.slice.call(content.classList).forEach(function (name) {
+            if (/^col(-|$)/.test(name)) { content.classList.remove(name); }
+        });
+        // Content that is not itself a card (a page column, a form of several cards) needs padding.
+        if (!content.classList.contains('card')) { content.classList.add('p-3'); }
         var forms = content.matches('form') ? [content] : Array.prototype.slice.call(content.querySelectorAll('form'));
         forms.forEach(function (form) {
             if ((form.getAttribute('method') || '').toLowerCase() === 'post') {
@@ -69,7 +78,7 @@
         });
     }
 
-    function fill(href, title, size) {
+    function fill(modalEl, href, title, size) {
         return fetch(href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
             .then(function (response) {
                 if (!response.ok || response.redirected) { throw new Error('load'); }
@@ -83,9 +92,8 @@
                 (content.matches('form') ? [content] : Array.prototype.slice.call(content.querySelectorAll('form'))).forEach(function (form) {
                     if (!form.getAttribute('action')) { form.setAttribute('action', href); }
                 });
-                var modalEl = getShell();
-                modalEl.querySelector('.modal-dialog').className = 'modal-dialog modal-dialog-centered modal-dialog-scrollable modal-' + (size || 'lg');
-                modalEl.querySelector('#page-modal-title').textContent = title;
+                if (size) { modalEl.querySelector('.modal-dialog').className = 'modal-dialog modal-dialog-centered modal-dialog-scrollable modal-' + size; }
+                if (title) { modalEl.querySelector('[data-page-modal-title]').textContent = title; }
                 var body = modalEl.querySelector('[data-page-modal-body]');
                 body.innerHTML = '';
                 body.appendChild(document.importNode(content, true));
@@ -105,11 +113,14 @@
         event.preventDefault();
         var title = link.getAttribute('data-modal-title') || link.textContent.trim();
         // Reopened: keep what was typed (and the page scripts already set up on it).
-        if (shell && shell.getAttribute('data-source') === link.href && shell.querySelector('[data-page-modal-body]').children.length) {
-            window.bootstrap.Modal.getOrCreateInstance(shell).show();
+        var known = shells[link.href];
+        if (known && known.querySelector('[data-page-modal-body]').children.length) {
+            window.bootstrap.Modal.getOrCreateInstance(known).show();
             return;
         }
-        fill(link.href, title, link.getAttribute('data-page-modal'))
+        var shellEl = getShell(link.href);
+        if (link.hasAttribute('data-modal-stay')) { shellEl.setAttribute('data-stay', ''); }
+        fill(shellEl, link.href, title, link.getAttribute('data-page-modal') || 'lg')
             .then(function (modalEl) {
                 window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
                 var first = modalEl.querySelector('[data-page-modal-body] input:not([type=hidden]), [data-page-modal-body] select, [data-page-modal-body] textarea');
@@ -120,10 +131,10 @@
 
     // Paging inside a list pop-up: reload the pop-up in place.
     document.addEventListener('click', function (event) {
-        var link = event.target.closest('#page-modal .pagination a[href]');
+        var link = event.target.closest('.page-modal .pagination a[href]');
         if (!link) { return; }
         event.preventDefault();
-        fill(link.href, shell.querySelector('#page-modal-title').textContent, null).catch(function () { window.location.href = link.href; });
+        fill(link.closest('.page-modal'), link.href, null, null).catch(function () { window.location.href = link.href; });
     });
 
     function showError(form, result) {
@@ -161,7 +172,11 @@
             })
             .then(function (result) {
                 if (!result) { return; }
-                if (result.ok) { window.location.href = result.redirect || window.location.href; return; }
+                if (result.ok) {
+                    if (form.closest('[data-stay]')) { window.location.reload(); return; }
+                    window.location.href = result.redirect || window.location.href;
+                    return;
+                }
                 buttons.forEach(function (button) { button.disabled = false; });
                 showError(form, result);
             })

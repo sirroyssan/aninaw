@@ -70,12 +70,13 @@ $products = options_from_rows(db_all('SELECT id, product_name FROM products WHER
 $pageTitle = 'Orders';
 $activeNav = 'orders';
 $breadcrumb = [auth_context()['label'], 'Store'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions('Product orders, college shirt advance orders and printing jobs. An order is paid only when a payment is recorded against it.',
     button_link('orders/production.php', 'Shirt Production', 'bi-truck', 'btn-outline-primary')
     . button_link('orders/printing.php', 'Printing Jobs', 'bi-printer', 'btn-outline-primary')
-    . (can('orders.manage') ? button_link('orders/create.php', 'New Order', 'bi-cart-plus') : '')) ?>
+    . (can('orders.manage') ? button_link('orders/create.php', 'New Order', 'bi-cart-plus', 'btn-primary', 'xl') : '')) ?>
 <div class="stat-grid">
     <?= stat_card('bi-cart', 'Orders', number_format((int) $totals['n']), 'Matching the filters') ?>
     <?= stat_card('bi-receipt', 'Order value', m($totals['value']), 'Excluding cancelled', 'info') ?>

@@ -52,7 +52,7 @@ require APP_ROOT . '/includes/header.php';
     <?= stat_card('bi-check2-circle', 'Available', number_format($variant['available']), 'Reorder level ' . $variant['reorder_level'], $variant['available'] <= (int) $variant['reorder_level'] ? 'warning' : 'success') ?>
 </div>
 <div class="row g-3">
-    <div class="col-lg-5">
+    <div class="col-lg-5" data-modal-body>
         <?php if (!$hasBeginning && can('inventory.manage')): ?>
             <form method="post" class="card panel form-card mb-3">
                 <?= csrf_field() ?><?= idempotency_field() ?><input type="hidden" name="action" value="beginning">
