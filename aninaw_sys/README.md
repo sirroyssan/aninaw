@@ -22,8 +22,12 @@ Design decisions, the accounting model, schema gaps and module status are listed
 3. Let Apache write the log and upload folders. In Terminal:
    ```bash
    cd /Applications/XAMPP/xamppfiles/htdocs/aninaw_sys
-   chmod 777 logs uploads/receipts uploads/attachments
+   chmod -R 777 logs uploads/receipts uploads/attachments
    ```
+   **Repeat this after copying in a new version of the folder**: a fresh copy loses the permission,
+   and saving anything with a file (expense receipt, deposit slip, proof of payment) then fails with
+   "the uploads folder is not writable". Keep your existing `uploads/` folder when updating, so the
+   files already attached stay available.
    Uploads (receipts, deposit slips, liquidation documents) are stored under `uploads/`, which is
    blocked from direct web access; files are only served through `attachments/download.php` after a
    permission check.

@@ -73,7 +73,7 @@ require APP_ROOT . '/includes/header.php';
         <div class="form-section">
             <h2 class="form-section-title">Documents</h2>
             <div class="row g-3">
-                <div class="col-md-6"><?= attachment_input('receipt', $expense && $expense['receipt_attachment_id'] ? 'Replace official receipt / invoice' : 'Official receipt / invoice', false) ?><div class="form-text">Required before submitting. The same document cannot support two expenses.</div></div>
+                <div class="col-md-6"><?= attachment_input('receipt', $expense && $expense['receipt_attachment_id'] ? 'Replace official receipt / invoice' : 'Official receipt / invoice', false, $expense && $expense['receipt_attachment_id'] ? 'optional' : 'needed to submit; optional for a draft') ?><div class="form-text">Required before submitting. The same document cannot support two expenses.</div></div>
                 <div class="col-md-6"><?= attachment_input('attachment', 'Other supporting document') ?></div>
             </div>
             <?php if ($expense): ?><div class="mt-3"><?= attachment_list_html(attachments_for('expense', (int) $expense['id'])) ?></div><?php endif; ?>

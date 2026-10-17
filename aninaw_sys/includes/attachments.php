@@ -83,12 +83,19 @@ function store_attachment(string $field, string $entityType, int $entityId, bool
     $directory = 'uploads/' . (str_starts_with($entityType, 'payment') || $entityType === 'expense' || $entityType === 'advance_expense' ? 'receipts' : 'attachments')
         . '/' . $institutionId . '/' . date('Y/m');
     $absoluteDirectory = APP_ROOT . '/' . $directory;
-    if (!is_dir($absoluteDirectory) && !mkdir($absoluteDirectory, 0750, true) && !is_dir($absoluteDirectory)) {
-        throw new RuntimeException('Cannot create upload directory');
+    // Usually the web server may not write to uploads/ (e.g. after copying a fresh ANINAW folder):
+    // say so plainly instead of a generic error. Nothing is saved; the details go to the log.
+    $notWritable = static function (string $what) use ($directory): never {
+        log_error('Upload folder not writable', ['step' => $what, 'directory' => $directory]);
+        fail_user('The file could not be saved on the server because the "uploads" folder is not writable. Nothing was saved. '
+            . 'Ask the system administrator to allow the web server to write to uploads/receipts and uploads/attachments (see README, installation step 3).');
+    };
+    if (!is_dir($absoluteDirectory) && !@mkdir($absoluteDirectory, 0750, true) && !is_dir($absoluteDirectory)) {
+        $notWritable('create folder');
     }
     $storageKey = $directory . '/' . bin2hex(random_bytes(20)) . '.' . ATTACHMENT_TYPES[$mime];
-    if (!move_uploaded_file((string) $file['tmp_name'], APP_ROOT . '/' . $storageKey)) {
-        throw new RuntimeException('Cannot store uploaded file');
+    if (!@move_uploaded_file((string) $file['tmp_name'], APP_ROOT . '/' . $storageKey)) {
+        $notWritable('store file');
     }
 
     // Keep the user's filename only as display text, stripped of path and control characters.
@@ -185,9 +192,11 @@ function attachment_list_html(array $attachments): string
 }
 
 /** File input with the accepted types. */
-function attachment_input(string $name = 'attachment', string $label = 'Supporting document', bool $required = false): string
+/** $hint replaces "(optional)" next to the label, e.g. when the file is needed only for some actions. */
+function attachment_input(string $name = 'attachment', string $label = 'Supporting document', bool $required = false, ?string $hint = null): string
 {
-    return '<label class="form-label" for="' . e($name) . '">' . e($label) . ($required ? '' : ' <span class="text-muted-sm">(optional)</span>') . '</label>'
+    $note = $hint ?? ($required ? '' : 'optional');
+    return '<label class="form-label" for="' . e($name) . '">' . e($label) . ($note !== '' ? ' <span class="text-muted-sm">(' . e($note) . ')</span>' : '') . '</label>'
         . '<input class="form-control" type="file" id="' . e($name) . '" name="' . e($name) . '" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"' . ($required ? ' required' : '') . '>'
         . '<div class="form-text">PDF, JPG, PNG or WEBP, up to 5 MB.</div>';
 }
