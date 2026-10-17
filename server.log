@@ -1034,3 +1034,111 @@
 [Sat Oct 17 04:57:05 2026] 127.0.0.1:41076 Accepted
 [Sat Oct 17 04:57:05 2026] 127.0.0.1:41076 [200]: GET /aninaw_sys/assets/images/favicon.svg?v=1792116498
 [Sat Oct 17 04:57:05 2026] 127.0.0.1:41076 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44444 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44444 [200]: GET /aninaw_sys/login.php
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44444 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44446 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44462 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44476 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44482 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44498 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44510 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44446 [200]: GET /aninaw_sys/assets/vendor/bootstrap/bootstrap.min.css?v=1792115633
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44446 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44462 [200]: GET /aninaw_sys/assets/vendor/bootstrap-icons/bootstrap-icons.min.css?v=1792115633
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44462 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44476 [200]: GET /aninaw_sys/assets/css/style.css?v=1792213157
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44476 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44482 [200]: GET /aninaw_sys/assets/vendor/bootstrap/bootstrap.bundle.min.js?v=1792115633
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44498 [200]: GET /aninaw_sys/assets/vendor/sweetalert2/sweetalert2.all.min.js?v=1792115633
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44510 [200]: GET /aninaw_sys/assets/js/app.js?v=1792131305
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44482 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44498 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44510 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44518 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44530 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44518 [200]: GET /aninaw_sys/assets/js/combobox.js?v=1792162828
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44518 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44530 [200]: GET /aninaw_sys/assets/js/validation.js?v=1792116453
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44530 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44534 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44534 [200]: GET /aninaw_sys/assets/vendor/bootstrap-icons/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44534 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44538 Accepted
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44538 [200]: GET /aninaw_sys/assets/images/favicon.svg?v=1792116498
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44538 Closing
+[Sat Oct 17 04:59:18 2026] 127.0.0.1:44546 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44546 [200]: POST /aninaw_sys/login.php
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44546 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44558 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44558 [200]: GET /aninaw_sys/dashboard/index.php
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44558 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44568 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44584 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44568 [200]: GET /aninaw_sys/assets/vendor/bootstrap/bootstrap.min.css?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44600 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44584 [200]: GET /aninaw_sys/assets/css/admin.css?v=1792209646
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44606 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44600 [200]: GET /aninaw_sys/assets/vendor/bootstrap-icons/bootstrap-icons.min.css?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44608 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44606 [200]: GET /aninaw_sys/assets/js/sidebar.js?v=1792202399
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44568 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44584 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44608 [200]: GET /aninaw_sys/assets/css/style.css?v=1792213157
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44600 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44606 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44608 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44612 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44614 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44626 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44632 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44612 [200]: GET /aninaw_sys/assets/vendor/bootstrap/bootstrap.bundle.min.js?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44614 [200]: GET /aninaw_sys/assets/vendor/sweetalert2/sweetalert2.all.min.js?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44626 [200]: GET /aninaw_sys/assets/js/app.js?v=1792131305
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44612 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44614 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44626 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44632 [200]: GET /aninaw_sys/assets/js/combobox.js?v=1792162828
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44632 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44634 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44634 [200]: GET /aninaw_sys/assets/vendor/bootstrap-icons/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44634 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44642 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44642 [200]: GET /aninaw_sys/events/view.php?id=1&tab=obligations
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44642 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44656 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44656 [200]: GET /aninaw_sys/assets/images/favicon.svg?v=1792116498
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44656 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44666 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44672 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44674 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44686 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44688 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44700 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44666 [200]: GET /aninaw_sys/assets/vendor/bootstrap/bootstrap.min.css?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44672 [200]: GET /aninaw_sys/assets/vendor/bootstrap-icons/bootstrap-icons.min.css?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44674 [200]: GET /aninaw_sys/assets/css/style.css?v=1792213157
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44666 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44672 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44674 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44686 [200]: GET /aninaw_sys/assets/css/admin.css?v=1792209646
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44686 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44688 [200]: GET /aninaw_sys/assets/js/sidebar.js?v=1792202399
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44688 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44700 [200]: GET /aninaw_sys/assets/vendor/bootstrap/bootstrap.bundle.min.js?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44700 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44712 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44726 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44732 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44712 [200]: GET /aninaw_sys/assets/vendor/sweetalert2/sweetalert2.all.min.js?v=1792115633
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44712 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44726 [200]: GET /aninaw_sys/assets/js/app.js?v=1792131305
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44726 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44732 [200]: GET /aninaw_sys/assets/js/combobox.js?v=1792162828
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44732 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44734 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44734 [200]: GET /aninaw_sys/assets/vendor/bootstrap-icons/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44734 Closing
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44744 Accepted
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44744 [200]: GET /aninaw_sys/assets/images/favicon.svg?v=1792116498
+[Sat Oct 17 04:59:19 2026] 127.0.0.1:44744 Closing
