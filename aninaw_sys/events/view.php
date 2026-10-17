@@ -412,6 +412,19 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         "SELECT COUNT(DISTINCT gm.participant_id) FROM event_group_assignments a JOIN group_memberships gm ON gm.institution_id = a.institution_id AND gm.group_id = a.group_id AND gm.status = 'active'
          WHERE a.institution_id = ? AND a.event_id = ? AND a.status = 'active'", [$institutionId, $eventId]);
     $canAddPeople = $canManage && !in_array($event['status'], ['completed', 'closed', 'cancelled'], true);
+    // Search and 10 per page for the list (the counts above still cover everyone).
+    $peopleSearch = get_str('pq', 100);
+    $peopleShow = in_array(get_str('pshow', 10), ['balance', 'paid'], true) ? get_str('pshow', 10) : '';
+    $needle = mb_strtolower($peopleSearch);
+    $listed = array_values(array_filter($people, static function (array $row) use ($needle, $peopleShow): bool {
+        $balance = to_cents($row['expected']) - to_cents($row['paid']);
+        if ($peopleShow === 'balance' && $balance <= 0 || $peopleShow === 'paid' && ($balance > 0 || to_cents($row['expected']) === 0)) {
+            return false;
+        }
+        return $needle === '' || str_contains(mb_strtolower($row['participant_number'] . ' ' . $row['last_name'] . ', ' . $row['first_name'] . ' ' . $row['first_name'] . ' ' . $row['last_name']), $needle);
+    }));
+    $peoplePages = paginate(count($listed), 10);
+    $listed = array_slice($listed, $peoplePages['offset'], $peoplePages['per_page']);
     ?>
     <?php if (can_check_event_documents($event) || can('organization.manage')): ?>
         <div class="d-flex justify-content-end gap-2 mb-2"><?php if (can('users.manage')): ?><a class="btn btn-outline-primary btn-sm" href="<?= e(url('participants/logins.php?event=' . $eventId . '&type=all')) ?>"><i class="bi bi-person-lock me-1" aria-hidden="true"></i>Create logins</a><?php endif; ?><a class="btn btn-outline-primary btn-sm" href="<?= e(url('events/participant_details.php?event=' . $eventId)) ?>"><i class="bi bi-person-lines-fill me-1" aria-hidden="true"></i>Participant details (export)</a></div>
@@ -424,14 +437,24 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         <div class="col-xl-8">
             <div class="card panel">
                 <div class="card-header"><h3>People added to this event</h3></div>
+                <?php if ($people): ?>
+                    <form class="filter-bar" method="get">
+                        <input type="hidden" name="id" value="<?= (int) $eventId ?>"><input type="hidden" name="tab" value="people">
+                        <div class="filter-field grow"><label for="pq">Search</label><input class="form-control" type="search" id="pq" name="pq" value="<?= e($peopleSearch) ?>" placeholder="ID number or name"></div>
+                        <div class="filter-field"><label for="pshow">Show</label><select class="form-select" id="pshow" name="pshow" data-autosubmit><?= options_html(['balance' => 'With a balance', 'paid' => 'Fully paid'], $peopleShow, 'Everyone') ?></select></div>
+                        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search</span></button>
+                    </form>
+                <?php endif; ?>
                 <?php if (!$people): ?>
                     <div class="card-body"><?= empty_state('bi-people', 'No one added directly', 'Add students, faculty or customers here; no group is needed. People in participating groups are included automatically.') ?></div>
+                <?php elseif (!$listed): ?>
+                    <div class="card-body"><?= empty_state('bi-search', 'No one matches', 'Try another name or ID number, or clear the search.') ?></div>
                 <?php else: ?>
                     <div class="table-responsive"><table class="table table-clean align-middle mb-0">
                         <thead><tr><th>ID no.</th><th>Name</th><th>Type</th><th class="text-end">Owes</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th></th></tr></thead>
-                        <tbody><?php foreach ($people as $row): $balance = max(0, to_cents($row['expected']) - to_cents($row['paid'])); ?>
+                        <tbody><?php foreach ($listed as $row): $balance = max(0, to_cents($row['expected']) - to_cents($row['paid'])); ?>
                             <tr>
-                                <td class="fw-semibold"><?= e($row['participant_number']) ?></td>
+                                <td class="fw-semibold text-nowrap"><?= e($row['participant_number']) ?></td>
                                 <td><a href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>" data-person-card="<?= e(url('participants/card.php?id=' . $row['participant_id'] . '&event=' . $eventId . '&fragment=1')) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a></td>
                                 <td><?= e(PARTICIPANT_TYPES[$row['participant_type']] ?? $row['participant_type']) ?></td>
                                 <td class="text-end"><?= e(m($row['expected'])) ?></td>
@@ -447,6 +470,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
                         <?php endforeach; ?></tbody>
                     </table></div>
                 <?php endif; ?>
+                <?php if ($people): ?><?= pagination_links($peoplePages) ?><?php endif; ?>
                 <div class="card-footer-note">Collection rules that apply to everyone in the event are charged to people as soon as they are added. Rules for one group or one person apply only to them.</div>
             </div>
         </div>
