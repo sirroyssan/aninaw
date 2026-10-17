@@ -63,3 +63,13 @@ function db_value(string $sql, array $params = []): mixed
     $value = db_query($sql, $params)->fetchColumn();
     return $value === false ? null : $value;
 }
+
+/** Whether a column exists (cached per request), so a page keeps working before an optional migration is run. */
+function db_column_exists(string $table, string $column): bool
+{
+    static $cache = [];
+    return $cache[$table . '.' . $column] ??= (bool) db_value(
+        'SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?',
+        [$table, $column]
+    );
+}

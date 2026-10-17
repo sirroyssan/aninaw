@@ -297,6 +297,13 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
     if ($data['rule_name'] === '') {
         fail_user('Name the collection (e.g. Registration Fee).');
     }
+    $withInclusions = rule_inclusions_ready();
+    if (!$withInclusions) {
+        if ($data['inclusions'] !== null) {
+            fail_user('To list what a collection includes, the administrator must first import database/migration_008_rule_inclusions.sql once (phpMyAdmin → Import). Clear the "What\'s included" box to save the rule without it.');
+        }
+        unset($data['inclusions']);
+    }
     if ($data['applies_to_type'] === 'group') {
         $data['applies_to_id'] = input_int($input, 'applies_to_group') ?? 0;
         find_group($data['applies_to_id']) ?? fail_user('Select the group this collection applies to.');
@@ -310,7 +317,7 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
         fail_user('The due date must be on or after the start date.');
     }
 
-    return db_transaction(function () use ($institutionId, $eventId, $ruleId, $data, $amount) {
+    return db_transaction(function () use ($institutionId, $eventId, $ruleId, $data, $amount, $withInclusions) {
         if ($ruleId) {
             $before = db_one('SELECT * FROM collection_rules WHERE institution_id = ? AND id = ? AND event_id = ? FOR UPDATE', [$institutionId, $ruleId, $eventId]) ?? fail_user('Rule not found.');
             $amountChanged = to_cents($before['amount_due']) !== $amount;
@@ -319,9 +326,12 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
                 fail_user('Payments were already received under this rule, so its amount and coverage are locked. Use waivers for individual adjustments or add a new rule.');
             }
             db_query(
-                'UPDATE collection_rules SET rule_name = ?, inclusions = ?, amount_due = ?, applies_to_type = ?, applies_to_id = ?, effective_from = ?, effective_until = ?, allow_partial_payment = ? WHERE id = ?',
-                [$data['rule_name'], $data['inclusions'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment'], $ruleId]
+                'UPDATE collection_rules SET rule_name = ?, amount_due = ?, applies_to_type = ?, applies_to_id = ?, effective_from = ?, effective_until = ?, allow_partial_payment = ? WHERE id = ?',
+                [$data['rule_name'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment'], $ruleId]
             );
+            if ($withInclusions) {
+                db_query('UPDATE collection_rules SET inclusions = ? WHERE id = ?', [$data['inclusions'], $ruleId]);
+            }
             if ($amountChanged) {
                 db_query("UPDATE event_obligations SET amount_due = ? WHERE institution_id = ? AND collection_rule_id = ? AND status <> 'cancelled'", [$data['amount_due'], $institutionId, $ruleId]);
             }
@@ -343,11 +353,14 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
             return $ruleId;
         }
         db_query(
-            "INSERT INTO collection_rules (institution_id, event_id, rule_name, inclusions, amount_due, applies_to_type, applies_to_id, effective_from, effective_until, allow_partial_payment, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')",
-            [$institutionId, $eventId, $data['rule_name'], $data['inclusions'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment']]
+            "INSERT INTO collection_rules (institution_id, event_id, rule_name, amount_due, applies_to_type, applies_to_id, effective_from, effective_until, allow_partial_payment, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')",
+            [$institutionId, $eventId, $data['rule_name'], $data['amount_due'], $data['applies_to_type'], $data['applies_to_id'], $data['effective_from'], $data['effective_until'], $data['allow_partial_payment']]
         );
         $id = (int) db()->lastInsertId();
+        if ($withInclusions) {
+            db_query('UPDATE collection_rules SET inclusions = ? WHERE id = ?', [$data['inclusions'], $id]);
+        }
         audit_log('collection_rule.created', 'collection_rule', $id, $institutionId, (int) auth_user()['id'], $data);
         // A rule added late still applies to everyone already in the event.
         apply_collection_rule($eventId, $id, false);

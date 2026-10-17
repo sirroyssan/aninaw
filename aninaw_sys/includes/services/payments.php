@@ -26,7 +26,7 @@ const PAYMENT_METHOD_ACCOUNT_TYPES = [
 function open_obligations(int $participantId, ?int $eventId = null): array
 {
     $sql = "SELECT o.id, o.event_id, o.amount_due, o.waived_amount, o.due_date, o.status, e.event_name, e.event_code, e.status AS event_status,
-                   r.rule_name, r.inclusions, r.allow_partial_payment,
+                   r.rule_name, " . rule_inclusions_sql('r') . ", r.allow_partial_payment,
                    (SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocations pa
                       JOIN payments p ON p.id = pa.payment_id AND p.institution_id = pa.institution_id AND p.status = 'posted'
                      WHERE pa.institution_id = o.institution_id AND pa.obligation_id = o.id) AS paid
@@ -211,7 +211,7 @@ function find_payment(int $paymentId): ?array
     );
     if ($payment) {
         $payment['allocations'] = db_all(
-            "SELECT pa.allocated_amount, o.id AS obligation_id, o.amount_due, o.waived_amount, o.status AS obligation_status, r.rule_name, r.inclusions, e.event_name, e.id AS event_id
+            "SELECT pa.allocated_amount, o.id AS obligation_id, o.amount_due, o.waived_amount, o.status AS obligation_status, r.rule_name, " . rule_inclusions_sql('r') . ", e.event_name, e.id AS event_id
              FROM payment_allocations pa
              JOIN event_obligations o ON o.id = pa.obligation_id AND o.institution_id = pa.institution_id
              JOIN collection_rules r ON r.id = o.collection_rule_id AND r.institution_id = o.institution_id

@@ -19,7 +19,7 @@ $groups = db_all(
     [current_institution_id(), $participantId]
 );
 $obligations = can('collections.view') ? db_all(
-    "SELECT o.id, o.amount_due, o.waived_amount, o.due_date, o.status, e.id AS event_id, e.event_name, cr.rule_name, cr.inclusions,
+    "SELECT o.id, o.amount_due, o.waived_amount, o.due_date, o.status, e.id AS event_id, e.event_name, cr.rule_name, " . rule_inclusions_sql('cr') . ",
             (SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocations pa
                JOIN payments p ON p.id = pa.payment_id AND p.institution_id = pa.institution_id AND p.status = 'posted'
               WHERE pa.institution_id = o.institution_id AND pa.obligation_id = o.id) AS paid

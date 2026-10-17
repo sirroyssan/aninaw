@@ -413,14 +413,26 @@ function send_csv(string $filename, array $header, iterable $rows, array $preamb
     exit;
 }
 
-/** "T-shirt\nLanyard" (one per line, as typed) → ['T-shirt', 'Lanyard']. */
+/** "T-shirt\nLanyard" or "T-shirt, Lanyard" (one per line or comma-separated) → ['T-shirt', 'Lanyard']. */
 function rule_inclusions(?string $text): array
 {
-    return array_values(array_filter(array_map('trim', preg_split('/\R|;/', (string) $text) ?: [])));
+    return array_values(array_filter(array_map('trim', preg_split('/\R|[;,]/', (string) $text) ?: [])));
+}
+
+/** Migration 008 adds collection_rules.inclusions; until it is run, rules simply list nothing. */
+function rule_inclusions_ready(): bool
+{
+    return db_column_exists('collection_rules', 'inclusions');
+}
+
+/** SELECT expression for a rule's inclusions under table alias $alias. */
+function rule_inclusions_sql(string $alias): string
+{
+    return rule_inclusions_ready() ? $alias . '.inclusions' : 'NULL AS inclusions';
 }
 
 /** "Includes: T-shirt, Lanyard, Lunch" (escaped), or '' when the rule lists nothing. */
-function inclusions_html(?string $text, string $class = 'text-muted-sm'): string
+function inclusions_html(?string $text = null, string $class = 'text-muted-sm'): string
 {
     $items = rule_inclusions($text);
     return $items ? '<div class="' . e($class) . '"><i class="bi bi-box-seam me-1" aria-hidden="true"></i>Includes: ' . e(implode(', ', $items)) . '</div>' : '';
