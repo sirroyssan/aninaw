@@ -257,6 +257,10 @@ function assign_event_group(int $eventId, array $input): void
     );
     audit_log('event.group_assigned', 'event', $eventId, $institutionId, (int) auth_user()['id'], ['group_id' => $groupId, 'collector' => $collectorId, 'cashier' => $cashierId]);
     notify_membership($institutionId, $collectorId, 'collection_assigned', 'Collection assigned', 'You collect for ' . $group['group_name'] . ' in ' . $event['event_name'] . '.');
+    // The group's members are charged the event's active rules at once.
+    foreach (db_query("SELECT id FROM collection_rules WHERE institution_id = ? AND event_id = ? AND status = 'active'", [$institutionId, $eventId])->fetchAll(PDO::FETCH_COLUMN) as $ruleId) {
+        apply_collection_rule($eventId, (int) $ruleId, false);
+    }
 }
 
 function remove_event_group(int $eventId, int $assignmentId): void
@@ -330,6 +334,10 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
             foreach (db_query('SELECT id FROM event_obligations WHERE institution_id = ? AND collection_rule_id = ?', [$institutionId, $ruleId])->fetchAll(PDO::FETCH_COLUMN) as $obligationId) {
                 refresh_obligation_status((int) $obligationId);
             }
+            // Charge everyone the rule now covers (restoring charges cancelled by the change above).
+            if ($before['status'] === 'active') {
+                apply_collection_rule($eventId, $ruleId, $targetChanged);
+            }
             audit_log('collection_rule.updated', 'collection_rule', $ruleId, $institutionId, (int) auth_user()['id'], $data, array_intersect_key($before, $data));
             return $ruleId;
         }
@@ -340,6 +348,8 @@ function save_collection_rule(int $eventId, ?int $ruleId, array $input): int
         );
         $id = (int) db()->lastInsertId();
         audit_log('collection_rule.created', 'collection_rule', $id, $institutionId, (int) auth_user()['id'], $data);
+        // A rule added late still applies to everyone already in the event.
+        apply_collection_rule($eventId, $id, false);
         return $id;
     });
 }
@@ -375,6 +385,9 @@ function set_rule_status(int $eventId, int $ruleId, string $status, string $reas
             db_query("UPDATE event_obligations SET status = 'cancelled' WHERE institution_id = ? AND collection_rule_id = ? AND status <> 'cancelled'", [$institutionId, $ruleId]);
         }
         db_query('UPDATE collection_rules SET status = ? WHERE id = ?', [$status, $ruleId]);
+        if ($status === 'active' && $rule['status'] !== 'active') {
+            apply_collection_rule($eventId, $ruleId, true); // reactivated: its charges apply again
+        }
         audit_log('collection_rule.status_changed', 'collection_rule', $ruleId, $institutionId, (int) auth_user()['id'], ['status' => $status], ['status' => $rule['status']], $reason ?: null);
     });
 }
@@ -415,6 +428,47 @@ function rule_eligible_participants(array $rule): array
         )->fetchAll(PDO::FETCH_COLUMN));
     }
     return array_map('intval', db_query("SELECT id FROM participants WHERE institution_id = ? AND status = 'active'", [$institutionId])->fetchAll(PDO::FETCH_COLUMN));
+}
+
+/**
+ * Charges one active rule to everyone it covers, at once (used when a rule is added,
+ * changed or reactivated). Existing charges are left as they are; with $revive, charges
+ * of this rule that were cancelled and have no payments are restored.
+ * An "everyone" rule on an event with no groups and no people added is not applied
+ * automatically (it would mean everyone in the institution): Generate Obligations does that.
+ * @return int charges created or restored
+ */
+function apply_collection_rule(int $eventId, int $ruleId, bool $revive): int
+{
+    $institutionId = (int) current_institution_id();
+    $event = find_event($eventId);
+    $rule = db_one("SELECT * FROM collection_rules WHERE institution_id = ? AND event_id = ? AND id = ? AND status = 'active'", [$institutionId, $eventId, $ruleId]);
+    if (!$event || !$rule || !in_array($event['status'], ['draft', 'pending', 'approved', 'collecting'], true)) {
+        return 0;
+    }
+    if ($rule['applies_to_type'] === 'all'
+        && !db_value("SELECT 1 FROM event_group_assignments WHERE institution_id = ? AND event_id = ? AND status = 'active'", [$institutionId, $eventId])
+        && !db_value("SELECT 1 FROM event_participants WHERE institution_id = ? AND event_id = ? AND status = 'active'", [$institutionId, $eventId])) {
+        return 0;
+    }
+    $count = 0;
+    foreach (rule_eligible_participants($rule) as $participantId) {
+        $existing = db_one('SELECT id, status FROM event_obligations WHERE institution_id = ? AND event_id = ? AND participant_id = ? AND collection_rule_id = ?', [$institutionId, $eventId, $participantId, $ruleId]);
+        if (!$existing) {
+            db_query("INSERT INTO event_obligations (institution_id, event_id, participant_id, collection_rule_id, amount_due, waived_amount, due_date, status) VALUES (?, ?, ?, ?, ?, 0, ?, 'unpaid')",
+                [$institutionId, $eventId, $participantId, $ruleId, $rule['amount_due'], $rule['effective_until'] ?? $event['collection_deadline']]);
+            $count++;
+        } elseif ($revive && $existing['status'] === 'cancelled'
+            && !db_value("SELECT 1 FROM payment_allocations pa JOIN payments p ON p.id = pa.payment_id AND p.status IN ('posted', 'pending') WHERE pa.institution_id = ? AND pa.obligation_id = ?", [$institutionId, $existing['id']])) {
+            db_query("UPDATE event_obligations SET status = 'unpaid', amount_due = ?, waived_amount = 0 WHERE id = ?", [$rule['amount_due'], $existing['id']]);
+            refresh_obligation_status((int) $existing['id']);
+            $count++;
+        }
+    }
+    if ($count) {
+        audit_log('event.obligations_generated', 'event', $eventId, $institutionId, (int) auth_user()['id'], ['rule_id' => $ruleId, 'created' => $count, 'automatic' => true]);
+    }
+    return $count;
 }
 
 /**

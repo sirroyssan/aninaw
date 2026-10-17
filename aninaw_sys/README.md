@@ -119,7 +119,7 @@ Signed in as the Institution Administrator:
 Signed in as the Treasurer:
 
 4. **Funds** and **Financial Accounts**: create funds, cash boxes (each with a custodian), bank and e-wallet accounts, map accounts to funds and post opening balances from a count or statement.
-5. **Events**: the organizer creates the event, links funds and groups (collector and a different cashier per group) and collection rules; obligations are generated for eligible participants.
+5. **Events**: the organizer creates the event, links funds and groups (collector and a different cashier per group) and collection rules; obligations are generated for eligible participants. A rule added (or edited, or reactivated) after people have joined is charged at once to everyone already in the event, and a group assigned later is charged every active rule. Generate Obligations remains available to catch anything missing.
 
 Day-to-day work then follows the workflows in section 6.
 

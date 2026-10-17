@@ -109,13 +109,13 @@ test('obligations are generated only for eligible participants and generation is
     act_as('organizer', 'TST');
     $fx = $GLOBALS['fx'];
     $rule = save_collection_rule($fx['event'], null, ['rule_name' => 'Registration fee', 'amount_due' => '150', 'applies_to_type' => 'all', 'allow_partial_payment' => '1']);
-    $created = generate_obligations($fx['event']);
     $groupMembers = (int) db_value("SELECT COUNT(*) FROM group_memberships WHERE group_id = ? AND status = 'active'", [$fx['groupId']]);
-    assert_same($groupMembers, $created, 'one per active member of the participating group');
+    assert_same($groupMembers, (int) db_value('SELECT COUNT(*) FROM event_obligations WHERE collection_rule_id = ?', [$rule]), 'saving the rule charges each active member of the participating group');
     assert_same(0, (int) db_value('SELECT COUNT(*) FROM event_obligations WHERE event_id = ? AND participant_id = ?', [$fx['event'], $fx['p4']]), 'non-participating group excluded');
-    assert_same(0, generate_obligations($fx['event']), 'second run creates nothing');
+    assert_same(0, generate_obligations($fx['event']), 'Generate Obligations finds nothing missing');
     $special = save_collection_rule($fx['event'], null, ['rule_name' => 'Late registration', 'amount_due' => '50', 'applies_to_type' => 'participant', 'applies_to_participant' => (string) $fx['p2']]);
-    assert_same(1, generate_obligations($fx['event']));
+    assert_same(1, (int) db_value('SELECT COUNT(*) FROM event_obligations WHERE collection_rule_id = ?', [$special]), 'a rule for one person charges that person');
+    assert_same(0, generate_obligations($fx['event']));
     set_event_status($fx['event'], 'collecting', '');
     $GLOBALS['fx'] += ['rule' => $rule, 'special_rule' => $special];
     $stats = event_collection_stats($fx['event']);

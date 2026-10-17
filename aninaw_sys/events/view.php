@@ -27,8 +27,13 @@ if (is_post()) {
                 flash('success', 'Event status updated');
                 break;
             case 'save_rule':
-                save_collection_rule($eventId, post_int('rule_id') ?: null, $_POST);
-                flash('success', 'Collection rule saved', 'Generate obligations to apply it to everyone it covers.');
+                $editing = post_int('rule_id') ?: null;
+                $countBefore = $editing ? (int) db_value("SELECT COUNT(*) FROM event_obligations WHERE institution_id = ? AND collection_rule_id = ? AND status <> 'cancelled'", [current_institution_id(), $editing]) : 0;
+                $savedRule = save_collection_rule($eventId, $editing, $_POST);
+                $charged = (int) db_value("SELECT COUNT(*) FROM event_obligations WHERE institution_id = ? AND collection_rule_id = ? AND status <> 'cancelled'", [current_institution_id(), $savedRule]);
+                flash('success', 'Collection rule saved', $charged
+                    ? 'Charged to ' . $charged . ' ' . ($charged === 1 ? 'person' : 'people') . ($charged > $countBefore && $editing ? ' (' . ($charged - $countBefore) . ' new)' : '') . ' in the event.'
+                    : 'No one is in the event yet. Add people or groups; they are charged as they join (or use Generate Obligations to charge everyone in the institution).');
                 break;
             case 'rule_status':
                 set_rule_status($eventId, post_int('rule_id') ?? 0, post_str('status', 20), post_str('reason', 1000));
