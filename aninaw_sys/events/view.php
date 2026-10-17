@@ -149,7 +149,7 @@ if ($tab === 'requirements' && get_str('export', 10) === 'csv' && can_check_even
 $pageTitle = $event['event_name'];
 $activeNav = 'events';
 $breadcrumb = [auth_context()['label'], 'Events'];
-$pageScripts = array_merge($pageScripts ?? [], ['js/member_picker.js', 'js/person_modal.js']);
+$pageScripts = array_merge($pageScripts ?? [], ['js/member_picker.js', 'js/person_modal.js'], $tab === 'obligations' ? ['js/finance.js', 'js/collections.js'] : []);
 require APP_ROOT . '/includes/header.php';
 $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&tab=' . $name);
 ?>
@@ -535,8 +535,29 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         array_push($params, "%{$obSearch}%", "%{$obSearch}%", "%{$obSearch}%");
     }
     $whereSql = implode(' AND ', $where);
-    $obPagination = paginate((int) db_value("SELECT COUNT(*) FROM event_obligations o JOIN participants p ON p.id = o.participant_id AND p.institution_id = o.institution_id WHERE {$whereSql}", $params), 30);
-    $obligations = db_all(
+    // Per person (one row with totals, like Collections; Pay opens the payment pop-up) or per collection (waive / cancel lines).
+    $obView = get_str('view', 10) === 'lines' ? 'lines' : 'people';
+    $obFrom = "FROM event_obligations o JOIN participants p ON p.id = o.participant_id AND p.institution_id = o.institution_id
+               JOIN collection_rules r ON r.id = o.collection_rule_id AND r.institution_id = o.institution_id WHERE {$whereSql}";
+    $obPaidSql = "(SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocations pa JOIN payments pp ON pp.id = pa.payment_id AND pp.institution_id = pa.institution_id AND pp.status = 'posted'
+                   WHERE pa.institution_id = o.institution_id AND pa.obligation_id = o.id)";
+    $obTotals = db_one("SELECT COALESCE(SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount ELSE 0 END), 0) AS due, COALESCE(SUM({$obPaidSql}), 0) AS paid,
+                               COUNT(DISTINCT o.participant_id) AS people {$obFrom}", $params);
+    $canPay = can('collections.record') && $event['status'] === 'collecting';
+    if ($obView === 'people') {
+        $obPagination = paginate((int) db_value("SELECT COUNT(*) FROM (SELECT 1 {$obFrom} GROUP BY o.participant_id) people", $params), 20);
+        $personRows = db_all(
+            "SELECT o.participant_id, MIN(p.participant_number) AS participant_number, MIN(p.first_name) AS first_name, MIN(p.last_name) AS last_name, MIN(o.due_date) AS due_date,
+                    SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount ELSE 0 END) AS due, SUM(o.waived_amount) AS waived, SUM({$obPaidSql}) AS paid,
+                    SUM(CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount - {$obPaidSql} ELSE 0 END) AS balance,
+                    GROUP_CONCAT(o.status ORDER BY o.id) AS statuses,
+                    GROUP_CONCAT(CONCAT(r.rule_name, '\t', o.status, '\t', CASE WHEN o.status <> 'cancelled' THEN o.amount_due - o.waived_amount - {$obPaidSql} ELSE 0 END) ORDER BY o.id SEPARATOR '\n') AS lines_text
+             {$obFrom} GROUP BY o.participant_id ORDER BY MIN(p.last_name), MIN(p.first_name) LIMIT {$obPagination['per_page']} OFFSET {$obPagination['offset']}",
+            $params
+        );
+    }
+    $obPagination ??= paginate((int) db_value("SELECT COUNT(*) FROM event_obligations o JOIN participants p ON p.id = o.participant_id AND p.institution_id = o.institution_id WHERE {$whereSql}", $params), 30);
+    $obligations = $obView === 'people' ? [] : db_all(
         "SELECT o.*, p.participant_number, p.first_name, p.last_name, r.rule_name,
                 (SELECT COALESCE(SUM(pa.allocated_amount), 0) FROM payment_allocations pa JOIN payments pp ON pp.id = pa.payment_id AND pp.institution_id = pa.institution_id AND pp.status = 'posted'
                   WHERE pa.institution_id = o.institution_id AND pa.obligation_id = o.id) AS paid
@@ -547,15 +568,49 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         $params
     );
     ?>
+    <?php $obDue = to_cents($obTotals['due']); $obPaid = to_cents($obTotals['paid']); ?>
+    <div class="stat-grid">
+        <?= stat_card('bi-bullseye', 'Due (filtered)', money($obDue, $currency), 'After waivers') ?>
+        <?= stat_card('bi-cash-coin', 'Paid', money($obPaid, $currency), 'Posted payments') ?>
+        <?= stat_card('bi-hourglass-split', 'Outstanding', money(max(0, $obDue - $obPaid), $currency), number_format((int) $obTotals['people']) . ' people listed', 'warning') ?>
+    </div>
     <div class="card panel">
         <form class="filter-bar" method="get">
             <input type="hidden" name="id" value="<?= e($eventId) ?>"><input type="hidden" name="tab" value="obligations">
+            <div class="filter-field"><label for="view">View</label><select class="form-select" id="view" name="view" data-autosubmit><?= options_html(['people' => 'Per person (pay)', 'lines' => 'Per collection (waive / cancel)'], $obView) ?></select></div>
             <div class="filter-field grow"><label for="q">Search</label><input class="form-control" type="search" id="q" name="q" value="<?= e($obSearch) ?>" placeholder="ID number or name"></div>
             <div class="filter-field"><label for="group">Group</label><select class="form-select" id="group" name="group" data-autosubmit><?= options_html(options_from_rows($assignments, 'group_id', 'group_name'), $obGroup, 'All') ?></select></div>
             <div class="filter-field"><label for="ostatus">Status</label><select class="form-select" id="ostatus" name="ostatus" data-autosubmit><?= options_html(['unpaid' => 'Unpaid', 'partially_paid' => 'Partially paid', 'paid' => 'Paid', 'waived' => 'Waived', 'cancelled' => 'Cancelled'], $obStatus, 'All') ?></select></div>
             <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Filter</span></button>
         </form>
-        <?php if (!$obligations): ?>
+        <?php if ($obView === 'people'): ?>
+            <?php if (!$personRows): ?>
+                <div class="card-body"><?= empty_state('bi-people', 'No balances match', $rules ? 'Change the filters, or add people to the event.' : 'Add a collection rule first.') ?></div>
+            <?php else: ?>
+                <div class="table-responsive"><table class="table table-clean align-middle mb-0">
+                    <thead><tr><th>Person</th><th>Collections</th><th class="text-end">Due</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Due date</th><th>Status</th><th></th></tr></thead>
+                    <tbody><?php foreach ($personRows as $row):
+                        $balance = max(0, to_cents($row['balance']));
+                        $statuses = array_unique(explode(',', (string) $row['statuses']));
+                        $overall = $balance > 0 ? (to_cents($row['paid']) > 0 || in_array('partially_paid', $statuses, true) ? 'partially_paid' : 'unpaid') : (count($statuses) === 1 ? $statuses[0] : 'paid');
+                        $lines = array_map(static fn($line) => explode("\t", $line, 3), explode("\n", (string) $row['lines_text'])); ?>
+                        <tr>
+                            <td><a class="fw-semibold" href="<?= e(url('participants/view.php?id=' . $row['participant_id'])) ?>" data-person-card="<?= e(url('participants/card.php?id=' . $row['participant_id'] . '&event=' . $eventId . '&fragment=1')) ?>"><?= e($row['last_name'] . ', ' . $row['first_name']) ?></a><div class="text-muted-sm"><?= e($row['participant_number']) ?></div></td>
+                            <td><?php foreach ($lines as [$ruleName, $lineStatus, $lineBalance]): ?>
+                                <div class="text-muted-sm d-flex justify-content-between gap-3"><span><?= e($ruleName) ?></span><span class="text-nowrap"><?= in_array($lineStatus, ['waived', 'cancelled'], true) ? e(humanize($lineStatus)) : e(money(max(0, to_cents($lineBalance)), $currency)) ?></span></div>
+                            <?php endforeach; ?></td>
+                            <td class="text-end"><?= e(m($row['due'])) ?><?= to_cents($row['waived']) > 0 ? '<div class="text-muted-sm">' . e(m($row['waived'])) . ' waived</div>' : '' ?></td>
+                            <td class="text-end"><?= e(m($row['paid'])) ?></td>
+                            <td class="text-end fw-semibold<?= $balance > 0 ? ' text-danger' : '' ?>"><?= e(money($balance, $currency)) ?></td>
+                            <td class="text-muted-sm text-nowrap<?= $row['due_date'] && $row['due_date'] < date('Y-m-d') && $balance > 0 ? ' text-danger' : '' ?>"><?= e(format_date($row['due_date'])) ?></td>
+                            <td><?= status_badge($overall) ?></td>
+                            <td class="actions"><?php if ($balance > 0 && $canPay): ?><a class="btn btn-primary btn-xs" data-pay="<?= e($row['last_name'] . ', ' . $row['first_name'] . ' · ' . $event['event_name']) ?>" href="<?= e(url('collections/record_payment.php?participant=' . $row['participant_id'] . '&event=' . $eventId)) ?>">Pay</a><?php endif; ?></td>
+                        </tr>
+                    <?php endforeach; ?></tbody>
+                </table></div>
+                <?php if ($canManage): ?><div class="card-footer-note">To waive a charge, use Waive inside Pay. To cancel a charge, switch View to "Per collection".</div><?php endif; ?>
+            <?php endif; ?>
+        <?php elseif (!$obligations): ?>
             <div class="card-body"><?= empty_state('bi-people', 'No obligations', $rules ? 'Generate obligations from the Collection Rules tab.' : 'Add a collection rule first.') ?></div>
         <?php else: ?>
             <div class="table-responsive">
@@ -698,6 +753,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
         </div>
     </div>
 <?php endif; ?>
+<?php if ($tab === 'obligations' && can('collections.record')) { require APP_ROOT . '/includes/pay_modal.php'; } ?>
 <?php if (in_array($tab, ['people', 'obligations'], true)): $reopenPerson = old('action') === 'edit_person' ? (int) old('participant_id') : 0; if ($reopenPerson) { pass_old_input_on(); } ?>
 <div class="modal fade" id="person-modal" tabindex="-1" aria-labelledby="person-modal-title" aria-hidden="true"<?= $reopenPerson ? ' data-reopen-card="' . e(url('participants/card.php?id=' . $reopenPerson . '&event=' . $eventId . '&fragment=1')) . '" data-reopen-profile="' . e(url('participants/view.php?id=' . $reopenPerson)) . '"' : '' ?>>
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
