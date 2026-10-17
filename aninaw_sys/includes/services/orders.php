@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/products.php';
 require_once __DIR__ . '/payments.php';
+require_once __DIR__ . '/organization.php';
 
 const ORDER_STATUSES = [
     'pending' => 'Pending', 'confirmed' => 'Confirmed', 'in_production' => 'In Production', 'ready_for_release' => 'Ready for Release',
@@ -47,8 +48,8 @@ function add_walkin_customer(array $input): int
     if (!can('orders.manage')) {
         fail_user('You do not have permission to add customers.');
     }
-    $first = input_str($input, 'walkin_first_name', 100);
-    $last = input_str($input, 'walkin_last_name', 100);
+    $first = person_name_case(input_str($input, 'walkin_first_name', 100));
+    $last = person_name_case(input_str($input, 'walkin_last_name', 100));
     if (mb_strlen($first) < 1 || mb_strlen($last) < 1) {
         fail_user('Enter the walk-in customer\'s first and last name.');
     }

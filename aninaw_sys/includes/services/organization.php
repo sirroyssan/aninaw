@@ -251,6 +251,12 @@ function end_officer(int $officerId): void
 // Participants
 // ---------------------------------------------------------------------------
 
+/** Names are stored in capital letters ("DELA CRUZ", "PEÑA"), single-spaced. */
+function person_name_case(string $value): string
+{
+    return mb_strtoupper(trim((string) preg_replace('/\s+/u', ' ', $value)), 'UTF-8');
+}
+
 /**
  * Validates a person's record. $strict (the person form) also requires a student's middle
  * name unless "No middle name" is ticked; imports from class lists and CSV do not, since
@@ -261,10 +267,10 @@ function validate_participant(array $input, ?int $participantId, bool $strict = 
     $institutionId = (int) current_institution_id();
     $data = [
         'participant_number' => input_str($input, 'participant_number', 100),
-        'first_name'         => input_str($input, 'first_name', 100),
-        'middle_name'        => input_str($input, 'middle_name', 100),
+        'first_name'         => person_name_case(input_str($input, 'first_name', 100)),
+        'middle_name'        => person_name_case(input_str($input, 'middle_name', 100)),
         'no_middle_name'     => in_array(strtolower(input_str($input, 'no_middle_name', 5)), ['1', 'yes', 'true', 'y'], true) ? 1 : 0,
-        'last_name'          => input_str($input, 'last_name', 100),
+        'last_name'          => person_name_case(input_str($input, 'last_name', 100)),
         'email'              => mb_strtolower(input_str($input, 'email', 190)),
         'phone'              => input_str($input, 'phone', 50),
         'participant_type'   => input_enum($input, 'participant_type', array_keys(PARTICIPANT_TYPES), 'student'),

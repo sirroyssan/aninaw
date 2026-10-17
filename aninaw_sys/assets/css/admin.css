@@ -355,3 +355,7 @@ label.member-result { justify-content: flex-start; cursor: pointer; }
 .member-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: rgba(25, 135, 84, 0.12); color: #0f5132; font-size: 0.8125rem; }
 .member-chip-remove { border: 0; background: transparent; color: inherit; font-size: 1rem; line-height: 1; padding: 0 4px; border-radius: 50%; }
 .member-chip-remove:hover { background: rgba(15, 81, 50, 0.15); }
+
+/* Person names are stored in capitals; show them that way while typing. */
+input[data-uppercase] { text-transform: uppercase; }
+input[data-uppercase]::placeholder { text-transform: none; }

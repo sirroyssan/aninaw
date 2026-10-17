@@ -205,13 +205,13 @@ test('importing a reviewed class list registers students once and builds the sec
     $groupRow = db_one('SELECT * FROM `groups` WHERE id = ?', [$result['group_id']]);
     assert_same(['BSAB-2X', 'section', '2026-2027', '1st Semester'], [$groupRow['group_code'], $groupRow['group_type'], $groupRow['academic_year'], $groupRow['term']]);
     $juan = db_one("SELECT * FROM participants WHERE participant_number = 'T26-001'");
-    assert_same(['Juan Miguel', 'Santos', 'Dela Cruz', 'student', (int) current_institution_id()], [$juan['first_name'], $juan['middle_name'], $juan['last_name'], $juan['participant_type'], (int) $juan['institution_id']]);
+    assert_same(['JUAN MIGUEL', 'SANTOS', 'DELA CRUZ', 'student', (int) current_institution_id()], [$juan['first_name'], $juan['middle_name'], $juan['last_name'], $juan['participant_type'], (int) $juan['institution_id']], 'names are saved in capitals');
 
     // The full list again: existing students are left unchanged and not duplicated; the new one is added.
     $rows[0]['first_name'] = 'Changed';
     $again = import_class_list($rows, ['mode' => 'existing', 'group_id' => (string) $result['group_id']], 'list.pdf');
     assert_same(['created' => 1, 'existing' => 4, 'grouped' => 1], array_intersect_key($again, array_flip(['created', 'existing', 'grouped'])));
-    assert_same('Juan Miguel', db_value("SELECT first_name FROM participants WHERE participant_number = 'T26-001'"), 'registered records are never overwritten by an import');
+    assert_same('JUAN MIGUEL', db_value("SELECT first_name FROM participants WHERE participant_number = 'T26-001'"), 'registered records are never overwritten by an import');
     assert_same(5, (int) db_value("SELECT COUNT(*) FROM group_memberships WHERE group_id = ? AND status = 'active'", [$result['group_id']]));
     assert_true((bool) db_value("SELECT 1 FROM audit_logs WHERE action = 'participant.class_list_imported' AND institution_id = ?", [current_institution_id()]), 'import is audited');
 

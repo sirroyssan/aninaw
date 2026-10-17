@@ -64,12 +64,11 @@ if (is_post()) {
                 fail_user('Only PDF files are accepted here. For Excel lists, save as CSV and use Import CSV.');
             }
             $parsed = read_class_list_pdf((string) $file['tmp_name']);
-            $keepCase = post_str('keep_case', 1) === '1';
             $rows = array_map(static fn($s) => [
                 'no' => $s['no'], 'sex' => $s['sex'], 'participant_number' => $s['participant_number'], 'raw_name' => $s['raw_name'], 'review' => $s['review'],
-                'last_name' => $keepCase ? $s['last_name'] : class_list_name_case($s['last_name']),
-                'first_name' => $keepCase ? $s['first_name'] : class_list_name_case($s['first_name']),
-                'middle_name' => $keepCase ? $s['middle_name'] : class_list_name_case($s['middle_name']),
+                'last_name' => person_name_case($s['last_name']),
+                'first_name' => person_name_case($s['first_name']),
+                'middle_name' => person_name_case($s['middle_name']),
                 'include' => true,
             ], $parsed['students']);
             $review = ['meta' => $parsed['meta'], 'rows' => $rows, 'warnings' => $parsed['warnings'], 'source' => mb_substr(basename((string) $file['name']), 0, 180)];
@@ -169,10 +168,7 @@ $sexLabel = ['male' => 'Male', 'female' => 'Female'];
                     <input class="form-control" type="file" id="pdf" name="pdf" accept="application/pdf,.pdf" required>
                     <div class="form-text">Up to 10 MB. The PDF must contain text (a list saved or printed to PDF from the enrollment system). Scanned pages and photos cannot be read.</div>
                 </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="keep_case" name="keep_case" value="1">
-                    <label class="form-check-label" for="keep_case">Keep names in capital letters as printed (otherwise "DEL CASTILLO" becomes "Del Castillo")</label>
-                </div>
+                <p class="text-muted-sm mb-3">Names are saved in capital letters (e.g. DEL CASTILLO, DAN RAFAEL).</p>
                 <div class="notice notice-info"><i class="bi bi-shield-check" aria-hidden="true"></i><div>Reading the PDF saves nothing and the file is not kept. You review every student before importing.</div></div>
                 <div class="form-actions">
                     <a class="btn btn-outline-secondary" href="<?= e(url('participants/index.php')) ?>">Cancel</a>
@@ -236,9 +232,9 @@ $sexLabel = ['male' => 'Male', 'female' => 'Female'];
                     <td class="text-muted-sm"><?= (int) $row['no'] ?><div><?= e($sexLabel[$row['sex']] ?? '') ?></div>
                         <input type="hidden" name="<?= $name('no') ?>" value="<?= (int) $row['no'] ?>" data-field="no"><input type="hidden" name="<?= $name('sex') ?>" value="<?= e((string) $row['sex']) ?>" data-field="sex"><input type="hidden" name="<?= $name('raw_name') ?>" value="<?= e($row['raw_name']) ?>" data-field="raw_name"></td>
                     <td><input class="form-control form-control-sm" name="<?= $name('participant_number') ?>" value="<?= e($row['participant_number']) ?>" maxlength="100" required data-field="participant_number" aria-label="Student number" style="min-width:110px"></td>
-                    <td><input class="form-control form-control-sm" name="<?= $name('last_name') ?>" value="<?= e($row['last_name']) ?>" maxlength="100" required data-field="last_name" aria-label="Last name"></td>
-                    <td><input class="form-control form-control-sm" name="<?= $name('first_name') ?>" value="<?= e($row['first_name']) ?>" maxlength="100" required data-field="first_name" aria-label="First name"></td>
-                    <td><input class="form-control form-control-sm" name="<?= $name('middle_name') ?>" value="<?= e($row['middle_name']) ?>" maxlength="100" data-field="middle_name" aria-label="Middle name"></td>
+                    <td><input class="form-control form-control-sm" name="<?= $name('last_name') ?>" value="<?= e($row['last_name']) ?>" maxlength="100" required data-field="last_name" aria-label="Last name" data-uppercase></td>
+                    <td><input class="form-control form-control-sm" name="<?= $name('first_name') ?>" value="<?= e($row['first_name']) ?>" maxlength="100" required data-field="first_name" aria-label="First name" data-uppercase></td>
+                    <td><input class="form-control form-control-sm" name="<?= $name('middle_name') ?>" value="<?= e($row['middle_name']) ?>" maxlength="100" data-field="middle_name" aria-label="Middle name" data-uppercase></td>
                     <td class="text-muted-sm">
                         <?php if ($row['existing']): $onFile = trim($row['existing']['first_name'] . ' ' . ($row['existing']['middle_name'] ?? '') . ' ' . $row['existing']['last_name']); ?>
                             <span class="badge badge-soft-info">Already registered</span>

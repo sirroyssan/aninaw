@@ -32,6 +32,9 @@ test('person details are validated and saved; students need a middle name or "No
     assert_same(['2006-03-09', 'BSIT', 'Purok 2, Botolan, Zambales', 'Lorna Villanueva', 'Mother', '0918 123 4567', 0],
         [$p['birth_date'], $p['program_code'], $p['address'], $p['guardian_name'], $p['guardian_relationship'], $p['guardian_phone'], (int) $p['no_middle_name']]);
 
+    assert_same(['ROSA', 'SANTOS', 'VILLANUEVA'], [$p['first_name'], $p['middle_name'], $p['last_name']], 'names saved in capitals');
+    $enye = save_participant(null, ['participant_number' => 'DET-005', 'first_name' => '  maría  josé ', 'middle_name' => 'peña', 'last_name' => 'de la cruz', 'participant_type' => 'student'], true);
+    assert_same(['MARÍA JOSÉ', 'PEÑA', 'DE LA CRUZ'], array_values(db_one('SELECT first_name, middle_name, last_name FROM participants WHERE id = ?', [$enye])), 'accents and Ñ kept, spaces tidied');
     $none = save_participant(null, ['participant_number' => 'DET-002', 'first_name' => 'Jay', 'last_name' => 'Uy', 'participant_type' => 'student', 'no_middle_name' => '1'], true);
     assert_same(1, (int) find_participant($none)['no_middle_name']);
     save_participant(null, ['participant_number' => 'DET-003', 'first_name' => 'Fe', 'last_name' => 'Staff', 'participant_type' => 'employee'], true);
