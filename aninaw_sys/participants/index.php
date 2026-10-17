@@ -59,7 +59,8 @@ $breadcrumb = [auth_context()['label'], 'Organization'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions($visibility === '1 = 1' ? 'Students, faculty / staff and customers: everyone who can owe, pay or buy. Add them to events directly; groups are optional.' : 'People in the groups you serve.',
-    $canManage ? button_link('participants/import_pdf.php', 'Import Class List (PDF)', 'bi-file-earmark-pdf', 'btn-outline-primary') . button_link('participants/import.php', 'Import CSV', 'bi-upload', 'btn-outline-primary') . button_link('participants/programs.php', 'Programs', 'bi-mortarboard', 'btn-outline-primary') . button_link('participants/form.php', 'Add Person', 'bi-person-plus') : '') ?>
+    $canManage ? button_link('participants/import_pdf.php', 'Import Class List (PDF)', 'bi-file-earmark-pdf', 'btn-outline-primary') . button_link('participants/import.php', 'Import CSV', 'bi-upload', 'btn-outline-primary') . button_link('participants/programs.php', 'Programs', 'bi-mortarboard', 'btn-outline-primary') . button_link('participants/form.php', 'Add Person', 'bi-person-plus') : '')
+    . (can('users.manage') ? button_link('participants/logins.php', 'Create Logins', 'bi-person-lock', 'btn-outline-primary') : '') ?>
 
 <div class="card panel">
     <form class="filter-bar" method="get">

@@ -2736,3 +2736,15 @@ ALTER TABLE `collection_rules`
   ADD COLUMN IF NOT EXISTS `inclusions` text DEFAULT NULL AFTER `rule_name`;
 
 COMMIT;
+
+-- ===========================================================================
+-- Part 9: migration 009 (default passwords changed at first sign-in; optional
+-- e-mail). Existing installs run database/migration_009_default_passwords.sql.
+-- ===========================================================================
+START TRANSACTION;
+
+ALTER TABLE `users`
+  MODIFY `email` varchar(190) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `must_change_password` tinyint(1) NOT NULL DEFAULT 0 AFTER `password_hash`;
+
+COMMIT;

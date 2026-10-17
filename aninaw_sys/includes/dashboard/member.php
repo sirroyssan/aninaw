@@ -51,7 +51,7 @@ declare(strict_types=1);
                     <?php else: ?>
                         <ul class="list-clean">
                             <?php foreach ($d['payments'] as $row): ?>
-                                <li><div><div class="fw-semibold"><?= e($row['receipt_number'] ? 'OR ' . $row['receipt_number'] : $row['payment_number']) ?></div><div class="text-muted-sm"><?= e(format_date($row['payment_date']) . ' · ' . humanize($row['payment_method'])) ?><?= $row['status'] === 'refunded' ? ' · ' . status_badge('refunded') : '' ?></div></div><span class="fw-semibold"><?= e(format_money($row['amount'], $currency)) ?></span></li>
+                                <li><div><div class="fw-semibold"><?= e($row['receipt_number'] ? 'OR ' . $row['receipt_number'] : $row['payment_number']) ?></div><div class="text-muted-sm"><?= e(format_date($row['payment_date']) . ' · ' . humanize($row['payment_method'])) ?><?= $row['status'] === 'refunded' ? ' · ' . status_badge('refunded') : '' ?></div></div><span class="text-end"><span class="fw-semibold d-block"><?= e(format_money($row['amount'], $currency)) ?></span><?php if ($row['receipt_number']): ?><a class="btn btn-outline-primary btn-xs mt-1" href="<?= e(url('collections/print_receipt.php?id=' . $row['id'])) ?>" target="_blank" rel="noopener"><i class="bi bi-receipt me-1" aria-hidden="true"></i>View receipt</a><?php endif; ?></span></li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>

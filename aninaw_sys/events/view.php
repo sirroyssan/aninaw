@@ -409,7 +409,7 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
     $canAddPeople = $canManage && !in_array($event['status'], ['completed', 'closed', 'cancelled'], true);
     ?>
     <?php if (can_check_event_documents($event) || can('organization.manage')): ?>
-        <div class="d-flex justify-content-end mb-2"><a class="btn btn-outline-primary btn-sm" href="<?= e(url('events/participant_details.php?event=' . $eventId)) ?>"><i class="bi bi-person-lines-fill me-1" aria-hidden="true"></i>Participant details (export)</a></div>
+        <div class="d-flex justify-content-end gap-2 mb-2"><?php if (can('users.manage')): ?><a class="btn btn-outline-primary btn-sm" href="<?= e(url('participants/logins.php?event=' . $eventId . '&type=all')) ?>"><i class="bi bi-person-lock me-1" aria-hidden="true"></i>Create logins</a><?php endif; ?><a class="btn btn-outline-primary btn-sm" href="<?= e(url('events/participant_details.php?event=' . $eventId)) ?>"><i class="bi bi-person-lines-fill me-1" aria-hidden="true"></i>Participant details (export)</a></div>
     <?php endif; ?>
     <div class="stat-grid">
         <?= stat_card('bi-person-plus', 'Added directly', number_format(count($people)), 'Students, faculty or customers') ?>

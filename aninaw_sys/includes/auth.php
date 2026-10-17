@@ -353,8 +353,9 @@ function auth_bootstrap_request(): string
         [hash('sha256', (string) $_SESSION['session_token']), $userId]
     );
     $user = $sessionRow ? db_one(
-        "SELECT id, username, email, first_name, middle_name, last_name, status, last_login_at
-         FROM users WHERE id = ? AND status = 'active'",
+        'SELECT id, username, email, first_name, middle_name, last_name, status, last_login_at'
+        . (db_column_exists('users', 'must_change_password') ? ', must_change_password' : ', 0 AS must_change_password')
+        . " FROM users WHERE id = ? AND status = 'active'",
         [$userId]
     ) : null;
 

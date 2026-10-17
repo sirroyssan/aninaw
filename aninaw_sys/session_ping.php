@@ -6,6 +6,7 @@
 declare(strict_types=1);
 
 define('AUTH_ALLOW_NO_CONTEXT', true);
+define('AUTH_PASSWORD_CHANGE_PAGE', true); // keep-alive pings are fine while the password is being changed
 require_once __DIR__ . '/includes/auth_check.php';
 
 if (!is_post()) {

@@ -3,6 +3,7 @@
  *   data-money-sum="#target"  sums the amount inputs inside the element into #target
  *   data-fill-max             button that fills the sibling input with its data-max value
  *   data-fill-all             button that fills every data-max input in its form
+ *   data-checked-sum="#t"     sums data-amount of ticked boxes into #t (or counts them if #t has data-count)
  *   data-row-editor           add/remove repeatable rows from a <template>
  *   data-journal-lines        adjusting-entry lines (cash-account select, debit/credit totals)
  *   data-order-form           order lines, subtotal, discount and total due
@@ -68,7 +69,9 @@
         var target = document.querySelector(container.getAttribute('data-checked-sum'));
         if (!target) { return; }
         var total = 0;
-        container.querySelectorAll('input[type="checkbox"][data-amount]:checked').forEach(function (box) { total += toCents(box.getAttribute('data-amount')); });
+        var boxes = container.querySelectorAll('input[type="checkbox"][data-amount]:checked');
+        if (target.hasAttribute('data-count')) { target.textContent = String(boxes.length); return; } // count ticked rows instead of summing
+        boxes.forEach(function (box) { total += toCents(box.getAttribute('data-amount')); });
         target.textContent = (target.getAttribute('data-currency') || '') + formatCents(total);
     }
     document.querySelectorAll('[data-checked-sum]').forEach(function (container) {

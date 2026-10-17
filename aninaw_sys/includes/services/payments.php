@@ -191,10 +191,13 @@ function record_payment(array $input): int
     return $paymentId;
 }
 
-/** Payment with receipt, payer and recorder, scoped to the institution and participant visibility. */
-function find_payment(int $paymentId): ?array
+/**
+ * Payment with receipt, payer and recorder, scoped to the institution and participant visibility.
+ * $ownOnly: only a payment made by the signed-in person (their linked record): the payer's copy.
+ */
+function find_payment(int $paymentId, bool $ownOnly = false): ?array
 {
-    [$visibility, $params] = participant_visibility('pt');
+    [$visibility, $params] = $ownOnly ? ["pt.user_id = ? AND p.status IN ('posted', 'refunded')", [(int) auth_user()['id']]] : participant_visibility('pt');
     $payment = db_one(
         "SELECT p.*, r.id AS receipt_id, r.receipt_number, r.receipt_status, r.issued_at, r.issued_by_membership_id,
                 pt.id AS participant_id, pt.participant_number, pt.first_name, pt.middle_name, pt.last_name, pt.user_id AS participant_user_id,
@@ -206,8 +209,8 @@ function find_payment(int $paymentId): ?array
          JOIN users u ON u.id = m.user_id
          LEFT JOIN receipts r ON r.payment_id = p.id AND r.institution_id = p.institution_id
          LEFT JOIN financial_accounts fa ON fa.id = p.financial_account_id AND fa.institution_id = p.institution_id
-         WHERE p.institution_id = ? AND p.id = ? AND ({$visibility} OR p.received_by_membership_id = ?)",
-        array_merge([current_institution_id(), $paymentId], $params, [current_membership_id()])
+         WHERE p.institution_id = ? AND p.id = ? AND (" . ($ownOnly ? $visibility : "{$visibility} OR p.received_by_membership_id = ?") . ')',
+        array_merge([current_institution_id(), $paymentId], $params, $ownOnly ? [] : [current_membership_id()])
     );
     if ($payment) {
         $payment['allocations'] = db_all(

@@ -391,6 +391,30 @@ function issued_link_notice(): string
         . '</div></div>';
 }
 
+/** Keeps a just-generated default password for one display (session only, never in the database). */
+function remember_issued_password(string $name, string $username, string $password): void
+{
+    $_SESSION['issued_password'] = ['name' => $name, 'username' => $username, 'password' => $password];
+}
+
+/** Shows a just-generated default password once, with copy buttons. */
+function issued_password_notice(): string
+{
+    $issued = $_SESSION['issued_password'] ?? null;
+    unset($_SESSION['issued_password']);
+    if (!is_array($issued)) {
+        return '';
+    }
+    return '<div class="notice notice-warning" role="status"><i class="bi bi-key" aria-hidden="true"></i><div class="flex-grow-1">'
+        . '<strong>Default password for ' . e($issued['name']) . '</strong>'
+        . '<p class="mb-2">Give these to the person privately. They must change the password the first time they sign in. It will not be shown again.</p>'
+        . '<div class="row g-2"><div class="col-md-5"><label class="form-label small mb-1" for="issued-username">Username</label><div class="input-group"><input class="form-control" id="issued-username" type="text" readonly value="' . e($issued['username']) . '">'
+        . '<button class="btn btn-outline-primary" type="button" data-copy="issued-username" aria-label="Copy username"><i class="bi bi-clipboard" aria-hidden="true"></i></button></div></div>'
+        . '<div class="col-md-5"><label class="form-label small mb-1" for="issued-password">Default password</label><div class="input-group"><input class="form-control font-monospace" id="issued-password" type="text" readonly value="' . e($issued['password']) . '">'
+        . '<button class="btn btn-outline-primary" type="button" data-copy="issued-password" aria-label="Copy password"><i class="bi bi-clipboard" aria-hidden="true"></i></button></div></div></div>'
+        . '</div></div>';
+}
+
 // ---------------------------------------------------------------------------
 // CSV export
 // ---------------------------------------------------------------------------

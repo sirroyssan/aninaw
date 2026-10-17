@@ -91,8 +91,8 @@ function validate_person_input(array $input, ?int $ignoreUserId = null): array
     if (!preg_match(USERNAME_PATTERN, $data['username'])) {
         fail_user('Username must be 3-100 characters: letters, numbers, dots, dashes or underscores.');
     }
-    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        fail_user('Enter a valid e-mail address.');
+    if ($data['email'] !== '' && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        fail_user('Enter a valid e-mail address, or leave it blank.');
     }
     if ($data['first_name'] === '' || $data['last_name'] === '') {
         fail_user('First and last name are required.');
@@ -103,7 +103,7 @@ function validate_person_input(array $input, ?int $ignoreUserId = null): array
     if (db_value('SELECT 1 FROM users WHERE username = ? AND id <> ?', [$data['username'], $ignoreUserId ?? 0])) {
         fail_user('That username is already taken.');
     }
-    if (db_value('SELECT 1 FROM users WHERE email = ? AND id <> ?', [$data['email'], $ignoreUserId ?? 0])) {
+    if ($data['email'] !== '' && db_value('SELECT 1 FROM users WHERE email = ? AND id <> ?', [$data['email'], $ignoreUserId ?? 0])) {
         fail_user('That e-mail address is already registered to another account.');
     }
     return $data;
@@ -139,14 +139,15 @@ function create_member(array $input): array
 {
     $institutionId = (int) current_institution_id();
     $email = mb_strtolower(input_str($input, 'email', 190));
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        fail_user('Enter a valid e-mail address.');
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        fail_user('Enter a valid e-mail address, or leave it blank.');
     }
     $roleIds = validate_role_ids(input_ids($input, 'roles'));
+    require_default_passwords_ready();
 
     return db_transaction(function () use ($input, $institutionId, $email, $roleIds) {
-        $existing = db_one('SELECT id, status FROM users WHERE email = ? FOR UPDATE', [$email]);
-        $resetLink = null;
+        $existing = $email !== '' ? db_one('SELECT id, status FROM users WHERE email = ? FOR UPDATE', [$email]) : null;
+        $defaultPassword = null;
 
         if ($existing) {
             $userId = (int) $existing['id'];
@@ -155,14 +156,14 @@ function create_member(array $input): array
             }
         } else {
             $data = validate_person_input($input);
+            $defaultPassword = default_password($data['last_name']);
             db_query(
-                "INSERT INTO users (username, email, password_hash, first_name, middle_name, last_name, phone, status)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'active')",
-                [$data['username'], $data['email'], password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+                "INSERT INTO users (username, email, password_hash, must_change_password, first_name, middle_name, last_name, phone, status)
+                 VALUES (?, ?, ?, 1, ?, ?, ?, ?, 'active')",
+                [$data['username'], $data['email'] ?: null, password_hash($defaultPassword, PASSWORD_DEFAULT),
                  $data['first_name'], $data['middle_name'] ?: null, $data['last_name'], $data['phone'] ?: null]
             );
             $userId = (int) db()->lastInsertId();
-            $resetLink = password_reset_link(create_password_reset_token($userId));
         }
 
         db_query(
@@ -175,11 +176,11 @@ function create_member(array $input): array
         }
 
         audit_log($existing ? 'membership.created' : 'user.created', 'institution_membership', $membershipId, $institutionId, (int) auth_user()['id'],
-            ['user_id' => $userId, 'email' => $email, 'roles' => role_names($roleIds), 'existing_account' => (bool) $existing]);
+            ['user_id' => $userId, 'email' => $email ?: null, 'roles' => role_names($roleIds), 'existing_account' => (bool) $existing, 'default_password_set' => $defaultPassword !== null]);
         notify_user($institutionId, $userId, 'account', 'Welcome to ' . auth_context()['label'],
             'You were added with the role(s): ' . implode(', ', role_names($roleIds)) . '.');
 
-        return ['membership_id' => $membershipId, 'reset_link' => $resetLink, 'existing' => (bool) $existing];
+        return ['membership_id' => $membershipId, 'user_id' => $userId, 'default_password' => $defaultPassword, 'existing' => (bool) $existing];
     });
 }
 
@@ -194,7 +195,7 @@ function update_member_profile(int $membershipId, array $input): void
 
     db_query(
         'UPDATE users SET username = ?, email = ?, first_name = ?, middle_name = ?, last_name = ?, phone = ? WHERE id = ?',
-        [$data['username'], $data['email'], $data['first_name'], $data['middle_name'] ?: null, $data['last_name'], $data['phone'] ?: null, $member['user_id']]
+        [$data['username'], $data['email'] ?: null, $data['first_name'], $data['middle_name'] ?: null, $data['last_name'], $data['phone'] ?: null, $member['user_id']]
     );
     audit_log('user.updated', 'user', (int) $member['user_id'], current_institution_id(), (int) auth_user()['id'], $data, $before);
 }
@@ -278,6 +279,161 @@ function set_member_roles(int $membershipId, array $roleIds): void
 // ---------------------------------------------------------------------------
 
 /** Creates a one-time token (only its hash is stored) and invalidates older ones. */
+/** Special characters a default password may end with. */
+const DEFAULT_PASSWORD_SYMBOLS = '!@#$%&*?';
+
+/**
+ * Default password for a new or reset account: last name (letters only, first letter capital) +
+ * current year + one random special character, e.g. "Delacruz2026!". The account must change it
+ * at first sign-in. It is shown once to the administrator and never stored in plain text.
+ */
+function default_password(string $lastName): string
+{
+    $ascii = (string) (function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT', $lastName) : $lastName);
+    $letters = preg_replace('/[^A-Za-z]/', '', strtr($ascii !== '' ? $ascii : $lastName, ['Ñ' => 'N', 'ñ' => 'n']));
+    $name = ucfirst(strtolower($letters !== '' ? $letters : 'Student'));
+    return $name . date('Y') . DEFAULT_PASSWORD_SYMBOLS[random_int(0, strlen(DEFAULT_PASSWORD_SYMBOLS) - 1)];
+}
+
+/** Migration 009 adds users.must_change_password; without it a default password could never be forced to change. */
+function default_passwords_ready(): bool
+{
+    return db_column_exists('users', 'must_change_password');
+}
+
+function require_default_passwords_ready(): void
+{
+    if (!default_passwords_ready()) {
+        fail_user('New accounts need database/migration_009_default_passwords.sql. Ask the administrator to import it once (phpMyAdmin → Import).');
+    }
+}
+
+/** Resets a member's password to a new default that must be changed at next sign-in; signs out their sessions. */
+function reset_member_to_default_password(int $membershipId): string
+{
+    require_default_passwords_ready();
+    $member = find_membership_detail($membershipId) ?? fail_user('Member not found.');
+    if (!account_editable_here((int) $member['user_id'])) {
+        fail_user('This account is also used in another institution or by the platform. The account owner or a platform administrator must reset the password.');
+    }
+    if ($member['account_status'] !== 'active') {
+        fail_user('Activate the account before resetting its password.');
+    }
+    $password = default_password((string) $member['last_name']);
+    db_transaction(function () use ($member, $password) {
+        db_query('UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $member['user_id']]);
+        db_query('UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL', [$member['user_id']]);
+        audit_log('user.password_reset_default', 'user', (int) $member['user_id'], current_institution_id(), (int) auth_user()['id']);
+    });
+    return $password;
+}
+
+/** First sign-in (or after a reset): replaces the default password; other sessions are signed out. */
+function change_default_password(int $userId, string $password, string $confirmation): void
+{
+    if ($error = password_policy_error($password)) {
+        fail_user($error);
+    }
+    if (!hash_equals($password, $confirmation)) {
+        fail_user('The passwords do not match.');
+    }
+    $hash = (string) db_value('SELECT password_hash FROM users WHERE id = ?', [$userId]);
+    if (password_verify($password, $hash)) {
+        fail_user('Choose a new password, not the default one you were given.');
+    }
+    db_transaction(function () use ($userId, $password) {
+        db_query('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $userId]);
+        db_query('UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL AND session_token_hash <> ?',
+            [$userId, hash('sha256', (string) ($_SESSION['session_token'] ?? ''))]);
+        audit_log('user.password_changed_first_login', 'user', $userId, current_institution_id(), $userId);
+    });
+}
+
+/** Full address of an app page (for printed sign-in slips and links). */
+function absolute_url(string $path): string
+{
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $origin = APP_URL !== '' ? (string) preg_replace('#^(https?://[^/]+).*$#', '$1', APP_URL) : ((is_https() ? 'https://' : 'http://') . $host);
+    return $origin . url($path);
+}
+
+/** Login username made from an ID number ("24-00054"), or '' when it cannot be one. */
+function username_from_id_number(string $number): string
+{
+    $username = strtolower((string) preg_replace('/[^A-Za-z0-9._-]+/', '-', trim($number)));
+    $username = trim($username, '-');
+    return preg_match(USERNAME_PATTERN, $username) ? $username : '';
+}
+
+/**
+ * Creates Student / Member logins for people without one: username = ID number, a default password
+ * that must be changed at first sign-in, linked to their record so they see their own charges and
+ * receipts. Each person is saved on their own, so one problem does not stop the rest.
+ *
+ * @return array{created: list<array>, skipped: list<array>}
+ */
+function create_student_logins(array $participantIds): array
+{
+    if (!can('users.manage') || !can('roles.assign')) {
+        fail_user('You need permission to manage users and assign roles to create logins.');
+    }
+    require_default_passwords_ready();
+    $institutionId = (int) current_institution_id();
+    $roleId = (int) db_value("SELECT id FROM roles WHERE role_code = 'member' AND scope_type = 'institution'") ?: fail_user('The Student / Member role is missing.');
+    $ids = array_values(array_unique(array_filter(array_map('intval', $participantIds))));
+    if (!$ids) {
+        fail_user('Tick at least one person.');
+    }
+    if (count($ids) > 500) {
+        fail_user('Create at most 500 logins at a time.');
+    }
+    $people = db_all('SELECT id, participant_number, first_name, middle_name, last_name, email, user_id, status FROM participants
+        WHERE institution_id = ? AND id IN (' . implode(',', $ids) . ') ORDER BY last_name, first_name', [$institutionId]);
+
+    $created = [];
+    $skipped = [];
+    foreach ($people as $person) {
+        $name = $person['last_name'] . ', ' . $person['first_name'];
+        $username = username_from_id_number((string) $person['participant_number']);
+        $reason = match (true) {
+            $person['status'] !== 'active' => 'Not active',
+            $person['user_id'] !== null => 'Already has a login',
+            $username === '' => 'The ID number cannot be used as a username',
+            (bool) db_value('SELECT 1 FROM users WHERE username = ?', [$username]) => 'Username ' . $username . ' is already used by another account',
+            default => null,
+        };
+        if ($reason !== null) {
+            $skipped[] = ['name' => $name, 'number' => $person['participant_number'], 'reason' => $reason];
+            continue;
+        }
+        $email = mb_strtolower((string) $person['email']);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || db_value('SELECT 1 FROM users WHERE email = ?', [$email])) {
+            $email = null; // optional: they sign in with the username
+        }
+        $password = default_password((string) $person['last_name']);
+        try {
+            db_transaction(function () use ($institutionId, $roleId, $person, $username, $email, $password) {
+                db_query("INSERT INTO users (username, email, password_hash, must_change_password, first_name, middle_name, last_name, status) VALUES (?, ?, ?, 1, ?, ?, ?, 'active')",
+                    [$username, $email, password_hash($password, PASSWORD_DEFAULT), $person['first_name'], $person['middle_name'] ?: null, $person['last_name']]);
+                $userId = (int) db()->lastInsertId();
+                db_query("INSERT INTO institution_memberships (institution_id, user_id, membership_status, joined_at) VALUES (?, ?, 'active', NOW())", [$institutionId, $userId]);
+                $membershipId = (int) db()->lastInsertId();
+                db_query('INSERT INTO membership_roles (membership_id, role_id) VALUES (?, ?)', [$membershipId, $roleId]);
+                if (db_query('UPDATE participants SET user_id = ? WHERE institution_id = ? AND id = ? AND user_id IS NULL', [$userId, $institutionId, $person['id']])->rowCount() !== 1) {
+                    fail_user('Already has a login');
+                }
+                audit_log('user.created', 'institution_membership', $membershipId, $institutionId, (int) auth_user()['id'],
+                    ['user_id' => $userId, 'username' => $username, 'roles' => ['Student / Member'], 'participant_id' => (int) $person['id'], 'bulk' => true, 'default_password_set' => true]);
+            });
+        } catch (UserFacingException $exception) {
+            $skipped[] = ['name' => $name, 'number' => $person['participant_number'], 'reason' => $exception->getMessage()];
+            continue;
+        }
+        $created[] = ['name' => $name, 'number' => $person['participant_number'], 'username' => $username, 'password' => $password];
+    }
+    return ['created' => $created, 'skipped' => $skipped];
+}
+
 function create_password_reset_token(int $userId): string
 {
     $token = bin2hex(random_bytes(32));
@@ -291,9 +447,7 @@ function create_password_reset_token(int $userId): string
 
 function password_reset_link(string $token): string
 {
-    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    $origin = APP_URL !== '' ? (string) preg_replace('#^(https?://[^/]+).*$#', '$1', APP_URL) : ((is_https() ? 'https://' : 'http://') . $host);
-    return $origin . url('password_reset.php?token=' . $token);
+    return absolute_url('password_reset.php?token=' . $token);
 }
 
 /** Issues a reset link for a member whose account this institution may manage. */

@@ -29,6 +29,14 @@ if ($authStatus !== 'authenticated') {
     redirect($authStatus === 'expired' ? 'login.php?expired=1' : 'login.php');
 }
 
+// A default password must be replaced before anything else (except signing out).
+if (!empty(auth_user()['must_change_password']) && !defined('AUTH_PASSWORD_CHANGE_PAGE')) {
+    if (wants_json()) {
+        json_response(['ok' => false, 'message' => 'Change your default password first.', 'reason' => 'password_change_required'], 403);
+    }
+    redirect('change_password.php');
+}
+
 if (auth_context() === null && !defined('AUTH_ALLOW_NO_CONTEXT')) {
     redirect('select_institution.php');
 }

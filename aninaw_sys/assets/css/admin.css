@@ -367,3 +367,16 @@ input[data-uppercase]::placeholder { text-transform: none; }
 .person-edit > summary { list-style: none; display: inline-block; }
 .person-edit > summary::-webkit-details-marker { display: none; }
 .person-edit[open] > summary { display: none; }
+
+/* Login slips (participants/login_slips.php): cut-out cards, 2 per row on paper */
+.login-slips { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.login-slip { border: 1px dashed #9aa9a1; border-radius: 8px; padding: 12px 14px; background: #fff; break-inside: avoid; }
+.login-slip-head { font-size: .75rem; color: #5c6b63; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.login-slip-name { font-weight: 700; margin-bottom: 6px; }
+.login-slip dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 0 6px; font-size: .875rem; }
+.login-slip dt { font-weight: 600; color: #5c6b63; }
+.login-slip dd { margin: 0; word-break: break-all; }
+.login-slip-note { font-size: .75rem; color: #5c6b63; }
+@media print {
+    .login-slips { grid-template-columns: 1fr 1fr; gap: 8px; }
+}

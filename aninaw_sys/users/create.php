@@ -16,11 +16,11 @@ if (is_post()) {
             fail_user('You need permission to assign roles in order to add members.');
         }
         $result = create_member($_POST);
-        if ($result['reset_link']) {
-            remember_issued_link($result['reset_link'], post_str('email', 190));
+        if ($result['default_password']) {
+            remember_issued_password(trim(post_str('first_name', 100) . ' ' . post_str('last_name', 100)), post_str('username', 100), $result['default_password']);
         }
         flash('success', $result['existing'] ? 'Existing account added' : 'Member created',
-            $result['existing'] ? 'The person can now switch to this institution after signing in.' : '');
+            $result['existing'] ? 'The person can now switch to this institution after signing in.' : 'Give them the username and default password shown below.');
         return 'users/edit.php?id=' . $result['membership_id'];
     });
 }
@@ -37,13 +37,13 @@ require APP_ROOT . '/includes/header.php';
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="notice notice-info"><i class="bi bi-info-circle" aria-hidden="true"></i>
-            <div>If the e-mail already belongs to an account (for example someone from another institution), that account is added to this institution and the name fields below are ignored. Otherwise a new account is created and you get a one-time link for the person to set their own password.</div>
+            <div>If the e-mail already belongs to an account (for example someone from another institution), that account is added to this institution and the name fields below are ignored. Otherwise a new account is created with a default password (last name + year + a special character, e.g. Delacruz2026!), shown to you once. The person must change it the first time they sign in. E-mail is optional for new accounts: they sign in with the username.</div>
         </div>
 
         <div class="form-section">
             <h2 class="form-section-title">Person</h2>
             <div class="row g-3">
-                <div class="col-md-6"><label class="form-label required" for="email">E-mail</label><input class="form-control" type="email" id="email" name="email" required maxlength="190" value="<?= e(old('email')) ?>"></div>
+                <div class="col-md-6"><label class="form-label" for="email">E-mail <span class="text-muted-sm">(optional for new accounts)</span></label><input class="form-control" type="email" id="email" name="email" maxlength="190" value="<?= e(old('email')) ?>"></div>
                 <div class="col-md-6"><label class="form-label" for="username">Username <span class="text-muted-sm">(new accounts)</span></label><input class="form-control" id="username" name="username" maxlength="100" value="<?= e(old('username')) ?>" autocapitalize="none"></div>
                 <div class="col-md-4"><label class="form-label" for="first_name">First name</label><input class="form-control" id="first_name" name="first_name" maxlength="100" value="<?= e(old('first_name')) ?>"></div>
                 <div class="col-md-4"><label class="form-label" for="middle_name">Middle name</label><input class="form-control" id="middle_name" name="middle_name" maxlength="100" value="<?= e(old('middle_name')) ?>"></div>

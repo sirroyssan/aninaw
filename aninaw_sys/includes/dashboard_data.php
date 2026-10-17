@@ -649,7 +649,7 @@ function dashboard_member(): array
         'total_paid'  => $totalPaid,
         'balance'     => max(0.0, $totalDue - $totalPaid),
         'payments'    => db_all(
-            "SELECT p.payment_number, p.payment_date, p.payment_method, p.amount, p.status, r.receipt_number
+            "SELECT p.id, p.payment_number, p.payment_date, p.payment_method, p.amount, p.status, r.receipt_number
              FROM payments p
              LEFT JOIN receipts r ON r.payment_id = p.id AND r.institution_id = p.institution_id AND r.receipt_status = 'issued'
              WHERE p.institution_id = ? AND p.payer_participant_id = ? AND p.status IN ('posted', 'refunded')

@@ -78,6 +78,13 @@ relationship and contact number. Safe to run again.
 field to collection rules (e.g. Registration Fee: T-shirt, Lanyard, AM/PM snacks, Lunch), shown on
 the payment form, the receipt and the payer's balances. Safe to run again.
 
+**Then** import `database/migration_009_default_passwords.sql` once. It makes e-mail optional for
+accounts and adds `users.must_change_password`. New accounts (Users → Add Member, and **People →
+Create Logins** for students in bulk) get a default password: last name + current year + a special
+character (e.g. `Delacruz2026!`), shown to the administrator once and never stored in plain text.
+The person must choose their own password at first sign-in before anything else opens. Users →
+**Reset to Default Password** issues a new one. Safe to run again.
+
 **Optional, once:** `database/migration_007_uppercase_names.sql` converts names already saved to
 capital letters. New and edited names are saved in capitals automatically.
 
@@ -176,7 +183,7 @@ Day-to-day work then follows the workflows in section 6.
 | Class President / Collector | Groups, collection progress per event, own turnovers |
 | Adviser | Advised groups, collection progress, turnovers, open discrepancies |
 | Auditor | Financial summary, journal balance check, reconciliation status, discrepancies, audit log (read-only) |
-| Student / Member | Own obligations, payments and receipts |
+| Student / Member | Own obligations (with what each includes), payments and a printable payer's copy of their own receipts. Logins: People → Create Logins (username = ID number, default password changed at first sign-in) |
 | Cash Advance Recipient | Own advances, receipts, returns and outstanding balance |
 | Faculty, Dean, Program Chair | Own cash advances: request, liquidate, track the balance (Class Presidents, Advisers and Event Organizers can request advances too) |
 | Inventory Custodian | Store dashboard: catalogue, low stock, deliveries; manages stock, supplier/production orders and adjustments |
@@ -304,7 +311,8 @@ aninaw_sys/
 ├── database/         schema.sql migration_002_financial_modules.sql migration_003_products_orders.sql migration_004_event_people.sql
 │                     migration_005_advance_roles_event_requirements.sql
 │                     migration_006_people_details.sql migration_007_uppercase_names.sql
-│                     migration_008_rule_inclusions.sql create_admin.php
+│                     migration_008_rule_inclusions.sql
+│                     migration_009_default_passwords.sql create_admin.php
 ├── tests/            run_tests.php bootstrap.php fixtures.php cases/
 ├── uploads/          receipts/ attachments/        Blocked from direct access
 └── logs/                                           Private application log

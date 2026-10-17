@@ -31,15 +31,15 @@ if (is_post()) {
                 set_account_status($membershipId, post_str('status', 20), post_str('reason', 1000));
                 flash('success', 'Account updated');
                 break;
-            case 'reset_link':
-                remember_issued_link(issue_member_reset_link($membershipId), $member['email']);
-                flash('success', 'Password link issued');
+            case 'reset_default':
+                remember_issued_password(person_name($member), (string) $member['username'], reset_member_to_default_password($membershipId));
+                flash('success', 'Password reset', 'Give them the default password shown below. They must change it when they sign in.');
                 break;
             default:
                 fail_user('Unknown action.');
         }
         return 'users/edit.php?id=' . $membershipId;
-    }, in_array($action, ['profile', 'reset_link'], true));
+    }, in_array($action, ['profile', 'reset_default'], true));
 }
 
 $roles = db_all('SELECT r.role_name, r.description FROM membership_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.membership_id = ? ORDER BY r.id', [$membershipId]);
@@ -57,7 +57,7 @@ $activeNav = 'users';
 $breadcrumb = [auth_context()['label'], 'Users'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<?= issued_link_notice() ?>
+<?= issued_link_notice() ?><?= issued_password_notice() ?>
 <?= page_actions('@' . $member['username'] . ' · ' . $member['email'],
     button_link('users/index.php', 'All Users', 'bi-arrow-left', 'btn-outline-secondary')
     . (can('roles.assign') && !$isSelf ? button_link('users/roles.php?id=' . $membershipId, 'Manage Roles', 'bi-shield-lock') : '')) ?>
@@ -81,7 +81,7 @@ require APP_ROOT . '/includes/header.php';
                 <fieldset <?= $editable && $canManage ? '' : 'disabled' ?>>
                     <div class="row g-3">
                         <div class="col-md-6"><label class="form-label required" for="username">Username</label><input class="form-control" id="username" name="username" required maxlength="100" value="<?= e($member['username']) ?>"></div>
-                        <div class="col-md-6"><label class="form-label required" for="email">E-mail</label><input class="form-control" type="email" id="email" name="email" required maxlength="190" value="<?= e($member['email']) ?>"></div>
+                        <div class="col-md-6"><label class="form-label" for="email">E-mail</label><input class="form-control" type="email" id="email" name="email" maxlength="190" value="<?= e($member['email']) ?>"></div>
                         <div class="col-md-4"><label class="form-label required" for="first_name">First name</label><input class="form-control" id="first_name" name="first_name" required maxlength="100" value="<?= e($member['first_name']) ?>"></div>
                         <div class="col-md-4"><label class="form-label" for="middle_name">Middle name</label><input class="form-control" id="middle_name" name="middle_name" maxlength="100" value="<?= e($member['middle_name']) ?>"></div>
                         <div class="col-md-4"><label class="form-label required" for="last_name">Last name</label><input class="form-control" id="last_name" name="last_name" required maxlength="100" value="<?= e($member['last_name']) ?>"></div>
@@ -154,10 +154,10 @@ require APP_ROOT . '/includes/header.php';
                                 <button class="btn btn-outline-primary" type="submit">Apply</button>
                             </div>
                         </form>
-                        <form method="post" data-confirm="Issue a new password link?" data-confirm-text="Any earlier unused link stops working. The person sets their own password with the new link.">
+                        <form method="post" data-confirm="Reset to a default password?" data-confirm-text="Their current password stops working and they are signed out. They must change the new default password when they sign in.">
                             <?= csrf_field() ?><?= idempotency_field() ?>
-                            <input type="hidden" name="action" value="reset_link">
-                            <button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-key me-1" aria-hidden="true"></i>Issue Password Link</button>
+                            <input type="hidden" name="action" value="reset_default">
+                            <button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-key me-1" aria-hidden="true"></i>Reset to Default Password</button>
                         </form>
                     <?php endif; ?>
                 </div>

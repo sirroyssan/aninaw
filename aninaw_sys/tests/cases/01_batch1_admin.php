@@ -49,16 +49,29 @@ test('ledger codes lock after transactions but names can change', function () {
 
 section('Batch 1: users and roles');
 
-test('admin adds a new member who sets their own password with a one-time link', function () {
+test('admin adds a new member with a default password that must be changed at first sign-in', function () {
     act_as('admin', 'TST');
     $roleId = (int) db_value("SELECT id FROM roles WHERE role_code = 'cashier'");
-    $result = create_member(['email' => 'newcashier@example.test', 'username' => 'newcashier', 'first_name' => 'New', 'last_name' => 'Cashier', 'roles' => [(string) $roleId]]);
-    assert_true($result['reset_link'] !== null && !$result['existing'], 'new account with link');
-    $token = substr((string) $result['reset_link'], strpos((string) $result['reset_link'], 'token=') + 6);
-    assert_same(1, (int) db_value('SELECT COUNT(*) FROM password_reset_tokens WHERE token_hash = ?', [hash('sha256', $token)]), 'only the hash is stored');
-    complete_password_reset($token, 'BrandNew2026x', 'BrandNew2026x');
-    assert_true(password_verify('BrandNew2026x', (string) db_value("SELECT password_hash FROM users WHERE username = 'newcashier'")), 'password set');
-    assert_rejected(fn() => complete_password_reset($token, 'Another2026xx', 'Another2026xx'), 'invalid or has expired');
+    $result = create_member(['email' => 'newcashier@example.test', 'username' => 'newcashier', 'first_name' => 'New', 'last_name' => 'dela Cruz', 'roles' => [(string) $roleId]]);
+    assert_true(!$result['existing'] && $result['default_password'] !== null, 'new account with a default password');
+    assert_true((bool) preg_match('/^Delacruz' . date('Y') . '[!@#$%&*?]$/', $result['default_password']), 'last name + year + special character');
+    $row = db_one("SELECT password_hash, must_change_password FROM users WHERE username = 'newcashier'");
+    assert_true(password_verify($result['default_password'], $row['password_hash']), 'only the hash is stored');
+    assert_same(1, (int) $row['must_change_password'], 'must change at first sign-in');
+    assert_rejected(fn() => change_default_password($result['user_id'], $result['default_password'], $result['default_password']), 'not the default');
+    assert_rejected(fn() => change_default_password($result['user_id'], 'short1', 'short1'), '10 or more');
+    assert_rejected(fn() => change_default_password($result['user_id'], 'BrandNew2026x', 'BrandNew2026y'), 'do not match');
+    change_default_password($result['user_id'], 'BrandNew2026x', 'BrandNew2026x');
+    $row = db_one("SELECT password_hash, must_change_password FROM users WHERE username = 'newcashier'");
+    assert_true(password_verify('BrandNew2026x', $row['password_hash']) && (int) $row['must_change_password'] === 0, 'own password set, no longer forced');
+    // E-mail is optional for new accounts (students sign in with their ID number).
+    $noEmail = create_member(['username' => 'student-no-mail', 'first_name' => 'No', 'last_name' => 'Mail', 'roles' => [(string) $roleId]]);
+    assert_same(null, db_value('SELECT email FROM users WHERE id = ?', [$noEmail['user_id']]));
+    // Reset to a new default password.
+    $password = reset_member_to_default_password($result['membership_id']);
+    assert_true(password_verify($password, (string) db_value("SELECT password_hash FROM users WHERE username = 'newcashier'")), 'reset to a new default');
+    assert_same(1, (int) db_value("SELECT must_change_password FROM users WHERE username = 'newcashier'"));
+    assert_same('user.password_reset_default', db_value("SELECT action FROM audit_logs ORDER BY id DESC LIMIT 1"));
 });
 
 test('weak passwords are refused on reset', function () {
@@ -71,11 +84,12 @@ test('an existing account from another institution joins by e-mail without chang
     act_as('admin', 'TST');
     $roleId = (int) db_value("SELECT id FROM roles WHERE role_code = 'auditor'");
     $result = create_member(['email' => 'other_treasurer@example.test', 'first_name' => 'Changed', 'last_name' => 'Name', 'username' => 'x', 'roles' => [(string) $roleId]]);
-    assert_true($result['existing'] && $result['reset_link'] === null, 'existing account, no link');
+    assert_true($result['existing'] && $result['default_password'] === null, 'existing account keeps its own password');
     assert_same('Otto', db_value("SELECT first_name FROM users WHERE username = 'other_treasurer'"));
     // Shared account: this institution may not edit its details or reset its password.
     assert_rejected(fn() => update_member_profile($result['membership_id'], ['username' => 'other_treasurer', 'email' => 'other_treasurer@example.test', 'first_name' => 'X', 'last_name' => 'Y']), 'another institution');
     assert_rejected(fn() => issue_member_reset_link($result['membership_id']), 'another institution');
+    assert_rejected(fn() => reset_member_to_default_password($result['membership_id']), 'another institution');
     assert_rejected(fn() => create_member(['email' => 'other_treasurer@example.test', 'roles' => [(string) $roleId]]), 'already a member');
 });
 

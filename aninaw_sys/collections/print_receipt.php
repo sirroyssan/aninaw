@@ -8,13 +8,13 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/auth_check.php';
 require_once APP_ROOT . '/includes/services/payments.php';
 require_institution_context();
-require_permission(['collections.view', 'collections.record']);
-
-$payment = require_found(find_payment(require_get_id()));
+// Staff print the official receipt (counted and logged); a student opening their own payment gets a payer's copy.
+$payerCopy = !can_any(['collections.view', 'collections.record']);
+$payment = require_found(find_payment(require_get_id(), $payerCopy));
 if (!$payment['receipt_id']) {
     render_error_page(404, 'No Receipt', 'This payment has no receipt.');
 }
-$isReprint = register_receipt_print($payment);
+$isReprint = $payerCopy ? false : register_receipt_print($payment);
 $institution = db_one('SELECT * FROM institutions WHERE id = ?', [current_institution_id()]);
 $title = institution_setting((int) current_institution_id(), 'receipt.title', 'Acknowledgment Receipt');
 $footer = institution_setting((int) current_institution_id(), 'receipt.footer', '');
@@ -36,11 +36,11 @@ $voided = $payment['receipt_status'] === 'voided';
 </head>
 <body class="receipt-body" data-base-url="<?= e(app_base_path()) ?>" data-flash="[]">
 <div class="receipt-toolbar no-print">
-    <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('collections/payment.php?id=' . $payment['id'])) ?>"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
+    <a class="btn btn-outline-secondary btn-sm" href="<?= e(url($payerCopy ? 'dashboard/index.php' : 'collections/payment.php?id=' . $payment['id'])) ?>"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
     <button class="btn btn-primary btn-sm" type="button" data-print><i class="bi bi-printer me-1" aria-hidden="true"></i>Print</button>
 </div>
 <main class="receipt<?= $voided ? ' is-void' : '' ?>">
-    <?php if ($voided): ?><div class="receipt-watermark">VOID</div><?php elseif ($isReprint): ?><div class="receipt-watermark receipt-watermark-soft">REPRINT</div><?php endif; ?>
+    <?php if ($voided): ?><div class="receipt-watermark">VOID</div><?php elseif ($isReprint): ?><div class="receipt-watermark receipt-watermark-soft">REPRINT</div><?php elseif ($payerCopy): ?><div class="receipt-watermark receipt-watermark-soft">PAYER'S COPY</div><?php endif; ?>
     <header class="receipt-header">
         <div>
             <div class="receipt-institution"><?= e($institution['institution_name']) ?></div>

@@ -96,7 +96,8 @@ $pageScripts = ['js/member_picker.js'];
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions($group['group_code'] . ' · ' . (GROUP_TYPES[$group['group_type']] ?? $group['group_type']) . ($group['department_name'] ? ' · ' . $group['department_name'] : ''),
-    button_link('groups/index.php', 'All Groups', 'bi-arrow-left', 'btn-outline-secondary')) ?>
+    button_link('groups/index.php', 'All Groups', 'bi-arrow-left', 'btn-outline-secondary')
+    . (can('users.manage') ? button_link('participants/logins.php?group=' . $groupId . '&type=all', 'Create Logins', 'bi-person-lock', 'btn-outline-primary') : '')) ?>
 
 <div class="stat-grid">
     <?= stat_card('bi-people', 'Active Members', number_format(count($members))) ?>
