@@ -66,11 +66,12 @@ if ($isPlatform) {
 $pageTitle = 'Users';
 $activeNav = 'users';
 $breadcrumb = [auth_context()['label'], $isPlatform ? 'Platform' : 'Administration'];
+$pageScripts = array_merge($pageScripts ?? [], ['js/page_modal.js']);
 require APP_ROOT . '/includes/header.php';
 ?>
 <?= page_actions(
     $isPlatform ? 'All accounts on the platform. Access to each institution is managed by that institution\'s administrators.' : 'Members of this institution, their roles and access status.',
-    !$isPlatform && can('users.manage') ? button_link('users/create.php', 'Add Member', 'bi-person-plus') : ''
+    !$isPlatform && can('users.manage') ? button_link('users/create.php', 'Add Member', 'bi-person-plus', 'btn-primary', 'lg') : ''
 ) ?>
 
 <div class="card panel">

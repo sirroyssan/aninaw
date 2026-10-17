@@ -89,22 +89,22 @@ function validate_person_input(array $input, ?int $ignoreUserId = null): array
         'phone'       => input_str($input, 'phone', 50),
     ];
     if (!preg_match(USERNAME_PATTERN, $data['username'])) {
-        fail_user('Username must be 3-100 characters: letters, numbers, dots, dashes or underscores.');
+        fail_user('Username must be 3-100 characters: letters, numbers, dots, dashes or underscores.', 'username');
     }
     if ($data['email'] !== '' && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        fail_user('Enter a valid e-mail address, or leave it blank.');
+        fail_user('Enter a valid e-mail address, or leave it blank.', 'email');
     }
     if ($data['first_name'] === '' || $data['last_name'] === '') {
-        fail_user('First and last name are required.');
+        fail_user('First and last name are required.', $data['first_name'] === '' ? 'first_name' : 'last_name');
     }
     if ($data['phone'] !== '' && !preg_match('/^[0-9+() .-]{6,50}$/', $data['phone'])) {
-        fail_user('Enter a valid phone number.');
+        fail_user('Enter a valid phone number.', 'phone');
     }
     if (db_value('SELECT 1 FROM users WHERE username = ? AND id <> ?', [$data['username'], $ignoreUserId ?? 0])) {
-        fail_user('That username is already taken.');
+        fail_user('That username is already taken.', 'username');
     }
     if ($data['email'] !== '' && db_value('SELECT 1 FROM users WHERE email = ? AND id <> ?', [$data['email'], $ignoreUserId ?? 0])) {
-        fail_user('That e-mail address is already registered to another account.');
+        fail_user('That e-mail address is already registered to another account.', 'email');
     }
     return $data;
 }

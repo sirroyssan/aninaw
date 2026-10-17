@@ -33,7 +33,7 @@ $activeNav = 'users';
 $breadcrumb = [auth_context()['label'], 'Users'];
 require APP_ROOT . '/includes/header.php';
 ?>
-<form method="post" class="card panel form-card" style="max-width: 880px">
+<form method="post" class="card panel form-card" style="max-width: 880px" data-modal-body>
     <?= csrf_field() ?><?= idempotency_field() ?>
     <div class="card-body">
         <div class="notice notice-info"><i class="bi bi-info-circle" aria-hidden="true"></i>
