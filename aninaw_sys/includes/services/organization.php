@@ -9,6 +9,17 @@ declare(strict_types=1);
 
 const GROUP_TYPES = ['class' => 'Class', 'section' => 'Section', 'team' => 'Team / Committee', 'organization' => 'Organization / Chapter', 'other' => 'Other'];
 const PARTICIPANT_TYPES = ['student' => 'Student', 'employee' => 'Faculty / Staff', 'member' => 'Member', 'other' => 'Customer / Other'];
+/** Programs every new institution starts with (code => name); each institution can edit or add more. */
+const DEFAULT_PROGRAMS = [
+    'BSIT' => 'Bachelor of Science in Information Technology',
+    'BSCS' => 'Bachelor of Science in Computer Science',
+    'BSIS' => 'Bachelor of Science in Information Systems',
+    'ACT' => 'Associate in Computer Technology',
+    'BEEd' => 'Bachelor of Elementary Education',
+    'BECEd' => 'Bachelor of Early Childhood Education',
+    'BECAEd' => 'Bachelor of Culture and Arts Education',
+];
+const GUARDIAN_RELATIONSHIPS = ['Mother' => 'Mother', 'Father' => 'Father', 'Guardian' => 'Guardian', 'Grandparent' => 'Grandparent', 'Sibling' => 'Sibling', 'Spouse' => 'Spouse', 'Other' => 'Other'];
 const OFFICER_TYPES = ['president' => 'President', 'collector' => 'Collector', 'adviser' => 'Adviser', 'other' => 'Other officer'];
 
 /**
@@ -240,19 +251,55 @@ function end_officer(int $officerId): void
 // Participants
 // ---------------------------------------------------------------------------
 
-function validate_participant(array $input, ?int $participantId): array
+/**
+ * Validates a person's record. $strict (the person form) also requires a student's middle
+ * name unless "No middle name" is ticked; imports from class lists and CSV do not, since
+ * those lists often leave it out.
+ */
+function validate_participant(array $input, ?int $participantId, bool $strict = false): array
 {
     $institutionId = (int) current_institution_id();
     $data = [
         'participant_number' => input_str($input, 'participant_number', 100),
         'first_name'         => input_str($input, 'first_name', 100),
         'middle_name'        => input_str($input, 'middle_name', 100),
+        'no_middle_name'     => in_array(strtolower(input_str($input, 'no_middle_name', 5)), ['1', 'yes', 'true', 'y'], true) ? 1 : 0,
         'last_name'          => input_str($input, 'last_name', 100),
         'email'              => mb_strtolower(input_str($input, 'email', 190)),
         'phone'              => input_str($input, 'phone', 50),
         'participant_type'   => input_enum($input, 'participant_type', array_keys(PARTICIPANT_TYPES), 'student'),
         'status'             => input_enum($input, 'status', ['active', 'inactive', 'archived'], 'active'),
+        'birth_date'         => input_date($input, 'birth_date'),
+        'address'            => input_str($input, 'address', 500),
+        'program_id'         => input_int($input, 'program_id'),
+        'guardian_name'      => input_str($input, 'guardian_name', 180),
+        'guardian_relationship' => input_str($input, 'guardian_relationship', 60),
+        'guardian_phone'     => input_str($input, 'guardian_phone', 50),
     ];
+    if ($data['middle_name'] !== '') {
+        $data['no_middle_name'] = 0;
+    }
+    if (!$data['program_id'] && ($code = input_str($input, 'program_code', 30)) !== '') {
+        $data['program_id'] = (int) db_value('SELECT id FROM programs WHERE institution_id = ? AND program_code = ?', [$institutionId, $code])
+            ?: fail_user('Program "' . $code . '" does not exist. Add it under People → Programs first.');
+    }
+    if ($data['program_id'] && !db_value('SELECT 1 FROM programs WHERE institution_id = ? AND id = ?', [$institutionId, $data['program_id']])) {
+        fail_user('Select a valid program.');
+    }
+    if ($data['birth_date'] === null && trim((string) ($input['birth_date'] ?? '')) !== '') {
+        fail_user('Enter the birthday as a valid date.');
+    }
+    if ($data['birth_date'] !== null && ($data['birth_date'] > date('Y-m-d') || $data['birth_date'] < '1900-01-01')) {
+        fail_user('The birthday must be a past date.');
+    }
+    foreach (['phone' => 'phone number', 'guardian_phone' => 'guardian\'s contact number'] as $key => $label) {
+        if ($data[$key] !== '' && !preg_match('/^[0-9+()\-\s.\/]{7,50}$/', $data[$key])) {
+            fail_user('Enter a valid ' . $label . ' (digits, spaces, + - ( ) only).');
+        }
+    }
+    if ($strict && $data['participant_type'] === 'student' && $data['middle_name'] === '' && !$data['no_middle_name']) {
+        fail_user('Enter the student\'s middle name, or tick "No middle name".');
+    }
     if ($data['participant_number'] === '' || !preg_match('/^[A-Za-z0-9._\/-]{1,100}$/', $data['participant_number'])) {
         fail_user('ID number is required (letters, numbers, dots, dashes, slashes).');
     }
@@ -269,10 +316,10 @@ function validate_participant(array $input, ?int $participantId): array
 }
 
 /** Creates or updates a participant. A linked login lets the person see their own obligations. */
-function save_participant(?int $participantId, array $input): int
+function save_participant(?int $participantId, array $input, bool $strict = false): int
 {
     $institutionId = (int) current_institution_id();
-    $data = validate_participant($input, $participantId);
+    $data = validate_participant($input, $participantId, $strict);
 
     $linkedUserId = null;
     $linkMembership = input_int($input, 'link_membership_id');
@@ -283,18 +330,21 @@ function save_participant(?int $participantId, array $input): int
         }
     }
 
-    $values = [$data['participant_number'], $data['first_name'], $data['middle_name'] ?: null, $data['last_name'], $data['email'] ?: null, $data['phone'] ?: null, $data['participant_type'], $data['status'], $linkedUserId];
+    $values = [$data['participant_number'], $data['first_name'], $data['middle_name'] ?: null, $data['last_name'], $data['email'] ?: null, $data['phone'] ?: null, $data['participant_type'], $data['status'], $linkedUserId,
+        $data['no_middle_name'], $data['birth_date'], $data['address'] ?: null, $data['program_id'] ?: null, $data['guardian_name'] ?: null, $data['guardian_relationship'] ?: null, $data['guardian_phone'] ?: null];
+    $detailColumns = 'no_middle_name, birth_date, address, program_id, guardian_name, guardian_relationship, guardian_phone';
     if ($participantId) {
-        $before = db_one('SELECT participant_number, first_name, middle_name, last_name, email, phone, participant_type, status, user_id FROM participants WHERE institution_id = ? AND id = ?', [$institutionId, $participantId]) ?? fail_user('Participant not found.');
+        $before = db_one("SELECT participant_number, first_name, middle_name, last_name, email, phone, participant_type, status, user_id, {$detailColumns} FROM participants WHERE institution_id = ? AND id = ?", [$institutionId, $participantId]) ?? fail_user('Participant not found.');
         db_query(
-            'UPDATE participants SET participant_number = ?, first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, participant_type = ?, status = ?, user_id = ? WHERE institution_id = ? AND id = ?',
+            'UPDATE participants SET participant_number = ?, first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, participant_type = ?, status = ?, user_id = ?,
+                    no_middle_name = ?, birth_date = ?, address = ?, program_id = ?, guardian_name = ?, guardian_relationship = ?, guardian_phone = ? WHERE institution_id = ? AND id = ?',
             [...$values, $institutionId, $participantId]
         );
         audit_log('participant.updated', 'participant', $participantId, $institutionId, (int) auth_user()['id'], $data + ['user_id' => $linkedUserId], $before);
         return $participantId;
     }
     db_query(
-        'INSERT INTO participants (participant_number, first_name, middle_name, last_name, email, phone, participant_type, status, user_id, institution_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        "INSERT INTO participants (participant_number, first_name, middle_name, last_name, email, phone, participant_type, status, user_id, {$detailColumns}, institution_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [...$values, $institutionId]
     );
     $id = (int) db()->lastInsertId();
@@ -306,9 +356,10 @@ function find_participant(int $participantId): ?array
 {
     [$visibility, $params] = participant_visibility('p');
     return db_one(
-        "SELECT p.*, CONCAT(u.first_name, ' ', u.last_name) AS linked_user_name, u.email AS linked_user_email,
+        "SELECT p.*, CONCAT(u.first_name, ' ', u.last_name) AS linked_user_name, u.email AS linked_user_email, pr.program_code, pr.program_name,
                 (SELECT m.id FROM institution_memberships m WHERE m.institution_id = p.institution_id AND m.user_id = p.user_id) AS linked_membership_id
          FROM participants p LEFT JOIN users u ON u.id = p.user_id
+         LEFT JOIN programs pr ON pr.id = p.program_id AND pr.institution_id = p.institution_id
          WHERE p.institution_id = ? AND p.id = ? AND {$visibility}",
         array_merge([current_institution_id(), $participantId], $params)
     );
@@ -420,4 +471,65 @@ function import_participants_csv(string $path, bool $skipExisting): array
         audit_log('participant.imported', 'participant', null, $institutionId, (int) auth_user()['id'], compact('created', 'skipped', 'grouped'));
         return compact('created', 'skipped', 'grouped');
     });
+}
+
+// ---------------------------------------------------------------------------
+// Academic programs (BSIT, BSCS, ...)
+// ---------------------------------------------------------------------------
+
+/** [id => "BSIT — Bachelor of Science in ..."] */
+function program_options(bool $activeOnly = true, ?int $alwaysInclude = null): array
+{
+    // An inactive program still shows when it is the one already on the record being edited.
+    $sql = 'SELECT id, program_code, program_name FROM programs WHERE institution_id = ?';
+    $params = [current_institution_id()];
+    if ($activeOnly) {
+        $sql .= " AND (status = 'active' OR id = ?)";
+        $params[] = $alwaysInclude ?? 0;
+    }
+    return options_from_rows(db_all($sql . ' ORDER BY program_code', $params), 'id', static fn($r) => $r['program_code'] . ' — ' . $r['program_name']);
+}
+
+function save_program(?int $programId, array $input): int
+{
+    $institutionId = (int) current_institution_id();
+    if (!can('organization.manage')) {
+        fail_user('You do not have permission to manage programs.');
+    }
+    $data = [
+        'program_code'  => input_str($input, 'program_code', 30),
+        'program_name'  => input_str($input, 'program_name', 180),
+        'department_id' => input_int($input, 'department_id'),
+        'status'        => input_enum($input, 'status', ['active', 'inactive'], 'active'),
+    ];
+    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9.\- ]{0,29}$/', $data['program_code']) || mb_strlen($data['program_name']) < 3) {
+        fail_user('Enter the program code (e.g. BSIT) and its full name.');
+    }
+    if ($data['department_id'] && !db_value('SELECT 1 FROM departments WHERE institution_id = ? AND id = ?', [$institutionId, $data['department_id']])) {
+        fail_user('Select a valid department.');
+    }
+    if (db_value('SELECT 1 FROM programs WHERE institution_id = ? AND program_code = ? AND id <> ?', [$institutionId, $data['program_code'], $programId ?? 0])) {
+        fail_user('That program code is already used.');
+    }
+    $values = [$data['program_code'], $data['program_name'], $data['department_id'] ?: null, $data['status']];
+    if ($programId) {
+        $before = db_one('SELECT program_code, program_name, department_id, status FROM programs WHERE institution_id = ? AND id = ?', [$institutionId, $programId]) ?? fail_user('Program not found.');
+        db_query('UPDATE programs SET program_code = ?, program_name = ?, department_id = ?, status = ? WHERE institution_id = ? AND id = ?', [...$values, $institutionId, $programId]);
+        audit_log('program.updated', 'program', $programId, $institutionId, (int) auth_user()['id'], $data, $before);
+        return $programId;
+    }
+    db_query('INSERT INTO programs (program_code, program_name, department_id, status, institution_id) VALUES (?, ?, ?, ?, ?)', [...$values, $institutionId]);
+    $id = (int) db()->lastInsertId();
+    audit_log('program.created', 'program', $id, $institutionId, (int) auth_user()['id'], $data);
+    return $id;
+}
+
+/** Adds the standard programs an institution does not have yet. Returns how many were added. */
+function seed_default_programs(int $institutionId): int
+{
+    $added = 0;
+    foreach (DEFAULT_PROGRAMS as $code => $name) {
+        $added += db_query('INSERT IGNORE INTO programs (institution_id, program_code, program_name) VALUES (?, ?, ?)', [$institutionId, $code, $name])->rowCount();
+    }
+    return $added;
 }

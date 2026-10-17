@@ -12,8 +12,8 @@ require_permission('organization.manage');
 if (get_str('template') === '1') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="aninaw_participants_template.csv"');
-    echo "participant_number,first_name,middle_name,last_name,email,phone,participant_type,group_code\n";
-    echo "2026-0001,Juan,Santos,Dela Cruz,juan@example.com,09171234567,student,BSCS-3A\n";
+    echo "participant_number,first_name,middle_name,no_middle_name,last_name,email,phone,participant_type,group_code,program_code,birth_date,address,guardian_name,guardian_relationship,guardian_phone\n";
+    echo "2026-0001,Juan,Santos,,Dela Cruz,juan@example.com,09171234567,student,BSCS-3A,BSCS,2007-05-14,\"12 Rizal St., Botolan, Zambales\",Maria Dela Cruz,Mother,09181234567\n";
     exit;
 }
 
@@ -77,6 +77,9 @@ require APP_ROOT . '/includes/header.php';
                 <li><span><code>middle_name</code>, <code>email</code>, <code>phone</code></span><span class="text-muted-sm">optional</span></li>
                 <li><span><code>participant_type</code></span><span class="text-muted-sm">student, employee, member, other</span></li>
                 <li><span><code>group_code</code></span><span class="text-muted-sm">adds to an existing group</span></li>
+                <li><span><code>program_code</code></span><span class="text-muted-sm">e.g. BSIT (must exist under Programs)</span></li>
+                <li><span><code>birth_date</code></span><span class="text-muted-sm">YYYY-MM-DD</span></li>
+                <li><span><code>address</code>, <code>guardian_name</code>, <code>guardian_relationship</code>, <code>guardian_phone</code>, <code>no_middle_name</code> (yes/no)</span><span class="text-muted-sm">optional</span></li>
             </ul>
         </div>
     </div>

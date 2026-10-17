@@ -39,10 +39,11 @@ Design decisions, the accounting model, schema gaps and module status are listed
 Part 1 (platform roles, participant login link), Part 2 (roles and permissions seed),
 Part 3 (migration 002 for the financial modules), Part 4 (migration 003 for the store:
 products, inventory, orders and printing services) Part 5 (migration 004: people added
-directly to events) and Part 6 (migration 005: cash advance requesters, event document requirements).
+directly to events) Part 6 (migration 005: cash advance requesters, event document requirements) and Part 7 (migration 006:
+people details and academic programs).
 
 That is all for a new installation. **Do not import the migration files below**: `schema.sql`
-already contains them (Parts 3 to 6).
+already contains them (Parts 3 to 7).
 
 **Only if you are upgrading** a database that was imported from the *milestone 1* `schema.sql`
 (before the financial modules existed) and you want to keep its data:
@@ -67,6 +68,11 @@ group. Nothing else changes, and it is safe to run again.
 the Faculty, Dean and Program Chair roles (and lets Class Presidents and Advisers request cash
 advances), the `events.requirements` permission and two tables for event document requirements.
 Safe to run again.
+
+**And finally** import `database/migration_006_people_details.sql` once. It adds the `programs`
+table (filled with BSIT, BSCS, BSIS, ACT, BEEd, BECEd and BECAEd for each institution) and these
+columns to `participants`: birthday, address, program, "no middle name", parent / guardian name,
+relationship and contact number. Safe to run again.
 
 ## 3. Configure
 
@@ -120,6 +126,7 @@ Day-to-day work then follows the workflows in section 6.
 |---|---|---|---|
 | Participants import | `participants/import.php` (CSV), `participants/import_pdf.php` (class list PDF) | `organization.manage` | PDF class lists from the enrollment system are read on the server (no external tools); every student is shown for review before saving; ID numbers already registered are never overwritten; all-or-nothing import; optional section group created from the PDF's section, school year and semester; the PDF is not stored |
 | People and events | `participants/` (shown as **People**), event **People** tab | `organization.manage`; event creator/organizers | one directory of students, faculty / staff, members and customers; people can be added to an event one by one, by type (e.g. all faculty) or by copying a group, with no group required; rules for "everyone in the event" charge them as soon as they are added; removing someone cancels only unpaid charges and is refused once they have paid |
+| People details and programs | `participants/form.php`, `participants/programs.php`, event People tab → **Participant details** | `organization.manage`; details export: event organizers, `events.requirements` or `organization.manage` | birthday, address, program, parent / guardian and contact; students need a middle name unless "No middle name" is ticked (imports are not held to this); programs are managed per institution and deactivated rather than deleted; the event export (screen, print, CSV) lists Student ID, names, birthday, program, guardian, guardian contact and address, flags incomplete records, and every view and export is audited |
 | Event document requirements | event **Requirements** tab, `events/documents.php` | event creator/organizers, `events.requirements` | each event lists the papers it needs (e.g. parent's waiver for students, medical certificate for everyone), required or optional, with due dates; papers are recorded per person or for many at once as submitted, approved, returned (reason required) or not applicable (reason required), with an optional scanned copy; a checklist shows who is cleared (CSV and print); scans and statuses are visible only to the event's document checkers; every change is audited |
 | Collections | `collections/` | collectors, cashiers, treasurer (`collections.record`, `receipts.issue`) | partial payments only when the rule allows; no overpayment; one official receipt per payment; reprints logged; reversal needs `payments.reverse` and a reason, voids the receipt and restores the obligation |
 | Cash turnovers | `turnovers/` | collector submits (`turnovers.submit`), assigned cashier counts (`turnovers.receive`) | a payment is turned over once; declared and counted amounts stay separate; differences become discrepancies resolved by a third person |
@@ -187,6 +194,7 @@ All changes are additive; no original column or row is modified.
 | `inventory_movements`, `stock_batches`, `stock_batch_items` (migration 003) | Stock as an append-only movement history; supplier and production (shirt printer) orders with ordered vs received quantities |
 | `sales_orders`, `sales_order_items`, `sales_order_payments`, `sales_order_releases` (migration 003) | Orders with snapshot prices/costs, order and payment status, links to the existing `payments`/`receipts`, and a record of every hand-over |
 | `event_participants` (migration 004) | People added to an event directly (no group); removals are kept as history |
+| `programs`; participant birthday, address, program, guardian and "no middle name" columns (migration 006) | Academic programs and the personal details used for events and their exports |
 | `event_requirements`, `event_requirement_submissions` (migration 005) | Documents each event requires and the status of each person's paper (no row = not yet submitted) |
 | Roles `faculty`, `dean`, `program_chair`; permission `events.requirements` (migration 005) | Who may request cash advances; who may check documents for any event |
 | `service_consumption_rules` (migration 003) | Supplies a completed printing job deducts from stock (e.g. one sheet per page) |
@@ -213,7 +221,7 @@ Gaps handled without schema changes (reprint history, rejection reasons and budg
 ### Automated tests
 
 The suite builds a fresh test database with fictitious data (it refuses any database whose name does
-not end in `_test`) and runs 111 tests: money handling, isolation between institutions, every workflow
+not end in `_test`) and runs 116 tests: money handling, isolation between institutions, every workflow
 above, ledger integrity, budgets, reports, and the store (catalogue, stock, shirt orders, printing jobs,
 reservations, discounts, cancellation and store reports) and the PDF class list import (using generated
 PDFs with fictitious names).
@@ -259,9 +267,9 @@ aninaw_sys/
 ├── institutions/     index.php create.php view.php settings.php
 ├── users/            index.php create.php edit.php roles.php
 ├── groups/           index.php departments.php view.php
-├── participants/     index.php form.php view.php import.php import_pdf.php
+├── participants/     index.php form.php view.php import.php import_pdf.php programs.php search.php
 ├── funds/            index.php create.php view.php accounts.php account.php
-├── events/           index.php create.php view.php documents.php
+├── events/           index.php create.php view.php documents.php participant_details.php
 ├── collections/      index.php record_payment.php payment.php payments.php print_receipt.php verify_receipt.php
 ├── turnovers/        index.php submit.php verify.php view.php
 ├── deposits/         index.php view.php
@@ -287,7 +295,8 @@ aninaw_sys/
 ├── config/           config.php db.php session.php
 ├── assets/           css/ js/ (app, validation, finance, charts) images/ vendor/ (Bootstrap, Icons, SweetAlert2, Chart.js)
 ├── database/         schema.sql migration_002_financial_modules.sql migration_003_products_orders.sql migration_004_event_people.sql
-│                     migration_005_advance_roles_event_requirements.sql create_admin.php
+│                     migration_005_advance_roles_event_requirements.sql
+│                     migration_006_people_details.sql create_admin.php
 ├── tests/            run_tests.php bootstrap.php fixtures.php cases/
 ├── uploads/          receipts/ attachments/        Blocked from direct access
 └── logs/                                           Private application log

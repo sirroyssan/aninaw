@@ -55,6 +55,10 @@ require APP_ROOT . '/includes/header.php';
                     <div><dt>Full name</dt><dd><?= e(trim($participant['first_name'] . ' ' . ($participant['middle_name'] ?? '') . ' ' . $participant['last_name'])) ?></dd></div>
                     <div><dt>E-mail</dt><dd><?= e($participant['email'] ?: '—') ?></dd></div>
                     <div><dt>Phone</dt><dd><?= e($participant['phone'] ?: '—') ?></dd></div>
+                    <div><dt>Birthday</dt><dd><?= e($participant['birth_date'] ? format_date($participant['birth_date']) : '—') ?></dd></div>
+                    <div><dt>Program</dt><dd><?= e($participant['program_code'] ? $participant['program_code'] . ' — ' . $participant['program_name'] : '—') ?></dd></div>
+                    <div><dt>Address</dt><dd><?= e($participant['address'] ?: '—') ?></dd></div>
+                    <div><dt>Parent / guardian</dt><dd><?= e($participant['guardian_name'] ? $participant['guardian_name'] . ($participant['guardian_relationship'] ? ' (' . $participant['guardian_relationship'] . ')' : '') : '—') ?><?= $participant['guardian_phone'] ? '<div class="text-muted-sm">' . e($participant['guardian_phone']) . '</div>' : '' ?></dd></div>
                     <div><dt>Linked login</dt><dd><?= $participant['user_id'] ? e($participant['linked_user_name'] . ' · ' . $participant['linked_user_email']) : '<span class="text-muted-sm">Not linked</span>' ?></dd></div>
                     <div><dt>Registered</dt><dd><?= e(format_date($participant['created_at'])) ?></dd></div>
                 </dl>

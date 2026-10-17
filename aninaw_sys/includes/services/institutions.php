@@ -65,6 +65,8 @@ function create_institution(array $input): array
         );
         $institutionId = (int) db()->lastInsertId();
         audit_log('institution.created', 'institution', $institutionId, null, (int) auth_user()['id'], $data + ['status' => $status]);
+        require_once __DIR__ . '/organization.php';
+        seed_default_programs($institutionId);
 
         $resetLink = null;
         if ($adminEmail !== '') {

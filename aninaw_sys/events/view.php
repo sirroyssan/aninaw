@@ -391,6 +391,9 @@ $tabUrl = static fn(string $name) => url('events/view.php?id=' . $eventId . '&ta
          WHERE a.institution_id = ? AND a.event_id = ? AND a.status = 'active'", [$institutionId, $eventId]);
     $canAddPeople = $canManage && !in_array($event['status'], ['completed', 'closed', 'cancelled'], true);
     ?>
+    <?php if (can_check_event_documents($event) || can('organization.manage')): ?>
+        <div class="d-flex justify-content-end mb-2"><a class="btn btn-outline-primary btn-sm" href="<?= e(url('events/participant_details.php?event=' . $eventId)) ?>"><i class="bi bi-person-lines-fill me-1" aria-hidden="true"></i>Participant details (export)</a></div>
+    <?php endif; ?>
     <div class="stat-grid">
         <?= stat_card('bi-person-plus', 'Added directly', number_format(count($people)), 'Students, faculty or customers') ?>
         <?= stat_card('bi-diagram-3', 'Through groups', number_format($groupMembers), count($assignments) . ' participating group(s)', 'info') ?>
